@@ -483,7 +483,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	TexMetadata metadata = {};
 	ScratchImage scratchImg = {};
 
-	result = LoadFromWICFile(L"img/textest.jpg", WIC_FLAGS_NONE, &metadata, scratchImg);
+	result = LoadFromWICFile(L"img/textest.png", WIC_FLAGS_NONE, &metadata, scratchImg);
 
 	const Image* img = scratchImg.GetImage(0, 0, 0);
 
