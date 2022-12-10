@@ -56,6 +56,73 @@ struct TexRGBA
 
 std::vector<TexRGBA> texturedata(256 * 256);
 
+struct PMDHeader
+{
+	float version;
+	char modle_name[20];
+	char comment[256];
+};
+
+struct PMDVertex
+{
+	XMFLOAT3 pos;
+	XMFLOAT3 normal;
+	XMFLOAT2 uv;
+	unsigned short boneNo[2];
+	unsigned char boneWeight;
+	unsigned char edgeFlg;
+};
+
+constexpr size_t pmdvertex_size = 38;
+
+#pragma pack(1)
+
+struct PMDMaterial
+{
+	XMFLOAT3 diffuse;
+	float alpha;
+	float specularity;
+	XMFLOAT3 specular;
+	XMFLOAT3 ambient;
+	unsigned char toonIdx;
+	unsigned char edgeFlg;
+
+	unsigned int indicesNum;
+
+	char texFilePath[20];
+};
+
+#pragma pack()
+
+struct MaterialForHlsl
+{
+	XMFLOAT3 diffuse;
+	float alpha;
+	XMFLOAT3 specular;
+	float specularity;
+	XMFLOAT3 ambient;
+};
+
+struct AdditionalMaterial
+{
+	std::string texPath;
+	int toonIdx;
+	bool edgeFlg;
+};
+
+struct Material
+{
+	unsigned int indicesNUm;
+	MaterialForHlsl material;
+	AdditionalMaterial additional;
+};
+
+struct MatricesData
+{
+	XMMATRIX world;
+	XMMATRIX viewproj;
+};
+
 void DebugOutputFormatString(const char* format, ...)
 {
 #ifdef _DEBUG
@@ -178,6 +245,102 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		}
 	}
 
+
+	// PMD 로딩
+	char signature[3] = {};
+	auto fp = fopen("Model/miku.pmd", "rb");
+
+	PMDHeader pmdHeader;
+
+	fread(signature, sizeof(signature), 1, fp);
+	fread(&pmdHeader, sizeof(pmdHeader), 1, fp);
+
+	unsigned int vertNum;
+	fread(&vertNum, sizeof(vertNum), 1, fp);
+
+	std::vector<unsigned char> vertices(vertNum * pmdvertex_size);
+	fread(vertices.data(), vertices.size(), 1, fp);
+
+	unsigned int indicesNum;
+	fread(&indicesNum, sizeof(indicesNum), 1, fp);
+
+	std::vector<unsigned short> indices;
+
+	indices.resize(indicesNum);
+	fread(indices.data(), indices.size() * sizeof(indices[0]), 1, fp);
+
+	/*unsigned int materialNum;
+	fread(&materialNum, sizeof(materialNum), 1, fp);
+
+	std::vector<PMDMaterial> pmdMaterials(materialNum);
+
+	fread(pmdMaterials.data(), pmdMaterials.size() * sizeof(PMDMaterial), 1, fp);
+
+	fclose(fp);
+
+	std::vector<Material> materials(pmdMaterials.size());
+
+	for (int i = 0; i < pmdMaterials.size(); ++i)
+	{
+		materials[i].indicesNUm = pmdMaterials[i].indicesNum;
+		materials[i].material.diffuse = pmdMaterials[i].diffuse;
+		materials[i].material.alpha = pmdMaterials[i].alpha;
+		materials[i].material.specular = pmdMaterials[i].specular;
+		materials[i].material.specularity = pmdMaterials[i].specularity;
+		materials[i].material.ambient = pmdMaterials[i].ambient;
+	}
+
+	int materialBufferSize = sizeof(MaterialForHlsl);
+	materialBufferSize = (materialBufferSize + 0xff) & ~0xff;
+
+	ID3D12Resource* materialBuff = nullptr;
+
+	result = _dev->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(materialBufferSize * materialNum),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&materialBuff)
+	);
+
+	char* mapMaterial = nullptr;
+
+	result = materialBuff->Map(0, nullptr, (void**)&mapMaterial);
+
+	for (auto& m : materials)
+	{
+		*((MaterialForHlsl*)mapMaterial) = m.material;
+		mapMaterial += materialBufferSize;
+	}
+
+	materialBuff->Unmap(0, nullptr);
+
+	ID3D12DescriptorHeap* materialDescHeap = nullptr;
+
+	D3D12_DESCRIPTOR_HEAP_DESC matDescHeapDesc = {};
+	matDescHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	matDescHeapDesc.NodeMask = 0;
+	matDescHeapDesc.NumDescriptors = materialNum;
+	matDescHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+
+	result = _dev->CreateDescriptorHeap(&matDescHeapDesc, IID_PPV_ARGS(&materialDescHeap));
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC matCBVDesc = {};
+
+	matCBVDesc.BufferLocation = materialBuff->GetGPUVirtualAddress();
+	matCBVDesc.SizeInBytes = materialBufferSize;
+
+	auto matDescHeapH = materialDescHeap->GetCPUDescriptorHandleForHeapStart();
+
+	for (int i = 0; i < materialNum; i++)
+	{
+		_dev->CreateConstantBufferView(&matCBVDesc, matDescHeapH);
+		matDescHeapH.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		matCBVDesc.BufferLocation += materialBufferSize;
+	}*/
+
+
 	//정점 버퍼 생성
 	D3D12_HEAP_PROPERTIES heapprop = {};
 
@@ -188,7 +351,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	D3D12_RESOURCE_DESC resdesc = {};
 
 	resdesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	resdesc.Width = sizeof(vertices);
+	resdesc.Width = vertices.size();
 	resdesc.Height = 1;
 	resdesc.DepthOrArraySize = 1;
 	resdesc.MipLevels = 1;
@@ -201,7 +364,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 	result = _dev->CreateCommittedResource(&heapprop, D3D12_HEAP_FLAG_NONE, &resdesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&vertBuff));
 
-	Vertex* vertMap = nullptr;
+	unsigned char* vertMap = nullptr;
 
 	result = vertBuff->Map(0, nullptr, (void**)&vertMap);
 
@@ -212,12 +375,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	D3D12_VERTEX_BUFFER_VIEW vbView = {};
 
 	vbView.BufferLocation = vertBuff->GetGPUVirtualAddress();
-	vbView.SizeInBytes = sizeof(vertices);
-	vbView.StrideInBytes = sizeof(vertices[0]);
+	vbView.SizeInBytes = vertices.size();
+	vbView.StrideInBytes = pmdvertex_size;
 
 	ID3D12Resource* idxBuff = nullptr;
 
-	resdesc.Width = sizeof(indices);
+	resdesc.Width = indices.size() * sizeof(indices[0]);
 
 	result = _dev->CreateCommittedResource(&heapprop, D3D12_HEAP_FLAG_NONE, &resdesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&idxBuff));
 
@@ -230,7 +393,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 	ibView.BufferLocation = idxBuff->GetGPUVirtualAddress();
 	ibView.Format = DXGI_FORMAT_R16_UINT;
-	ibView.SizeInBytes = sizeof(indices);
+	ibView.SizeInBytes = indices.size() * sizeof(indices[0]);
 
 	//쉐이더 오브젝트
 	ID3DBlob* vsBlob = nullptr;
@@ -276,7 +439,27 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
 		},
 	    {
+			"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+		},
+	    {
 			"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+		},
+		{
+			"BONE_NO", 0, DXGI_FORMAT_R16G16_UINT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+		},
+		{
+			"WEIGHT", 0, DXGI_FORMAT_R8_UINT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+		},
+		{
+			"EDGE_FLG", 0, DXGI_FORMAT_R8_UINT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
 		},
@@ -302,7 +485,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	rootparam[0].DescriptorTable.NumDescriptorRanges = 1;
 
 	rootparam[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootparam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	rootparam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	rootparam[1].DescriptorTable.pDescriptorRanges = &descTblRange[1];
 	rootparam[1].DescriptorTable.NumDescriptorRanges = 1;
 
@@ -343,6 +526,54 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 	rootSigBlob->Release();
 
+	//깊이 버퍼 작성
+	D3D12_RESOURCE_DESC depthResDesc = {};
+	depthResDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	depthResDesc.Width = window_width;
+	depthResDesc.Height = window_height;
+	depthResDesc.DepthOrArraySize = 1;
+	depthResDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	depthResDesc.SampleDesc.Count = 1;
+	depthResDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+	D3D12_HEAP_PROPERTIES depthHeapProp = {};
+	depthHeapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
+	depthHeapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	depthHeapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+
+	D3D12_CLEAR_VALUE depthClearValue = {};
+	depthClearValue.DepthStencil.Depth = 1.0f;
+	depthClearValue.Format = DXGI_FORMAT_D32_FLOAT;
+
+	ID3D12Resource* depthBuffer = nullptr;
+	result = _dev->CreateCommittedResource(
+		&depthHeapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&depthResDesc,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		&depthClearValue,
+		IID_PPV_ARGS(&depthBuffer)
+	);
+
+	//깊이 버퍼 뷰 작성
+	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+	dsvHeapDesc.NumDescriptors = 1;
+	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	ID3D12DescriptorHeap* dsvHeap = nullptr;
+	result = _dev->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&dsvHeap));
+
+	//깊이 뷰 작성
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+
+	_dev->CreateDepthStencilView(
+		depthBuffer,
+		&dsvDesc,
+		dsvHeap->GetCPUDescriptorHandleForHeapStart()
+	);
+
 	//파이프라인 스테이트
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpipeline = {};
 
@@ -381,6 +612,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 	gpipeline.SampleDesc.Count = 1;
 	gpipeline.SampleDesc.Quality = 0;
+
+	gpipeline.DepthStencilState.DepthEnable = true;
+	gpipeline.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	gpipeline.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS; 
+
+	gpipeline.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
 	ID3D12PipelineState* _pipelinestate = nullptr;
 
@@ -667,15 +904,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
     //정수 버퍼
     XMMATRIX matrix = XMMatrixIdentity();
 
-	XMMATRIX worldMatrix = XMMatrixRotationY(XM_PIDIV4);
+	XMMATRIX worldMatrix = XMMatrixRotationY(18.0f);
 
-	XMFLOAT3 eye(0, 0, -5);
-	XMFLOAT3 target(0, 0, 0);
+	XMFLOAT3 eye(0, 10, -15);
+	XMFLOAT3 target(0, 10, 0);
 	XMFLOAT3 up(0, 1, 0);
 
 	XMMATRIX lookMatrix = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&up));
 
-	XMMATRIX projectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, static_cast<float>(window_width) / static_cast<float>(window_height), 1.0f, 10.0f);
+	XMMATRIX projectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, static_cast<float>(window_width) / static_cast<float>(window_height), 1.0f, 100.0f);
 
 	matrix *= worldMatrix;
 	matrix *= lookMatrix;
@@ -688,15 +925,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	_dev->CreateCommittedResource(
 		& CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
-		& CD3DX12_RESOURCE_DESC::Buffer((sizeof(matrix) + 0xff) & ~0xff),
+		& CD3DX12_RESOURCE_DESC::Buffer((sizeof(MatricesData) + 0xff) & ~0xff),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(&constBuff)
 	);
 
-	XMMATRIX* mapMatrix;
+	MatricesData* mapMatrix;
 	result = constBuff->Map(0, nullptr, (void**)&mapMatrix);
-	*mapMatrix = matrix;
+	mapMatrix->world = worldMatrix;
+	mapMatrix->viewproj = lookMatrix * projectionMatrix;
+	//*mapMatrix = matrix;
 
 	basicHeapHandle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
@@ -721,9 +960,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 			break;
 		}
 
-		angle += 0.1f;
+		angle += 0.01f;
 		worldMatrix = XMMatrixRotationY(angle);
-		*mapMatrix = worldMatrix * lookMatrix * projectionMatrix;
+		mapMatrix->world = worldMatrix;
+		mapMatrix->viewproj = lookMatrix * projectionMatrix;
 
 		int bbIdx = _swapChain->GetCurrentBackBufferIndex();
 
@@ -744,11 +984,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvH = rtvHeaps->GetCPUDescriptorHandleForHeapStart();
 		rtvH.ptr += bbIdx * _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-		_cmdList->OMSetRenderTargets(1, &rtvH, true, nullptr);
+		auto dsvH = dsvHeap->GetCPUDescriptorHandleForHeapStart();
+		_cmdList->OMSetRenderTargets(1, &rtvH, true, &dsvH);
 
-		float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+		float clearColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 		_cmdList->ClearRenderTargetView(rtvH, clearColor, 0, nullptr);
+		_cmdList->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 		_cmdList->RSSetViewports(1, &viewport);
 		_cmdList->RSSetScissorRects(1, &scissorrect);
@@ -766,7 +1008,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 		_cmdList->SetGraphicsRootDescriptorTable(1, heapHandle);
 
-		_cmdList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+		//_cmdList->SetDescriptorHeaps(1, &materialDescHeap);
+
+		//_cmdList->SetGraphicsRootDescriptorTable(1, materialDescHeap->GetGPUDescriptorHandleForHeapStart());
+
+		_cmdList->DrawIndexedInstanced(indicesNum, 1, 0, 0, 0);
+		//_cmdList->DrawInstanced(vertNum, 1, 0, 0);
 
 		BarrierDesc.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 		BarrierDesc.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
