@@ -4,7 +4,21 @@ float4 BasicPS(Output input) : SV_TARGET
 {
 	float3 light = normalize(float3(1, -1, 1));
 
-	float brightness = dot(-light, input.normal);
+	float diffuseB = dot(-light, input.normal);
+	float4 toonDif = toon.Sample(smpToon, float2(0, 1.0 - diffuseB));
 
-	return float4(brightness, brightness, brightness, 1) * diffuse;
+	float3 refLight = normalize(reflect(light, input.normal.xyz));
+	float specularB = pow(dot(refLight, -input.ray), specular.a);
+
+	float4 color = tex.Sample(smp, input.uv);
+	float2 sphereMapUV = (input.vnormal.xy + float2(1, -1)) * float2(0.5, -0.5);
+
+	return max(saturate(
+		toonDif
+		* diffuse
+		* color
+		* sph.Sample(smp, sphereMapUV)
+		+ spa.Sample(smp, sphereMapUV)
+		+ float4(specularB * specular.rgb, 1))
+        , float4(color * ambient, 1));
 }
