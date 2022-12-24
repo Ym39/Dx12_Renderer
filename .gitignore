@@ -348,3 +348,7 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
+DirectX12_Practice/DirectX12_Practice.vcxproj
+DirectX12_Practice/DirectX12_Practice.vcxproj.filters
+DirectX12_Practice/DirectX12_Practice.vcxproj
+DirectX12_Practice/DirectX12_Practice.vcxproj.filters
