@@ -1,5 +1,7 @@
+#include "Application.h"
 #include <Windows.h>
 #include <tchar.h>
+#include <wrl.h>
 
 #include <d3d12.h>
 #include <d3dx12.h>
@@ -22,9 +24,10 @@
 
 using namespace std;
 using namespace DirectX;
+using namespace Microsoft::WRL;
 using LoadLambda_t = std::function<HRESULT(const std::wstring& path, TexMetadata*, ScratchImage&)>;
 
-ID3D12Device* _dev = nullptr;
+ComPtr<ID3D12Device> _dev = nullptr;
 IDXGIFactory6* _dxgiFactory = nullptr;
 IDXGISwapChain4* _swapChain = nullptr;
 
@@ -32,6 +35,21 @@ int window_width = 1600;
 int window_height = 800;
 
 std::map<std::string, LoadLambda_t> loadLambdaTable;
+
+int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
+{
+	auto& app = Application::Instance();
+
+	if (!app.Init())
+	{
+		return -1;
+	}
+
+	app.Run();
+	app.Terminate();
+
+	return 0;
+}
 
 struct Vertex
 {
@@ -267,24 +285,15 @@ ID3D12Resource* LoadTextureFromFile(std::string& texPath)
 
 	auto img = scratchImg.GetImage(0, 0, 0);
 
-	D3D12_HEAP_PROPERTIES texHeapProp = {};
-	texHeapProp.Type = D3D12_HEAP_TYPE_CUSTOM;
-	texHeapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-	texHeapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-	texHeapProp.CreationNodeMask = 0;
-	texHeapProp.VisibleNodeMask = 0;
+	D3D12_HEAP_PROPERTIES texHeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_CPU_PAGE_PROPERTY_WRITE_BACK, D3D12_MEMORY_POOL_L0);
 
-	D3D12_RESOURCE_DESC resDesc = {};
-	resDesc.Format = metadata.format;
-	resDesc.Width = metadata.width;
-	resDesc.Height = metadata.height;
-	resDesc.DepthOrArraySize = metadata.arraySize;
-	resDesc.SampleDesc.Count = 1;
-	resDesc.SampleDesc.Quality = 0;
-	resDesc.MipLevels = metadata.mipLevels;
-	resDesc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
-	resDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	D3D12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+		metadata.format,
+		metadata.width,
+		metadata.height,
+		metadata.arraySize,
+		metadata.mipLevels
+	);
 
 	ID3D12Resource* texbuff = nullptr;
 	result = _dev->CreateCommittedResource(
@@ -424,24 +433,9 @@ ID3D12Resource* CreateBlackTexutre()
 
 ID3D12Resource* CreateGrayGradationTexutre()
 {
-	D3D12_HEAP_PROPERTIES texHeapProp = {};
+	D3D12_HEAP_PROPERTIES texHeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_CPU_PAGE_PROPERTY_WRITE_BACK, D3D12_MEMORY_POOL_L0);
 
-	texHeapProp.Type = D3D12_HEAP_TYPE_CUSTOM;
-	texHeapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-	texHeapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-	texHeapProp.VisibleNodeMask = 0;
-
-	D3D12_RESOURCE_DESC resDesc = {};
-	resDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	resDesc.Width = 4;
-	resDesc.Height = 256;
-	resDesc.DepthOrArraySize = 1;
-	resDesc.SampleDesc.Count = 1;
-	resDesc.SampleDesc.Quality = 0;
-	resDesc.MipLevels = 1;
-	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	resDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	D3D12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, 4, 256);
 
 
 	ID3D12Resource* gradBuff = nullptr;
@@ -572,7 +566,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 	for (auto lv : levels)
 	{
-		if (D3D12CreateDevice(nullptr, lv, IID_PPV_ARGS(&_dev)) == S_OK)
+		if (D3D12CreateDevice(nullptr, lv, IID_PPV_ARGS(_dev.ReleaseAndGetAddressOf())) == S_OK)
 		{
 			featureLevel = lv;
 			break;
