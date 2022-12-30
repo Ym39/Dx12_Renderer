@@ -9,8 +9,6 @@
 #include<string>
 #include<functional>
 
-using namespace DirectX;
-
 class Dx12Wrapper
 {
 	SIZE _winSize;
@@ -36,9 +34,9 @@ class Dx12Wrapper
 
 	struct SceneMatricesData
 	{
-		XMMATRIX world;
-		XMMATRIX view;
-		XMMATRIX proj;
+		DirectX::XMMATRIX world;
+		DirectX::XMMATRIX view;
+		DirectX::XMMATRIX proj;
 		XMFLOAT3 eye;
 	};
 
@@ -60,7 +58,7 @@ class Dx12Wrapper
 
 	HRESULT CreateSceneView();
 
-	using LoadLambda_t = std::function<HRESULT(const std::wstring& path, TexMetadata*, ScratchImage&)>;
+	using LoadLambda_t = std::function<HRESULT(const std::wstring& path, DirectX::TexMetadata*, DirectX::ScratchImage&)>;
 	std::map<std::string, LoadLambda_t> _loadLambdaTable;
 
 	std::map<std::string, ComPtr<ID3D12Resource>> _resourceTable;
