@@ -34,7 +34,6 @@ class Dx12Wrapper
 
 	struct SceneMatricesData
 	{
-		DirectX::XMMATRIX world;
 		DirectX::XMMATRIX view;
 		DirectX::XMMATRIX proj;
 		XMFLOAT3 eye;

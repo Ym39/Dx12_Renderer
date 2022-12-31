@@ -533,6 +533,44 @@ void Dx12Wrapper::BeginDraw()
 	_cmdList->RSSetScissorRects(1, _scissorrect.get());
 }
 
+void Dx12Wrapper::EndDraw()
+{
+	int bbIdx = _swapChain->GetCurrentBackBufferIndex();
+
+	D3D12_RESOURCE_BARRIER BarrierDesc = {};
+
+	BarrierDesc.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	BarrierDesc.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	BarrierDesc.Transition.pResource = _backBuffers[bbIdx];
+	BarrierDesc.Transition.Subresource = 0;
+
+	BarrierDesc.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	BarrierDesc.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+
+	_cmdList->ResourceBarrier(1, &BarrierDesc);
+
+	_cmdList->Close();
+
+	ID3D12CommandList* cmdlists[] = { _cmdList.Get() };
+	_cmdQueue->ExecuteCommandLists(1, cmdlists);
+
+	_cmdQueue->Signal(_fence.Get(), ++_fenceVal);
+
+	if (_fence->GetCompletedValue() != _fenceVal)
+	{
+		HANDLE event = CreateEvent(nullptr, false, false, nullptr);
+
+		_fence->SetEventOnCompletion(_fenceVal, event);
+
+		WaitForSingleObject(event, INFINITE);
+
+		CloseHandle(event);
+	}
+
+	_cmdAllocator->Reset();
+	_cmdList->Reset(_cmdAllocator.Get(), nullptr);
+}
+
 ComPtr<ID3D12Resource> Dx12Wrapper::GetTextureByPath(const char* texpath)
 {
 	auto it = _resourceTable.find(texpath);
