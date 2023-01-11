@@ -36,7 +36,7 @@ class Dx12Wrapper
 	{
 		DirectX::XMMATRIX view;
 		DirectX::XMMATRIX proj;
-		XMFLOAT3 eye;
+		DirectX::XMFLOAT3 eye;
 	};
 
 	SceneMatricesData* _mappedSceneMatricesData;

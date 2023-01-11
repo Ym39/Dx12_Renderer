@@ -28,46 +28,12 @@ ID3D12Resource* PMDRenderer::CreateDefaultTexture(size_t width, size_t height)
 
 ID3D12Resource* PMDRenderer::CreateWhiteTexture()
 {
-	D3D12_HEAP_PROPERTIES texHeapProp = {};
-
-	texHeapProp.Type = D3D12_HEAP_TYPE_CUSTOM;
-	texHeapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-	texHeapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-	texHeapProp.VisibleNodeMask = 0;
-
-	D3D12_RESOURCE_DESC resDesc = {};
-	resDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	resDesc.Width = 4;
-	resDesc.Height = 4;
-	resDesc.DepthOrArraySize = 1;
-	resDesc.SampleDesc.Count = 1;
-	resDesc.SampleDesc.Quality = 0;
-	resDesc.MipLevels = 1;
-	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	resDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-
-	ID3D12Resource* blackBuff = nullptr;
-
-	auto result = _dx12.Device()->CreateCommittedResource(
-		&texHeapProp,
-		D3D12_HEAP_FLAG_NONE,
-		&resDesc,
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-		nullptr,
-		IID_PPV_ARGS(&blackBuff)
-	);
-
-	if (FAILED(result))
-	{
-		return nullptr;
-	}
+	ID3D12Resource* whiteBuff= CreateDefaultTexture(4, 4);
 
 	std::vector<unsigned char> data(4 * 4 * 4);
 	std::fill(data.begin(), data.end(), 0xff);
 
-	result = blackBuff->WriteToSubresource(
+	auto result = whiteBuff->WriteToSubresource(
 		0,
 		nullptr,
 		data.data(),
@@ -75,83 +41,33 @@ ID3D12Resource* PMDRenderer::CreateWhiteTexture()
 		data.size()
 	);
 
-	return blackBuff;
-}
-
-ID3D12Resource* PMDRenderer::CreateBlackTexture()
-{
-	D3D12_HEAP_PROPERTIES texHeapProp = {};
-
-	texHeapProp.Type = D3D12_HEAP_TYPE_CUSTOM;
-	texHeapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-	texHeapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-	texHeapProp.VisibleNodeMask = 0;
-
-	D3D12_RESOURCE_DESC resDesc = {};
-	resDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	resDesc.Width = 4;
-	resDesc.Height = 4;
-	resDesc.DepthOrArraySize = 1;
-	resDesc.SampleDesc.Count = 1;
-	resDesc.SampleDesc.Quality = 0;
-	resDesc.MipLevels = 1;
-	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	resDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-
-	ID3D12Resource* whiteBuff = nullptr;
-
-	auto result = _dx12.Device()->CreateCommittedResource(
-		&texHeapProp,
-		D3D12_HEAP_FLAG_NONE,
-		&resDesc,
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-		nullptr,
-		IID_PPV_ARGS(&whiteBuff)
-	);
-
-	if (FAILED(result))
-	{
-		return nullptr;
-	}
-
-	std::vector<unsigned char> data(4 * 4 * 4);
-	std::fill(data.begin(), data.end(), 0);
-
-	result = whiteBuff->WriteToSubresource(
-		0,
-		nullptr,
-		data.data(),
-		4 * 4,
-		data.size()
-	);
+	assert(SUCCEEDED(result));
 
 	return whiteBuff;
 }
 
+ID3D12Resource* PMDRenderer::CreateBlackTexture()
+{
+	ID3D12Resource* blackBuff = CreateDefaultTexture(4, 4);
+
+	std::vector<unsigned char> data(4 * 4 * 4);
+	std::fill(data.begin(), data.end(), 0x00);
+
+	auto result = blackBuff->WriteToSubresource(
+		0,
+		nullptr,
+		data.data(),
+		4 * 4,
+		data.size()
+	);
+	assert(SUCCEEDED(result));
+
+	return blackBuff;
+}
+
 ID3D12Resource* PMDRenderer::CreateGrayGradiationTexture()
 {
-	D3D12_HEAP_PROPERTIES texHeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_CPU_PAGE_PROPERTY_WRITE_BACK, D3D12_MEMORY_POOL_L0);
-
-	D3D12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, 4, 256);
-
-
-	ID3D12Resource* gradBuff = nullptr;
-
-	auto result = _dx12.Device()->CreateCommittedResource(
-		&texHeapProp,
-		D3D12_HEAP_FLAG_NONE,
-		&resDesc,
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-		nullptr,
-		IID_PPV_ARGS(&gradBuff)
-	);
-
-	if (FAILED(result))
-	{
-		return nullptr;
-	}
+	ID3D12Resource* gradBuff = CreateDefaultTexture(4, 4);
 
 	std::vector<unsigned char> data(4 * 256);
 	auto it = data.begin();
@@ -163,13 +79,15 @@ ID3D12Resource* PMDRenderer::CreateGrayGradiationTexture()
 		--c;
 	}
 
-	result = gradBuff->WriteToSubresource(
+	auto result = gradBuff->WriteToSubresource(
 		0,
 		nullptr,
 		data.data(),
 		4 * sizeof(unsigned int),
 		sizeof(unsigned int) * data.size()
 	);
+
+	assert(SUCCEEDED(result));
 
 	return gradBuff;
 }
@@ -263,21 +181,13 @@ HRESULT PMDRenderer::CreateGraphicsPipelineForPMD()
 
 	gpipeline.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
-	gpipeline.RasterizerState.MultisampleEnable = false;
-
+	gpipeline.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	gpipeline.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-	gpipeline.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-	gpipeline.RasterizerState.DepthClipEnable = true;
 
 	gpipeline.BlendState.AlphaToCoverageEnable = false;
 	gpipeline.BlendState.IndependentBlendEnable = false;
 
-	D3D12_RENDER_TARGET_BLEND_DESC renderTargetBlendDesc = {};
-	renderTargetBlendDesc.BlendEnable = false;
-	renderTargetBlendDesc.LogicOpEnable = false;
-	renderTargetBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
-	gpipeline.BlendState.RenderTarget[0] = renderTargetBlendDesc;
+	gpipeline.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
 	gpipeline.InputLayout.pInputElementDescs = inputLayout;
 	gpipeline.InputLayout.NumElements = _countof(inputLayout);
@@ -293,10 +203,9 @@ HRESULT PMDRenderer::CreateGraphicsPipelineForPMD()
 	gpipeline.DepthStencilState.DepthEnable = true;
 	gpipeline.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 	gpipeline.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	gpipeline.DepthStencilState.StencilEnable = false;
 	gpipeline.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-
-	ID3D12PipelineState* _pipelinestate = nullptr;
-
+	
 	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(_pipeline.ReleaseAndGetAddressOf()));
 	if (FAILED(result)) {
 		assert(SUCCEEDED(result));
@@ -332,7 +241,7 @@ HRESULT PMDRenderer::CreateRootSignature()
 	D3D12_ROOT_PARAMETER rootparam[3] = {};
 	rootparam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootparam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-	rootparam[0].DescriptorTable.pDescriptorRanges = descTblRange;
+	rootparam[0].DescriptorTable.pDescriptorRanges = &descTblRange[0];
 	rootparam[0].DescriptorTable.NumDescriptorRanges = 1;
 
 	rootparam[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -350,7 +259,7 @@ HRESULT PMDRenderer::CreateRootSignature()
 
 	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 	rootSignatureDesc.pParameters = rootparam;
-	rootSignatureDesc.NumParameters = 2;
+	rootSignatureDesc.NumParameters = 3;
 
 	D3D12_STATIC_SAMPLER_DESC samplerDesc[2] = {};
 
@@ -369,6 +278,7 @@ HRESULT PMDRenderer::CreateRootSignature()
 	samplerDesc[1].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	samplerDesc[1].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	samplerDesc[1].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc[1].Filter = D3D12_FILTER_ANISOTROPIC;
 	samplerDesc[1].ShaderRegister = 1;
 
 	rootSignatureDesc.pStaticSamplers = samplerDesc;
