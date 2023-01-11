@@ -168,8 +168,9 @@ HRESULT Dx12Wrapper::CreateDepthStencilView()
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
 	dsvHeapDesc.NumDescriptors = 1;
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-	ID3D12DescriptorHeap* dsvHeap = nullptr;
-	result = _dev->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&dsvHeap));
+	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+	result = _dev->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(_dsvHeap.ReleaseAndGetAddressOf()));
 
 	//±íÀÌ ºä ÀÛ¼º
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
@@ -180,7 +181,7 @@ HRESULT Dx12Wrapper::CreateDepthStencilView()
 	_dev->CreateDepthStencilView(
 		_depthBuffer.Get(),
 		&dsvDesc,
-		dsvHeap->GetCPUDescriptorHandleForHeapStart()
+		_dsvHeap->GetCPUDescriptorHandleForHeapStart()
 	);
 
     return result;
@@ -204,6 +205,7 @@ HRESULT Dx12Wrapper::CreateSwapChain(const HWND& hwnd)
 	swapchainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 	auto result = _dxgiFactory->CreateSwapChainForHwnd(_cmdQueue.Get(), hwnd, &swapchainDesc, nullptr, nullptr, (IDXGISwapChain1**)_swapChain.ReleaseAndGetAddressOf());
+	assert(SUCCEEDED(result));
 
 	return result;
 }
@@ -316,7 +318,7 @@ HRESULT Dx12Wrapper::CreateSceneView()
 	_mappedSceneMatricesData = nullptr;
 	result = _sceneConstBuff->Map(0, nullptr, (void**)&_mappedSceneMatricesData);
 
-	XMFLOAT3 eye(0, 10, -15);
+	XMFLOAT3 eye(0, 10, -30);
 	XMFLOAT3 target(0, 10, 0);
 	XMFLOAT3 up(0, 1, 0);
 

@@ -87,15 +87,17 @@ HRESULT PMDActor::CreateMaterialData()
 
 HRESULT PMDActor::CreateMaterialAndTextureView()
 {
-	ID3D12DescriptorHeap* materialDescHeap = nullptr;
-
 	D3D12_DESCRIPTOR_HEAP_DESC matDescHeapDesc = {};
 	matDescHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	matDescHeapDesc.NodeMask = 0;
 	matDescHeapDesc.NumDescriptors = _materials.size() * 5;
 	matDescHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
-	auto result = _dx12.Device()->CreateDescriptorHeap(&matDescHeapDesc, IID_PPV_ARGS(&materialDescHeap));
+	auto result = _dx12.Device()->CreateDescriptorHeap(&matDescHeapDesc, IID_PPV_ARGS(_materialHeap.ReleaseAndGetAddressOf()));
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+		return result;
+	}
 
 	auto materialBuffSize = sizeof(MaterialForHlsl);
 	materialBuffSize = (materialBuffSize + 0xff) & ~0xff;
@@ -109,7 +111,7 @@ HRESULT PMDActor::CreateMaterialAndTextureView()
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
 
-	auto matDescHeapH = materialDescHeap->GetCPUDescriptorHandleForHeapStart();
+	auto matDescHeapH = _materialHeap->GetCPUDescriptorHandleForHeapStart();
 	auto incSize = _dx12.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	for (int i = 0; i < _materials.size(); ++i)
@@ -180,6 +182,8 @@ HRESULT PMDActor::CreateMaterialAndTextureView()
 
 		matDescHeapH.ptr += incSize;
 	}
+
+	return result;
 }
 
 HRESULT PMDActor::CreateTransformView()
@@ -463,7 +467,7 @@ PMDActor::~PMDActor()
 
 void PMDActor::Update()
 {
-	_angle += 0.03f;
+	_angle += 0.005f;
 	_mappedTransform->world = XMMatrixRotationY(_angle);
 }
 
