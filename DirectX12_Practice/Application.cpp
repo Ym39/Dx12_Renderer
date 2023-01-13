@@ -2,6 +2,7 @@
 #include"Dx12Wrapper.h"
 #include"PMDRenderer.h"
 #include"PMDActor.h"
+#include"PMXActor.h"
 
 const unsigned int window_width = 1600;
 const unsigned int window_height = 800;
@@ -45,6 +46,13 @@ void Application::CreateGameWindow(HWND& hwnd, WNDCLASSEX& windowClass)
 		nullptr);
 }
 
+std::wstring s2ws(const std::string& str)
+{
+	int size_needed = MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0);
+	std::wstring wstrTo(size_needed, 0);
+	MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstrTo[0], size_needed);
+	return wstrTo;
+}
 
 bool Application::Init()
 {
@@ -54,6 +62,7 @@ bool Application::Init()
 	_dx12.reset(new Dx12Wrapper(_hwnd));
 	_pmdRenderer.reset(new PMDRenderer(*_dx12));
 	_pmdActor.reset(new PMDActor("Model/miku.pmd", *_pmdRenderer));
+	_pmxActor.reset(new PMXActor(L"PMXModel\\«ß«¯ªµªó.pmx"));
 
 	return true;
 }
