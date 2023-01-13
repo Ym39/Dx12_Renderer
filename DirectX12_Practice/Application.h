@@ -15,6 +15,7 @@
 class Dx12Wrapper;
 class PMDRenderer;
 class PMDActor;
+class PMXActor;
 
 class Application
 {
@@ -24,6 +25,7 @@ private:
 	std::shared_ptr<Dx12Wrapper> _dx12;
 	std::shared_ptr<PMDRenderer> _pmdRenderer;
 	std::shared_ptr<PMDActor> _pmdActor;
+	std::shared_ptr<PMXActor> _pmxActor;
 
 	void CreateGameWindow(HWND& hwnd, WNDCLASSEX& windowClass);
 

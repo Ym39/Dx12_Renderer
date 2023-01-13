@@ -30,6 +30,9 @@
     <ClCompile Include="Application.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="PMXActor.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="BasicVertexShader.hlsl">
@@ -55,6 +58,9 @@
       <Filter>소스 파일</Filter>
     </ClInclude>
     <ClInclude Include="Application.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="PMXActor.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
