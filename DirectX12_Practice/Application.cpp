@@ -3,6 +3,7 @@
 #include"PMDRenderer.h"
 #include"PMDActor.h"
 #include"PMXActor.h"
+#include "PMXRenderer.h"
 
 const unsigned int window_width = 1600;
 const unsigned int window_height = 800;
@@ -62,7 +63,8 @@ bool Application::Init()
 	_dx12.reset(new Dx12Wrapper(_hwnd));
 	_pmdRenderer.reset(new PMDRenderer(*_dx12));
 	_pmdActor.reset(new PMDActor("Model/miku.pmd", *_pmdRenderer));
-	_pmxActor.reset(new PMXActor(L"PMXModel\\«ß«¯ªµªó.pmx"));
+	_pmxRenderer.reset(new PMXRenderer(*_dx12));
+	_pmxActor.reset(new PMXActor(L"PMXModel\\«ß«¯ªµªó.pmx", *_pmxRenderer));
 
 	return true;
 }

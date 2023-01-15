@@ -2,14 +2,39 @@
 #include <string>
 #include <vector>
 #include<DirectXMath.h>
+#include<d3d12.h>
+#include<wrl.h>
+#include<codecvt>
+#include<locale>
 
 using namespace DirectX;
 
+class Dx12Wrapper;
+class PMXRenderer;
 class PMXActor
 {
+	friend PMXRenderer;
+private:
+	PMXRenderer& _renderer;
+	Dx12Wrapper& _dx12;
+	template<typename T>
+	using ComPtr = Microsoft::WRL::ComPtr<T>;
+
+	ComPtr<ID3D12Resource> _vb = nullptr;
+	ComPtr<ID3D12Resource> _ib = nullptr;
+	D3D12_VERTEX_BUFFER_VIEW _vbView = {};
+	D3D12_INDEX_BUFFER_VIEW _ibView = {};
+
+	ComPtr<ID3D12Resource> _trasformMat = nullptr;
+	ComPtr<ID3D12DescriptorHeap> _transformHeap = nullptr;
+
+	ComPtr<ID3D12Resource> _materialBuff = nullptr;
+	std::vector<ComPtr<ID3D12Resource>> _textureResources;
+	std::vector<ComPtr<ID3D12Resource>> _toonResources;
+
 public:
 
-	PMXActor(const std::wstring& _filePath);
+	PMXActor(const std::wstring& _filePath, PMXRenderer& renderer);
 
 	struct PMXModelData
 	{
@@ -47,6 +72,13 @@ public:
 			} weight;
 
 			float edgeMagnif;
+		};
+
+		struct VertexForShader
+		{
+			XMFLOAT3 position;
+			XMFLOAT3 normal;
+			XMFLOAT2 uv;
 		};
 
 		struct Surface
@@ -104,7 +136,8 @@ public:
 
 
 		std::vector<Vertex> vertices;
-		std::vector<Surface> surfaces;
+		std::vector<VertexForShader> verticesForShader;
+		std::vector<unsigned short> indices;
 		std::vector<std::wstring> texturePaths;
 		std::vector<Material> materials;
 		std::vector<Bone> bones;
@@ -112,6 +145,7 @@ public:
 
 	bool loadPMX(PMXModelData& data, const std::wstring& _filePath);
 
+	HRESULT CreateVbAndIb();
 private:
 	PMXModelData _modelData;
 };
