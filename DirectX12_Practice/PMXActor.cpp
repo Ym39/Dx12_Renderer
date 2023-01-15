@@ -1,7 +1,87 @@
-#include "PMXActor.h"
+ï»¿#include "PMXActor.h"
 #include <fstream>
 #include <array>
 #include <bitset>
+#include "Dx12Wrapper.h"
+#include "PMXRenderer.h"
+#include "srtconv.h"
+
+using namespace std;
+
+namespace
+{
+	std::string GetExtension(const std::string& path)
+	{
+		int idx = path.rfind(".");
+		return path.substr(idx + 1, path.length() - idx - 1);
+	}
+
+	std::pair<std::string, std::string> SplitFileName(const std::string path, const char splitter = '*')
+	{
+		int idx = path.find(splitter);
+		pair<std::string, std::string> ret;
+		ret.first = path.substr(0, idx);
+		ret.second = path.substr(idx + 1, path.length() - idx - 1);
+		return ret;
+	}
+
+	std::string GetTexturePathFromModelAndTexPath(const std::string& modelPath, const char* texPath)
+	{
+		auto pathIndex1 = modelPath.rfind('/');
+		auto folderPath = modelPath.substr(0, pathIndex1);
+
+		//string texPathString = texPath;
+
+		//size_t nPos = texPathString.find(".bmp");
+
+		//if (nPos != string::npos)
+		//{
+		//	texPathString = texPathString.substr(0, nPos + 4);
+		//}
+
+		return folderPath + "/" + texPath;
+	}
+
+	char* ConvertWcToC(const wchar_t* str)
+	{
+		char* pStr;
+		int strSize = WideCharToMultiByte(CP_ACP, 0, str, -1, NULL, 0, NULL, NULL);
+		pStr = new char[strSize];
+		WideCharToMultiByte(CP_ACP, 0, str, -1, pStr, strSize, 0, 0);
+
+		return pStr;
+	}
+
+	std::string w2s(const std::wstring& var)
+	{
+		static std::locale loc("");
+		auto& facet = std::use_facet<std::codecvt<wchar_t, char, std::mbstate_t>>(loc);
+		return std::wstring_convert<std::remove_reference<decltype(facet)>::type, wchar_t>(&facet).to_bytes(var);
+	}
+
+	string WStringToString(const wstring& oWString)
+	{
+		// wstring â†’ SJIS
+		int iBufferSize = WideCharToMultiByte(CP_OEMCP, 0, oWString.c_str()
+			, -1, (char*)NULL, 0, NULL, NULL);
+
+		// ãƒãƒƒãƒ•ã‚¡ã®å–å¾—
+		CHAR* cpMultiByte = new CHAR[iBufferSize];
+
+		// wstring â†’ SJIS
+		WideCharToMultiByte(CP_OEMCP, 0, oWString.c_str(), -1, cpMultiByte
+			, iBufferSize, NULL, NULL);
+
+		// stringã®ç”Ÿæˆ
+		std::string oRet(cpMultiByte, cpMultiByte + iBufferSize - 1);
+
+		// ãƒãƒƒãƒ•ã‚¡ã®ç ´æ£„
+		delete[] cpMultiByte;
+
+		// å¤‰æ›çµæœã‚’è¿”ã™
+		return(oRet);
+	}
+}
 
 bool getPMXStringUTF16(std::ifstream& _file, std::wstring& output)
 {
@@ -20,10 +100,10 @@ bool PMXActor::loadPMX(PMXModelData& data, const std::wstring& _filePath)
 {
 	if (_filePath.empty()) { return false; }
 
-	//¸ğµ¨ÆÄÀÏ ÆĞ½º¿¡¼­ ¸ğµ¨Æú´õ ÆĞ½º ÃßÃâ
+	//ëª¨ë¸íŒŒì¼ íŒ¨ìŠ¤ì—ì„œ ëª¨ë¸í´ë” íŒ¨ìŠ¤ ì¶”ì¶œ
 	std::wstring folderPath{ _filePath.begin(), _filePath.begin() + _filePath.rfind(L'\\') + 1 };
 
-	// ÆÄÀÏ ¿ÀÇÂ
+	// íŒŒì¼ ì˜¤í”ˆ
 	std::ifstream pmxFile{ _filePath, (std::ios::binary | std::ios::in) };
 	if (pmxFile.fail())
 	{
@@ -31,7 +111,7 @@ bool PMXActor::loadPMX(PMXModelData& data, const std::wstring& _filePath)
 		return false;
 	}
 
-	// Çì´õ
+	// í—¤ë”
 	std::array<unsigned char, 4> pmxHeader{};
 	constexpr std::array<unsigned char, 4> PMX_MAGIC_NUMBER{ 0x50, 0x4d, 0x58, 0x20 };
 	enum HeaderDataIndex
@@ -55,7 +135,7 @@ bool PMXActor::loadPMX(PMXModelData& data, const std::wstring& _filePath)
 		return false;
 	}
 
-	// ver2.0ÀÌ¿Ü´Â ºñ´ëÀÀ
+	// ver2.0ì´ì™¸ëŠ” ë¹„ëŒ€ì‘
 	float version{};
 	pmxFile.read(reinterpret_cast<char*>(&version), 4);
 	if (!XMScalarNearEqual(version, 2.0f, g_XMEpsilon.f[0]))
@@ -75,7 +155,7 @@ bool PMXActor::loadPMX(PMXModelData& data, const std::wstring& _filePath)
 	{
 		hederData[i] = pmxFile.get();
 	}
-	//UTF-8Àº ºñ´ëÀÀ
+	//UTF-8ì€ ë¹„ëŒ€ì‘
 	if (hederData[0] != 0)
 	{
 		pmxFile.close();
@@ -92,11 +172,12 @@ bool PMXActor::loadPMX(PMXModelData& data, const std::wstring& _filePath)
 		}
 	}
 
-	// ¹öÅØ½º -----------------------------------
+	// ë²„í…ìŠ¤ -----------------------------------
 	using Vertex = PMXModelData::Vertex;
 	int numberOfVertex{};
 	pmxFile.read(reinterpret_cast<char*>(&numberOfVertex), 4);
 	data.vertices.resize(numberOfVertex);
+	data.verticesForShader.resize(numberOfVertex);
 
 	for (int i = 0; i < numberOfVertex; i++)
 	{
@@ -170,25 +251,29 @@ bool PMXActor::loadPMX(PMXModelData& data, const std::wstring& _filePath)
 			pmxFile.close();
 			return false;
 		}
+
+		data.verticesForShader[i].position = data.vertices[i].position;
+		data.verticesForShader[i].normal = data.vertices[i].normal;
+		data.verticesForShader[i].uv = data.vertices[i].uv;
 	}
 
-	// Æú¸®°ï  ------------------------------------
+	// í´ë¦¬ê³¤  ------------------------------------
 	int numOfSurface{};
 	pmxFile.read(reinterpret_cast<char*>(&numOfSurface), 4);
-	data.surfaces.resize(numOfSurface);
+	data.indices.resize(numOfSurface);
 
 	for (int i = 0; i < numOfSurface; i++)
 	{
-		pmxFile.read(reinterpret_cast<char*>(&data.surfaces[i].vertexIndex), hederData[VERTEX_INDEX_SIZE]);
+		pmxFile.read(reinterpret_cast<char*>(&data.indices[i]), hederData[VERTEX_INDEX_SIZE]);
 
-		if (data.surfaces[i].vertexIndex == PMXModelData::NO_DATA_FLAG || data.surfaces[i].vertexIndex == PMXModelData::NO_DATA_FLAG || data.surfaces[i].vertexIndex == PMXModelData::NO_DATA_FLAG)
+		if (data.indices[i] == PMXModelData::NO_DATA_FLAG || data.indices[i] == PMXModelData::NO_DATA_FLAG || data.indices[i] == PMXModelData::NO_DATA_FLAG)
 		{
 			pmxFile.close();
 			return false;
 		}
 	}
 
-	// ÅØ½ºÃÄ -----------------------------
+	// í…ìŠ¤ì³ -----------------------------
 	int numOfTexture{};
 	pmxFile.read(reinterpret_cast<char*>(&numOfTexture), 4);
 	data.texturePaths.resize(numOfTexture);
@@ -201,7 +286,7 @@ bool PMXActor::loadPMX(PMXModelData& data, const std::wstring& _filePath)
 		data.texturePaths[i] += texturePath;
 	}
 
-	// ¸ŞÅÍ¸®¾ó -----------------------------
+	// ë©”í„°ë¦¬ì–¼ -----------------------------
 	int numOfMaterial{};
 	pmxFile.read(reinterpret_cast<char*>(&numOfMaterial), 4);
 
@@ -258,7 +343,7 @@ bool PMXActor::loadPMX(PMXModelData& data, const std::wstring& _filePath)
 		pmxFile.read(reinterpret_cast<char*>(&data.materials[i].vertexNum), 4);
 	}
 
-	// º» ---------------------------------
+	// ë³¸ ---------------------------------
 	int numOfBone{};
 	pmxFile.read(reinterpret_cast<char*>(&numOfBone), 4);
 
@@ -361,7 +446,91 @@ bool PMXActor::loadPMX(PMXModelData& data, const std::wstring& _filePath)
 	return true;
 }
 
-PMXActor::PMXActor(const std::wstring& _filePath)
+HRESULT PMXActor::CreateVbAndIb()
+{
+
+	D3D12_HEAP_PROPERTIES heapprop = {};
+
+	heapprop.Type = D3D12_HEAP_TYPE_UPLOAD;
+	heapprop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapprop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+
+	D3D12_RESOURCE_DESC resdesc = {};
+
+	resdesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	resdesc.Width = _modelData.verticesForShader.size() * sizeof(_modelData.verticesForShader[0]);
+	resdesc.Height = 1;
+	resdesc.DepthOrArraySize = 1;
+	resdesc.MipLevels = 1;
+	resdesc.Format = DXGI_FORMAT_UNKNOWN;
+	resdesc.SampleDesc.Count = 1;
+	resdesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	resdesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+	auto result = _dx12.Device()->CreateCommittedResource(&heapprop, D3D12_HEAP_FLAG_NONE, &resdesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(_vb.ReleaseAndGetAddressOf()));
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+		return result;
+	}
+
+	PMXModelData::VertexForShader* vertMap = nullptr;
+
+	result = _vb->Map(0, nullptr, (void**)&vertMap);
+
+	std::copy(std::begin(_modelData.verticesForShader), std::end(_modelData.verticesForShader), vertMap);
+
+	_vb->Unmap(0, nullptr);
+
+	_vbView.BufferLocation = _vb->GetGPUVirtualAddress();
+	_vbView.SizeInBytes = _modelData.verticesForShader.size();
+	_vbView.StrideInBytes = sizeof(_modelData.verticesForShader[0]);
+
+	resdesc.Width = _modelData.indices.size() * sizeof(_modelData.indices[0]);
+
+	result = _dx12.Device()->CreateCommittedResource(&heapprop, D3D12_HEAP_FLAG_NONE, &resdesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(_ib.ReleaseAndGetAddressOf()));
+
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+		return result;
+	}
+
+	unsigned short* mappedIdx = nullptr;
+	_ib->Map(0, nullptr, (void**)&mappedIdx);
+	std::copy(std::begin(_modelData.indices), std::end(_modelData.indices), mappedIdx);
+	_ib->Unmap(0, nullptr);
+
+	_ibView.BufferLocation = _ib->GetGPUVirtualAddress();
+	_ibView.Format = DXGI_FORMAT_R16_UINT;
+	_ibView.SizeInBytes = _modelData.indices.size() * sizeof(_modelData.indices[0]);
+
+	size_t materialNum = _modelData.materials.size();
+	_textureResources.resize(materialNum);
+	_toonResources.resize(materialNum);
+
+	for (int i = 0; i < materialNum; ++i)
+	{
+		int textureIndex = _modelData.materials[i].colorMapTextureIndex;
+
+		if (_modelData.materials.size() - 1 < textureIndex)
+		{
+			continue;
+		}
+
+		std::string texFilename = wide_to_ansi(_modelData.texturePaths[_modelData.materials[i].colorMapTextureIndex]);
+
+		if (texFilename.empty() == false)
+		{
+			_textureResources[i] = _dx12.GetTextureByPath(texFilename.c_str());
+		}
+	}
+
+	return S_OK;
+}
+
+PMXActor::PMXActor(const std::wstring& _filePath, PMXRenderer& renderer):
+	_renderer(renderer),
+	_dx12(renderer._dx12)
 {
 	loadPMX(_modelData, _filePath);
+	CreateVbAndIb();
 }
