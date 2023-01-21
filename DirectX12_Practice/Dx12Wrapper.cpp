@@ -2,6 +2,7 @@
 #include<cassert>
 #include<d3dx12.h>
 #include"Application.h"
+#include"Utill.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -54,6 +55,13 @@ namespace
 	{
 		int idx = path.rfind(".");
 		return path.substr(idx + 1, path.length() - idx - 1);
+	}
+
+	std::string GetExtension(const std::wstring& path)
+	{
+		int idx = path.rfind(L".");
+		wstring extension = path.substr(idx + 1, path.length() - idx - 1);
+		return string().assign(extension.begin(), extension.end());
 	}
 
 	std::pair<std::string, std::string> SplitFileName(const std::string path, const char splitter = '*')
@@ -443,6 +451,68 @@ ID3D12Resource* Dx12Wrapper::CreateTextureFromFile(const char* texpath)
 	return texbuff;
 }
 
+ID3D12Resource* Dx12Wrapper::CreateTextureFromFile(const std::wstring& texpath)
+{
+	TexMetadata metadata = {};
+	ScratchImage scratchImg = {};
+
+	auto ext = GetExtension(texpath);
+
+	auto result = _loadLambdaTable[ext](
+		texpath,
+		&metadata,
+		scratchImg
+		);
+
+	if (FAILED(result))
+	{
+		return nullptr;
+	}
+
+	auto img = scratchImg.GetImage(0, 0, 0);
+
+	D3D12_HEAP_PROPERTIES texHeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_CPU_PAGE_PROPERTY_WRITE_BACK, D3D12_MEMORY_POOL_L0);
+
+	D3D12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+		metadata.format,
+		metadata.width,
+		metadata.height,
+		metadata.arraySize,
+		metadata.mipLevels
+	);
+
+	ID3D12Resource* texbuff = nullptr;
+	result = _dev->CreateCommittedResource(
+		&texHeapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&resDesc,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		nullptr,
+		IID_PPV_ARGS(&texbuff)
+	);
+
+	if (FAILED(result))
+	{
+		return nullptr;
+	}
+
+	result = texbuff->WriteToSubresource(
+		0,
+		nullptr,
+		img->pixels,
+		img->rowPitch,
+		img->slicePitch
+	);
+
+	if (FAILED(result))
+	{
+		return nullptr;
+	}
+
+	_resourceTable[wide_to_ansi(texpath)] = texbuff;
+	return texbuff;
+}
+
 Dx12Wrapper::Dx12Wrapper(HWND hwnd)
 {
 #ifdef _DEBUG
@@ -579,6 +649,21 @@ ComPtr<ID3D12Resource> Dx12Wrapper::GetTextureByPath(const char* texpath)
 	if (it != _resourceTable.end())
 	{
 		return _resourceTable[texpath];
+	}
+	else
+	{
+		return ComPtr<ID3D12Resource>(CreateTextureFromFile(texpath));
+	}
+}
+
+ComPtr<ID3D12Resource> Dx12Wrapper::GetTextureByPath(const std::wstring& texpath)
+{
+	string texpathString = wide_to_ansi(texpath);
+
+	auto it = _resourceTable.find(texpathString);
+	if (it != _resourceTable.end())
+	{
+		return _resourceTable[texpathString];
 	}
 	else
 	{

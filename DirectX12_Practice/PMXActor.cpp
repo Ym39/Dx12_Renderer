@@ -5,6 +5,7 @@
 #include "Dx12Wrapper.h"
 #include "PMXRenderer.h"
 #include "srtconv.h"
+#include <d3dx12.h>
 
 using namespace std;
 
@@ -50,13 +51,6 @@ namespace
 		WideCharToMultiByte(CP_ACP, 0, str, -1, pStr, strSize, 0, 0);
 
 		return pStr;
-	}
-
-	std::string w2s(const std::wstring& var)
-	{
-		static std::locale loc("");
-		auto& facet = std::use_facet<std::codecvt<wchar_t, char, std::mbstate_t>>(loc);
-		return std::wstring_convert<std::remove_reference<decltype(facet)>::type, wchar_t>(&facet).to_bytes(var);
 	}
 
 	string WStringToString(const wstring& oWString)
@@ -302,10 +296,10 @@ bool PMXActor::loadPMX(PMXModelData& data, const std::wstring& _filePath)
 			}
 		}
 
-		pmxFile.read(reinterpret_cast<char*>(&data.materials[i].diffuse), 16);
-		pmxFile.read(reinterpret_cast<char*>(&data.materials[i].specular), 12);
-		pmxFile.read(reinterpret_cast<char*>(&data.materials[i].specularity), 4);
-		pmxFile.read(reinterpret_cast<char*>(&data.materials[i].ambient), 12);
+		pmxFile.read(reinterpret_cast<char*>(&data.materials[i].material.diffuse), 16);
+		pmxFile.read(reinterpret_cast<char*>(&data.materials[i].material.specular), 12);
+		pmxFile.read(reinterpret_cast<char*>(&data.materials[i].material.specularity), 4);
+		pmxFile.read(reinterpret_cast<char*>(&data.materials[i].material.ambient), 12);
 
 		pmxFile.get();
 		for (int i = 0; i < 16; i++)
@@ -511,26 +505,237 @@ HRESULT PMXActor::CreateVbAndIb()
 	{
 		int textureIndex = _modelData.materials[i].colorMapTextureIndex;
 
-		if (_modelData.materials.size() - 1 < textureIndex)
+		if (_modelData.texturePaths.size() - 1 < textureIndex)
 		{
 			continue;
 		}
 
-		std::string texFilename = wide_to_ansi(_modelData.texturePaths[_modelData.materials[i].colorMapTextureIndex]);
+		wstring texfilename = _modelData.texturePaths[textureIndex];
 
-		if (texFilename.empty() == false)
+		if (texfilename.empty() == false)
 		{
-			_textureResources[i] = _dx12.GetTextureByPath(texFilename.c_str());
+			_textureResources[i] = _dx12.GetTextureByPath(texfilename);
+		}
+
+		int toonIndex = _modelData.materials[i].toonTextureIndex;
+
+		if (toonIndex == 0 || _modelData.texturePaths.size() - 1 < toonIndex)
+		{
+			continue;
+		}
+
+		wstring toontexfilename = _modelData.texturePaths[toonIndex];
+
+		if (toontexfilename.empty() == false)
+		{
+			_toonResources[i] = _dx12.GetTextureByPath(toontexfilename);
 		}
 	}
 
 	return S_OK;
 }
 
+HRESULT PMXActor::CreateTransformView()
+{
+	auto buffSize = sizeof(Transform);
+	buffSize = (buffSize + 0xff) & ~0xff;
+
+	auto result = _dx12.Device()->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(buffSize),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(_transformBuff.ReleaseAndGetAddressOf())
+	);
+
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+		return result;
+	}
+
+	result = _transformBuff->Map(0, nullptr, (void**)&_mappedTransform);
+
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+		return result;
+	}
+
+	*_mappedTransform = _transform;
+
+
+	D3D12_DESCRIPTOR_HEAP_DESC transformDescHeapDesc = {};
+
+	transformDescHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	transformDescHeapDesc.NodeMask = 0;
+	transformDescHeapDesc.NumDescriptors = 1;
+	transformDescHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+
+	result = _dx12.Device()->CreateDescriptorHeap(&transformDescHeapDesc, IID_PPV_ARGS(_transformHeap.ReleaseAndGetAddressOf()));
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+		return result;
+	}
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+	cbvDesc.BufferLocation = _transformBuff->GetGPUVirtualAddress();
+	cbvDesc.SizeInBytes = buffSize;
+
+	_dx12.Device()->CreateConstantBufferView(&cbvDesc, _transformHeap->GetCPUDescriptorHandleForHeapStart());
+
+	return S_OK;
+}
+
+HRESULT PMXActor::CreateMaterialData()
+{
+	int materialBufferSize = sizeof(MaterialForHlsl);
+	materialBufferSize = (materialBufferSize + 0xff) & ~0xff;
+
+	auto result = _dx12.Device()->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(materialBufferSize * _modelData.materials.size()),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(_materialBuff.ReleaseAndGetAddressOf())
+	);
+	if (FAILED(result))
+	{
+		assert(SUCCEEDED(result));
+		return result;
+	}
+
+	char* mapMaterial = nullptr;
+
+	result = _materialBuff->Map(0, nullptr, (void**)&mapMaterial);
+	if (FAILED(result))
+	{
+		assert(SUCCEEDED(result));
+		return result;
+	}
+
+	for (auto& m : _modelData.materials)
+	{
+		*((MaterialForHlsl*)mapMaterial) = m.material;
+		mapMaterial += materialBufferSize;
+	}
+
+	_materialBuff->Unmap(0, nullptr);
+
+	return S_OK;
+}
+
+HRESULT PMXActor::CreateMaterialAndTextureView()
+{
+	D3D12_DESCRIPTOR_HEAP_DESC matDescHeapDesc = {};
+	matDescHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	matDescHeapDesc.NodeMask = 0;
+	matDescHeapDesc.NumDescriptors = _modelData.materials.size() * 3;
+	matDescHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+
+	auto result = _dx12.Device()->CreateDescriptorHeap(&matDescHeapDesc, IID_PPV_ARGS(_materialHeap.ReleaseAndGetAddressOf()));
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+		return result;
+	}
+
+	auto materialBuffSize = sizeof(MaterialForHlsl);
+	materialBuffSize = (materialBuffSize + 0xff) & ~0xff;
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC matCBVDesc = {};
+	matCBVDesc.BufferLocation = _materialBuff->GetGPUVirtualAddress();
+	matCBVDesc.SizeInBytes = materialBuffSize;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	auto matDescHeapH = _materialHeap->GetCPUDescriptorHandleForHeapStart();
+	auto incSize = _dx12.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	for (int i = 0; i < _modelData.materials.size(); ++i)
+	{
+		_dx12.Device()->CreateConstantBufferView(&matCBVDesc, matDescHeapH);
+
+		matDescHeapH.ptr += incSize;
+		matCBVDesc.BufferLocation += materialBuffSize;
+
+		if (_textureResources[i] == nullptr)
+		{
+			srvDesc.Format = _renderer._whiteTex->GetDesc().Format;
+			_dx12.Device()->CreateShaderResourceView(_renderer._whiteTex.Get(), &srvDesc, matDescHeapH);
+		}
+		else
+		{
+			srvDesc.Format = _textureResources[i]->GetDesc().Format;
+			_dx12.Device()->CreateShaderResourceView(
+				_textureResources[i].Get(),
+				&srvDesc,
+				matDescHeapH);
+		}
+
+		matDescHeapH.ptr += incSize;
+
+		if (_toonResources[i] == nullptr)
+		{
+			srvDesc.Format = _renderer._gradTex->GetDesc().Format;
+			_dx12.Device()->CreateShaderResourceView(_renderer._gradTex.Get(), &srvDesc, matDescHeapH);
+		}
+		else
+		{
+			srvDesc.Format = _toonResources[i]->GetDesc().Format;
+			_dx12.Device()->CreateShaderResourceView(_toonResources[i].Get(), &srvDesc, matDescHeapH);
+		}
+
+		matDescHeapH.ptr += incSize;
+	}
+
+	return result;
+}
+
 PMXActor::PMXActor(const std::wstring& _filePath, PMXRenderer& renderer):
 	_renderer(renderer),
 	_dx12(renderer._dx12)
 {
+	_transform.world = XMMatrixIdentity() * XMMatrixTranslation(10.0f, 0.0f, 0.0f);
 	loadPMX(_modelData, _filePath);
 	CreateVbAndIb();
+	CreateTransformView();
+	CreateMaterialData();
+	CreateMaterialAndTextureView();
+}
+
+PMXActor::~PMXActor()
+{
+}
+
+void PMXActor::Update()
+{
+}
+
+void PMXActor::Draw()
+{
+	_dx12.CommandList()->IASetVertexBuffers(0, 1, &_vbView);
+	_dx12.CommandList()->IASetIndexBuffer(&_ibView);
+
+	ID3D12DescriptorHeap* transheap[] = { _transformHeap.Get() };
+	_dx12.CommandList()->SetDescriptorHeaps(1, transheap);
+	_dx12.CommandList()->SetGraphicsRootDescriptorTable(1, _transformHeap->GetGPUDescriptorHandleForHeapStart());
+
+	ID3D12DescriptorHeap* mdh[] = { _materialHeap.Get() };
+
+	_dx12.CommandList()->SetDescriptorHeaps(1, mdh);
+
+	auto materialH = _materialHeap->GetGPUDescriptorHandleForHeapStart();
+	unsigned int idxOffset = 0;
+
+	auto cbvsrvIncSize = _dx12.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 3;
+	for (auto& m : _modelData.materials)
+	{
+		_dx12.CommandList()->SetGraphicsRootDescriptorTable(2, materialH);
+		_dx12.CommandList()->DrawIndexedInstanced(m.vertexNum, 1, idxOffset, 0, 0);
+		materialH.ptr += cbvsrvIncSize;
+		idxOffset += m.vertexNum;
+	}
 }
