@@ -28,13 +28,43 @@ private:
 	ComPtr<ID3D12Resource> _trasformMat = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _transformHeap = nullptr;
 
+	struct MaterialForHlsl
+	{
+		XMFLOAT4 diffuse;
+		XMFLOAT3 specular;
+		float specularity;
+		XMFLOAT3 ambient;
+	};
+
+	struct AdditionalMaterial
+	{
+		std::string texPath;
+		int toonIdx;
+		bool edgeFlg;
+	};
+
+	struct Transform
+	{
+		void* operator new(size_t size);
+		DirectX::XMMATRIX world;
+	};
+
 	ComPtr<ID3D12Resource> _materialBuff = nullptr;
 	std::vector<ComPtr<ID3D12Resource>> _textureResources;
 	std::vector<ComPtr<ID3D12Resource>> _toonResources;
 
+	Transform _transform;
+	Transform* _mappedTransform = nullptr;
+	ComPtr<ID3D12Resource> _transformBuff = nullptr;
+
+	ComPtr<ID3D12DescriptorHeap> _materialHeap = nullptr;
 public:
 
 	PMXActor(const std::wstring& _filePath, PMXRenderer& renderer);
+	~PMXActor();
+
+	void Update();
+	void Draw();
 
 	struct PMXModelData
 	{
@@ -88,10 +118,7 @@ public:
 
 		struct Material
 		{
-			XMFLOAT4 diffuse;
-			XMFLOAT3 specular;
-			float specularity;
-			XMFLOAT3 ambient;
+			MaterialForHlsl material;
 
 			int colorMapTextureIndex;
 			int toonTextureIndex;
@@ -143,9 +170,14 @@ public:
 		std::vector<Bone> bones;
 	};
 
+private:
 	bool loadPMX(PMXModelData& data, const std::wstring& _filePath);
 
 	HRESULT CreateVbAndIb();
+	HRESULT CreateTransformView();
+	HRESULT CreateMaterialData();
+	HRESULT CreateMaterialAndTextureView();
+
 private:
 	PMXModelData _modelData;
 };

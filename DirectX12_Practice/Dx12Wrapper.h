@@ -65,6 +65,7 @@ class Dx12Wrapper
 	void CreateTextureLoaderTable();
 
 	ID3D12Resource* CreateTextureFromFile(const char* texpath);
+	ID3D12Resource* CreateTextureFromFile(const std::wstring& texpath);
 
 public:
 	Dx12Wrapper(HWND hwnd);
@@ -75,6 +76,7 @@ public:
 	void EndDraw();
 
 	ComPtr<ID3D12Resource> GetTextureByPath(const char* texpath);
+	ComPtr<ID3D12Resource> GetTextureByPath(const std::wstring& texpath);
 
 	ComPtr<ID3D12Device> Device();
 	ComPtr<ID3D12GraphicsCommandList> CommandList();

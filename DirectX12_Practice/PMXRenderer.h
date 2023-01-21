@@ -18,9 +18,20 @@ private:
 	ComPtr<ID3D12PipelineState> _pipeline = nullptr;
 	ComPtr<ID3D12RootSignature> _rootSignature = nullptr;
 
+	ComPtr<ID3D12Resource> _whiteTex = nullptr;
+	ComPtr<ID3D12Resource> _blackTex = nullptr;
+	ComPtr<ID3D12Resource> _gradTex = nullptr;
+
+	ID3D12Resource* CreateDefaultTexture(size_t width, size_t height);
+	ID3D12Resource* CreateWhiteTexture();
+	ID3D12Resource* CreateBlackTexture();
+	ID3D12Resource* CreateGrayGradiationTexture();
+
 	HRESULT CreateGraphicsPipelineForPMX();
 
 	HRESULT CreateRootSignature();
+
+	bool CheckShaderComplieResult(HRESULT result, ID3DBlob* error = nullptr);
 
 public:
 	PMXRenderer(Dx12Wrapper& dx12);

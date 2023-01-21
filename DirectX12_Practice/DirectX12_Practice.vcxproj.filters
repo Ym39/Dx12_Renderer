@@ -44,9 +44,18 @@
     <FxCompile Include="BasicPixelShader.hlsl">
       <Filter>소스 파일</Filter>
     </FxCompile>
+    <FxCompile Include="PMXVertexShader.hlsl">
+      <Filter>소스 파일</Filter>
+    </FxCompile>
+    <FxCompile Include="PMXPixelShader.hlsl">
+      <Filter>소스 파일</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="BasicShaderHeader.hlsli">
+      <Filter>소스 파일</Filter>
+    </None>
+    <None Include="PmxShaderHeader.hlsli">
       <Filter>소스 파일</Filter>
     </None>
   </ItemGroup>
@@ -70,6 +79,9 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="srtconv.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Utill.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

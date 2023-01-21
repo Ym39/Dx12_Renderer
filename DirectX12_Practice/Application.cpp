@@ -102,6 +102,17 @@ void Application::Run()
 		_pmdActor->Update();
 		_pmdActor->Draw();
 
+		_dx12->CommandList()->SetPipelineState(_pmxRenderer->GetPipelineState());
+
+		_dx12->CommandList()->SetGraphicsRootSignature(_pmxRenderer->GetRootSignature());
+
+		_dx12->CommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		_dx12->SetScene();
+
+		_pmxActor->Update();
+		_pmxActor->Draw();
+
 		_dx12->EndDraw();
 
 		_dx12->Swapchain()->Present(1, 0);
