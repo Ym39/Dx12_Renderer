@@ -476,7 +476,7 @@ HRESULT PMXActor::CreateVbAndIb()
 	_vb->Unmap(0, nullptr);
 
 	_vbView.BufferLocation = _vb->GetGPUVirtualAddress();
-	_vbView.SizeInBytes = _modelData.verticesForShader.size();
+	_vbView.SizeInBytes = sizeof(_modelData.verticesForShader[0]) * _modelData.verticesForShader.size();
 	_vbView.StrideInBytes = sizeof(_modelData.verticesForShader[0]);
 
 	resdesc.Width = _modelData.indices.size() * sizeof(_modelData.indices[0]);
