@@ -454,7 +454,7 @@ PMDActor::PMDActor(const char* filepath, PMDRenderer& renderer):
 	_dx12(renderer._dx12),
 	_angle(0.0f)
 {
-	_transform.world = XMMatrixIdentity();
+	_transform.world = XMMatrixIdentity() * XMMatrixTranslation(-20.0f, 0.0f, 0.0f);
 	LoadPMDFile(filepath);
 	CreateTransformView();
 	CreateMaterialData();
@@ -468,7 +468,7 @@ PMDActor::~PMDActor()
 void PMDActor::Update()
 {
 	_angle += 0.005f;
-	_mappedTransform->world = XMMatrixRotationY(_angle);
+	_mappedTransform->world = XMMatrixRotationY(_angle) * XMMatrixTranslation(-20.0f, 0.0f, 0.0f);
 }
 
 void PMDActor::Draw()

@@ -61,6 +61,7 @@ class Dx12Wrapper
 	std::map<std::string, LoadLambda_t> _loadLambdaTable;
 
 	std::map<std::string, ComPtr<ID3D12Resource>> _resourceTable;
+	std::map<std::wstring, ComPtr<ID3D12Resource>> _resourceTableW;
 
 	void CreateTextureLoaderTable();
 

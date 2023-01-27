@@ -64,7 +64,7 @@ bool Application::Init()
 	_pmdRenderer.reset(new PMDRenderer(*_dx12));
 	_pmdActor.reset(new PMDActor("Model/miku.pmd", *_pmdRenderer));
 	_pmxRenderer.reset(new PMXRenderer(*_dx12));
-	_pmxActor.reset(new PMXActor(L"PMXModel\\«ß«¯ªµªó.pmx", *_pmxRenderer));
+	_pmxActor.reset(new PMXActor(L"PMXModel\\FrillSW_dist-ja.pmx", *_pmxRenderer));
 
 	return true;
 }

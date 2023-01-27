@@ -509,7 +509,7 @@ ID3D12Resource* Dx12Wrapper::CreateTextureFromFile(const std::wstring& texpath)
 		return nullptr;
 	}
 
-	_resourceTable[wide_to_ansi(texpath)] = texbuff;
+	_resourceTableW[texpath] = texbuff;
 	return texbuff;
 }
 
@@ -658,12 +658,10 @@ ComPtr<ID3D12Resource> Dx12Wrapper::GetTextureByPath(const char* texpath)
 
 ComPtr<ID3D12Resource> Dx12Wrapper::GetTextureByPath(const std::wstring& texpath)
 {
-	string texpathString = wide_to_ansi(texpath);
-
-	auto it = _resourceTable.find(texpathString);
-	if (it != _resourceTable.end())
+	auto it = _resourceTableW.find(texpath);
+	if (it != _resourceTableW.end())
 	{
-		return _resourceTable[texpathString];
+		return _resourceTableW[texpath];
 	}
 	else
 	{

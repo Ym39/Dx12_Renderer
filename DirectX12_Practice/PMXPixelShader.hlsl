@@ -17,6 +17,6 @@ float4 BasicPS(Output input) : SV_TARGET
 		toonDif
 		* diffuse
 		* color
-		+ float4(specularB * specular.rgb, 1))
-		, float4(color * ambient, 1));
+		+ float4(specularB * specular.rgb, color.a))
+		, float4(color * ambient, color.a));
 }
