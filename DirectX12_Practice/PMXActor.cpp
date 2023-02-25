@@ -698,7 +698,7 @@ PMXActor::PMXActor(const std::wstring& _filePath, PMXRenderer& renderer):
 	_renderer(renderer),
 	_dx12(renderer._dx12)
 {
-	_transform.world = XMMatrixIdentity();
+	_transform.world = XMMatrixIdentity() * XMMatrixTranslation(-20.0f, 0.0f, 0.0f);;
 	loadPMX(_modelData, _filePath);
 	CreateVbAndIb();
 	CreateTransformView();

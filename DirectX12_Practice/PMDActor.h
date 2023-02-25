@@ -3,6 +3,7 @@
 #include<d3d12.h>
 #include<DirectXMath.h>
 #include<vector>
+#include<unordered_map>
 #include<string>
 #include<wrl.h>
 
@@ -65,6 +66,18 @@ private:
 	std::vector<ComPtr<ID3D12Resource>> _sphResources;
 	std::vector<ComPtr<ID3D12Resource>> _spaResources;
 	std::vector<ComPtr<ID3D12Resource>> _toonResources;
+
+	std::vector<DirectX::XMMATRIX> _boneMatrices;
+
+	struct BoneNode
+	{
+		int boneIdx;
+		DirectX::XMFLOAT3 startPos;
+		DirectX::XMFLOAT3 endPos;
+		std::vector<BoneNode*> children;
+	};
+
+	std::unordered_map<std::string, BoneNode> _boneNodeTable;
 
 	HRESULT CreateMaterialData();
 
