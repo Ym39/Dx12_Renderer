@@ -188,7 +188,7 @@ HRESULT PMDActor::CreateMaterialAndTextureView()
 
 HRESULT PMDActor::CreateTransformView()
 {
-	auto buffSize = sizeof(Transform);
+	auto buffSize = sizeof(XMMATRIX) * (1 + _boneMatrices.size());
 	buffSize = (buffSize + 0xff) & ~0xff;
 
 	auto result = _dx12.Device()->CreateCommittedResource(
@@ -205,15 +205,16 @@ HRESULT PMDActor::CreateTransformView()
 		return result;
 	}
 
-	result = _transformBuff->Map(0, nullptr, (void**)&_mappedTransform);
+	result = _transformBuff->Map(0, nullptr, (void**)&_mappedMatrices);
 
 	if (FAILED(result)) {
 		assert(SUCCEEDED(result));
 		return result;
 	}
 
-	*_mappedTransform = _transform;
+	_mappedMatrices[0] = _transform.world;
 
+	copy(_boneMatrices.begin(), _boneMatrices.end(), _mappedMatrices + 1);
 
 	D3D12_DESCRIPTOR_HEAP_DESC transformDescHeapDesc = {};
 
@@ -444,6 +445,52 @@ HRESULT PMDActor::LoadPMDFile(const char* path)
 			_spaResources[i] = _dx12.GetTextureByPath(spaFilePath.c_str());
 		}
 	}
+
+#pragma pack(1)
+	struct PMDBone
+	{
+		char boneName[20];
+		unsigned short parentNo;
+		unsigned short nextNo;
+		unsigned char type;
+		unsigned short ikBoneNo;
+		XMFLOAT3 pos;
+	};
+#pragma pack()
+
+	//º»
+	unsigned short boneNum = 0;
+	fread(&boneNum, sizeof(boneNum), 1, fp);
+
+	std::vector<PMDBone> pmdBones(boneNum);
+	fread(pmdBones.data(), sizeof(PMDBone), boneNum, fp);
+
+	std::vector<std::string> boneNames(pmdBones.size());
+
+	for (int idx = 0; idx < pmdBones.size(); ++idx)
+	{
+		auto& pd = pmdBones[idx];
+		boneNames[idx] = pd.boneName;
+		auto& node = _boneNodeTable[pd.boneName];
+		node.boneIdx = idx;
+		node.startPos = pd.pos;
+	}
+
+	for (auto& pb : pmdBones)
+	{
+		if (pb.parentNo >= pmdBones.size())
+		{
+			continue;
+		}
+
+		auto parentName = boneNames[pb.parentNo];
+		_boneNodeTable[parentName].children.emplace_back(&_boneNodeTable[pb.boneName]);
+	}
+
+	_boneMatrices.resize(pmdBones.size());
+
+	std::fill(_boneMatrices.begin(), _boneMatrices.end(), XMMatrixIdentity());
+
 	fclose(fp);
 
 	return S_OK;
@@ -454,7 +501,7 @@ PMDActor::PMDActor(const char* filepath, PMDRenderer& renderer):
 	_dx12(renderer._dx12),
 	_angle(0.0f)
 {
-	_transform.world = XMMatrixIdentity() * XMMatrixTranslation(-20.0f, 0.0f, 0.0f);
+	_transform.world = XMMatrixIdentity() * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 	LoadPMDFile(filepath);
 	CreateTransformView();
 	CreateMaterialData();
@@ -468,7 +515,7 @@ PMDActor::~PMDActor()
 void PMDActor::Update()
 {
 	_angle += 0.005f;
-	_mappedTransform->world = XMMatrixRotationY(_angle) * XMMatrixTranslation(-20.0f, 0.0f, 0.0f);
+	_mappedMatrices[0] = XMMatrixRotationY(_angle) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 }
 
 void PMDActor::Draw()
