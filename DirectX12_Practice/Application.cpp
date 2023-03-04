@@ -63,6 +63,7 @@ bool Application::Init()
 	_dx12.reset(new Dx12Wrapper(_hwnd));
 	_pmdRenderer.reset(new PMDRenderer(*_dx12));
 	_pmdActor.reset(new PMDActor("Model/miku.pmd", *_pmdRenderer));
+	_pmdActor->PlayAnimation();
 	_pmxRenderer.reset(new PMXRenderer(*_dx12));
 	_pmxActor.reset(new PMXActor(L"PMXModel\\«ß«¯ªµªó.pmx", *_pmxRenderer));
 

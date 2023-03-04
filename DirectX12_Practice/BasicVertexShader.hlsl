@@ -8,7 +8,11 @@ Output BasicVS (
 	min16uint weight : WEIGHT) 
 {
 	Output output;
-	pos = mul(bones[boneno[0]], pos);
+
+	float w = weight / 100.0f;
+	matrix bm = bones[boneno[0]] * w + bones[boneno[1]] * (1 - w);
+
+	pos = mul(bm, pos);
 	pos = mul(world, pos);
     output.svpos = mul(mul(proj, view), pos);
 	output.pos = mul(view, pos);
