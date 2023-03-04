@@ -6,6 +6,8 @@
 #include<unordered_map>
 #include<string>
 #include<wrl.h>
+#include<timeapi.h>
+#include<algorithm>
 
 class Dx12Wrapper;
 class PMDRenderer;
@@ -58,6 +60,7 @@ private:
 
 	Transform _transform;
 	Transform* _mappedTransform = nullptr;
+	DirectX::XMMATRIX* _mappedMatrices = nullptr;
 	ComPtr<ID3D12Resource> _transformBuff = nullptr;
 
 	std::vector<Material> _materials;
@@ -78,6 +81,7 @@ private:
 	};
 
 	std::unordered_map<std::string, BoneNode> _boneNodeTable;
+	std::unordered_map<int, BoneNode> _boneNodeTableByIdx;
 
 	HRESULT CreateMaterialData();
 
@@ -89,11 +93,40 @@ private:
 
 	HRESULT LoadPMDFile(const char* path);
 
+	struct Motion
+	{
+		unsigned int frameNo;
+		DirectX::XMVECTOR quaternion;
+		DirectX::XMFLOAT2 p1, p2;
+
+		Motion(unsigned int fno, DirectX::XMVECTOR& q,
+			const DirectX::XMFLOAT2& ip1, const DirectX::XMFLOAT2& ip2)
+			:frameNo(fno), quaternion(q),
+			p1(ip1),
+			p2(ip2)
+		{}
+	};
+
+	std::unordered_map<std::string, std::vector<Motion>> _motiondata;
+
+	unsigned int _duration = 0;
+
+	DWORD _startTime;
+	void MotionUpdate();
+
+	void RecursiveMatrixMultiply(BoneNode* node, const DirectX::XMMATRIX& mat);
+
 	float _angle;
+
+	float GetYFromXOnBezier(float x, const DirectX::XMFLOAT2& a, const DirectX::XMFLOAT2& b, uint8_t n);
 
 public:
 	PMDActor(const char* filepath, PMDRenderer& renderer);
 	~PMDActor();
+
+	void LoadVMDFile(const char* filepath);
+
+	void PlayAnimation();
 
 	PMDActor* clone();
 	void Update();

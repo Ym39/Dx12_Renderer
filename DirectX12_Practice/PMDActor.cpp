@@ -7,6 +7,8 @@ using namespace Microsoft::WRL;
 using namespace std;
 using namespace DirectX;
 
+#pragma comment(lib,"winmm.lib")
+
 namespace
 {
 	std::string GetExtension(const std::string& path)
@@ -213,8 +215,6 @@ HRESULT PMDActor::CreateTransformView()
 	}
 
 	_mappedMatrices[0] = _transform.world;
-
-	copy(_boneMatrices.begin(), _boneMatrices.end(), _mappedMatrices + 1);
 
 	D3D12_DESCRIPTOR_HEAP_DESC transformDescHeapDesc = {};
 
@@ -487,6 +487,11 @@ HRESULT PMDActor::LoadPMDFile(const char* path)
 		_boneNodeTable[parentName].children.emplace_back(&_boneNodeTable[pb.boneName]);
 	}
 
+	for (auto& boneNode : _boneNodeTable)
+	{
+		_boneNodeTableByIdx[boneNode.second.boneIdx] = boneNode.second;
+	}
+
 	_boneMatrices.resize(pmdBones.size());
 
 	std::fill(_boneMatrices.begin(), _boneMatrices.end(), XMMatrixIdentity());
@@ -496,6 +501,108 @@ HRESULT PMDActor::LoadPMDFile(const char* path)
 	return S_OK;
 }
 
+void PMDActor::MotionUpdate()
+{
+	DWORD elapsedTime = timeGetTime() - _startTime;
+	unsigned int frameNo = 30 * (elapsedTime / 1000.0f);
+
+	if (frameNo > _duration)
+	{
+		_startTime = timeGetTime();
+		frameNo = 0;
+	}
+
+	std::fill(_boneMatrices.begin(), _boneMatrices.end(), XMMatrixIdentity());
+
+	for (auto& bonemotion : _motiondata)
+	{
+		auto itBoneNode = _boneNodeTable.find(bonemotion.first);
+		if (itBoneNode == _boneNodeTable.end())
+		{
+			continue;
+		}
+
+		auto& node = itBoneNode->second;
+
+		auto motions = bonemotion.second;
+		auto rit = std::find_if(
+			motions.rbegin(), motions.rend(),
+			[frameNo](const Motion& motion)
+			{
+				return motion.frameNo <= frameNo;
+			}
+		);
+
+		XMMATRIX rotation;
+		auto it = rit.base();
+
+		if (it != motions.end())
+		{
+			auto t = static_cast<float>(frameNo - rit->frameNo) / static_cast<float>(it->frameNo - rit->frameNo);
+
+			t = GetYFromXOnBezier(t, it->p1, it->p2, 12);
+
+			rotation = XMMatrixRotationQuaternion(XMQuaternionSlerp(rit->quaternion, it->quaternion, t));
+		}
+		else
+		{
+			rotation = XMMatrixRotationQuaternion(rit->quaternion);
+		}
+
+		auto& pos = node.startPos;
+
+		auto mat =
+			XMMatrixTranslation(-pos.x, -pos.y, -pos.z)
+			* rotation
+			* XMMatrixTranslation(pos.x, pos.y, pos.z);
+		_boneMatrices[node.boneIdx] = mat;
+	}
+
+	auto centerNode = _boneNodeTableByIdx[0];
+	RecursiveMatrixMultiply(&centerNode, XMMatrixIdentity());
+	copy(_boneMatrices.begin(), _boneMatrices.end(), _mappedMatrices + 1);
+}
+
+void PMDActor::RecursiveMatrixMultiply(BoneNode* node, const DirectX::XMMATRIX& mat)
+{
+	_boneMatrices[node->boneIdx] *= mat;
+
+	for (auto& cnode : node->children)
+	{
+		RecursiveMatrixMultiply(cnode, _boneMatrices[node->boneIdx]);
+	}
+}
+
+float PMDActor::GetYFromXOnBezier(float x, const DirectX::XMFLOAT2& a, const DirectX::XMFLOAT2& b, uint8_t n)
+{
+	if (a.x == a.y && b.x == b.y)
+	{
+		return x;
+	}
+
+	float t = x;
+	const float k0 = 1 + 3 * a.x - 3 * b.x;
+	const float k1 = 3 * b.x - 6 * a.x;
+	const float k2 = 3 * a.x;
+
+	constexpr float epsilon = 0.0005f;
+
+	for (int i = 0; i < n; ++i)
+	{
+		auto ft = k0 * t * t * t + k1 * t * t + k2 * t - x;
+
+		if (ft <= epsilon && ft >= -epsilon)
+		{
+			break;
+		}
+
+		t -= ft / 2;
+	}
+
+	auto r = 1 - t;
+	return t * t * t + 3 * t * t * r * b.y + 3 * t * r * r * a.y;
+}
+
 PMDActor::PMDActor(const char* filepath, PMDRenderer& renderer):
 	_renderer(renderer),
 	_dx12(renderer._dx12),
@@ -503,6 +610,7 @@ PMDActor::PMDActor(const char* filepath, PMDRenderer& renderer):
 {
 	_transform.world = XMMatrixIdentity() * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 	LoadPMDFile(filepath);
+	LoadVMDFile("Model/Nyan cat EX.vmd");
 	CreateTransformView();
 	CreateMaterialData();
 	CreateMaterialAndTextureView();
@@ -512,10 +620,71 @@ PMDActor::~PMDActor()
 {
 }
 
+void PMDActor::LoadVMDFile(const char* filepath)
+{
+	auto fp = fopen(filepath, "rb");
+	fseek(fp, 50, SEEK_SET);
+
+	unsigned int motionDataNum = 0;
+	fread(&motionDataNum, sizeof(motionDataNum), 1, fp);
+
+	struct VMDMotion
+	{
+		char boneName[15];
+		unsigned int frameNo;
+		XMFLOAT3 location;
+		XMFLOAT4 quaternion;
+		unsigned char bezier[64];
+	};
+
+	std::vector<VMDMotion> vmdMotionData(motionDataNum);
+	for (auto& motion : vmdMotionData)
+	{
+		fread(motion.boneName, sizeof(motion.boneName), 1, fp);
+		fread(&motion.frameNo,
+			sizeof(motion.frameNo)
+			+ sizeof(motion.location)
+			+ sizeof(motion.quaternion)
+			+ sizeof(motion.bezier),
+			1, fp);
+	}
+
+	for (auto& vmdMotion : vmdMotionData)
+	{
+		_motiondata[vmdMotion.boneName].
+			emplace_back(Motion(vmdMotion.frameNo, 
+				XMLoadFloat4(&vmdMotion.quaternion),
+				XMFLOAT2((float)vmdMotion.bezier[3]/127.0f, (float)vmdMotion.bezier[7]/127.0f),
+				XMFLOAT2((float)vmdMotion.bezier[11]/127.0f, (float)vmdMotion.bezier[15]/127.0f)));
+	}
+
+	for (auto& motions : _motiondata)
+	{
+		std::sort(
+			motions.second.begin(), motions.second.end(),
+			[](const Motion& lval, const Motion& rval)
+			{
+				return lval.frameNo <= rval.frameNo;
+			});
+
+		for (auto& motion : motions.second)
+		{
+			_duration = std::max<unsigned int>(_duration, motion.frameNo);
+		}
+	}
+}
+
+void PMDActor::PlayAnimation()
+{
+	_startTime = timeGetTime();
+}
+
 void PMDActor::Update()
 {
 	_angle += 0.005f;
-	_mappedMatrices[0] = XMMatrixRotationY(_angle) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+	//_mappedMatrices[0] = XMMatrixRotationY(_angle) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+
+	MotionUpdate();
 }
 
 void PMDActor::Draw()
