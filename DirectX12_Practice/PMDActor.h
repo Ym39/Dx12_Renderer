@@ -3,11 +3,13 @@
 #include<d3d12.h>
 #include<DirectXMath.h>
 #include<vector>
+#include<array>
 #include<unordered_map>
 #include<string>
 #include<wrl.h>
 #include<timeapi.h>
 #include<algorithm>
+#include<sstream>
 
 class Dx12Wrapper;
 class PMDRenderer;
@@ -74,14 +76,28 @@ private:
 
 	struct BoneNode
 	{
-		int boneIdx;
+		uint32_t boneIdx;
+		uint32_t boneType;
+		uint32_t ikParentBone;
 		DirectX::XMFLOAT3 startPos;
-		DirectX::XMFLOAT3 endPos;
 		std::vector<BoneNode*> children;
 	};
 
+	struct PMDIK
+	{
+		uint16_t boneIdx;
+		uint16_t targetIdx;
+		uint16_t iterations;
+		float limit;
+		std::vector<uint16_t> nodeIdx;
+	};
+	std::vector<PMDIK> _ikData;
+
 	std::unordered_map<std::string, BoneNode> _boneNodeTable;
 	std::unordered_map<int, BoneNode> _boneNodeTableByIdx;
+
+	std::vector<std::string> _boneNameArray;
+	std::vector<BoneNode*> _boneNodeAddressArray;
 
 	HRESULT CreateMaterialData();
 
@@ -97,11 +113,14 @@ private:
 	{
 		unsigned int frameNo;
 		DirectX::XMVECTOR quaternion;
+		DirectX::XMFLOAT3 offset;
 		DirectX::XMFLOAT2 p1, p2;
 
 		Motion(unsigned int fno, DirectX::XMVECTOR& q,
+			DirectX::XMFLOAT3 ofst,
 			const DirectX::XMFLOAT2& ip1, const DirectX::XMFLOAT2& ip2)
 			:frameNo(fno), quaternion(q),
+			offset(ofst),
 			p1(ip1),
 			p2(ip2)
 		{}
@@ -110,6 +129,8 @@ private:
 	std::unordered_map<std::string, std::vector<Motion>> _motiondata;
 
 	unsigned int _duration = 0;
+
+	std::vector<uint32_t> _kneeIdxes;
 
 	DWORD _startTime;
 	void MotionUpdate();
@@ -120,11 +141,28 @@ private:
 
 	float GetYFromXOnBezier(float x, const DirectX::XMFLOAT2& a, const DirectX::XMFLOAT2& b, uint8_t n);
 
+	void IKSolve(int frameNo);
+
+	void SolveCCDIK(const PMDIK& ik);
+
+	void SolveCosineIK(const PMDIK& ik);
+
+	void SolveLookAt(const PMDIK& ik);
+
+	struct VMDIKEnable
+	{
+		uint32_t frameNo;
+
+		std::unordered_map<std::string, bool> ikEnableTable;
+	};
+	std::vector<VMDIKEnable> _ikEnableData;
+
 public:
 	PMDActor(const char* filepath, PMDRenderer& renderer);
 	~PMDActor();
 
 	void LoadVMDFile(const char* filepath);
+	void LoadVMDIKFile(const char* filepath);
 
 	void PlayAnimation();
 
