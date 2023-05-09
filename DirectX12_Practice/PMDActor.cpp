@@ -276,6 +276,8 @@ HRESULT PMDActor::CreateTransformView()
 
 	_dx12.Device()->CreateConstantBufferView(&cbvDesc, _transformHeap->GetCPUDescriptorHandleForHeapStart());
 
+	copy(_boneMatrices.begin(), _boneMatrices.end(), _mappedMatrices + 1);
+
 	return S_OK;
 }
 
@@ -511,7 +513,7 @@ HRESULT PMDActor::LoadPMDFile(const char* path)
 	fread(&ikNum, sizeof(ikNum), 1, fp);
 
 	_ikData.resize(ikNum);
-	for (auto& ik : _ikData)
+	for (auto& ik : _ikData) 
 	{
 		fread(&ik.boneIdx, sizeof(ik.boneIdx), 1, fp);
 		fread(&ik.targetIdx, sizeof(ik.targetIdx), 1, fp);
@@ -560,12 +562,17 @@ HRESULT PMDActor::LoadPMDFile(const char* path)
 	_boneNameArray.resize(pmdBones.size());
 	_boneNodeAddressArray.resize(pmdBones.size());
 
+	_kneeIdxes.clear();
 	for (int idx = 0; idx < pmdBones.size(); ++idx)
 	{
 		auto& pb = pmdBones[idx];
 		auto& node = _boneNodeTable[pb.boneName];
 		node.boneIdx = idx;
 		node.startPos = pb.pos;
+		node.boneType = pb.type;
+		node.parentBone = pb.parentNo;
+		node.ikParentBone = pb.ikBoneNo;
+
 		_boneNameArray[idx] = pb.boneName;
 		_boneNodeAddressArray[idx] = &node;
 
@@ -634,7 +641,9 @@ void PMDActor::MotionUpdate()
 			}
 		);
 
-		XMMATRIX rotation;
+		XMMATRIX rotation = XMMatrixIdentity();
+		XMVECTOR offset = XMLoadFloat3(&rit->offset);
+
 		auto it = rit.base();
 
 		if (it != motions.end())
@@ -644,6 +653,7 @@ void PMDActor::MotionUpdate()
 			t = GetYFromXOnBezier(t, it->p1, it->p2, 12);
 
 			rotation = XMMatrixRotationQuaternion(XMQuaternionSlerp(rit->quaternion, it->quaternion, t));
+			offset = XMVectorLerp(offset, XMLoadFloat3(&it->offset), t);
 		}
 		else
 		{
@@ -656,13 +666,13 @@ void PMDActor::MotionUpdate()
 			XMMatrixTranslation(-pos.x, -pos.y, -pos.z)
 			* rotation
 			* XMMatrixTranslation(pos.x, pos.y, pos.z);
-		_boneMatrices[node.boneIdx] = mat;
+		_boneMatrices[node.boneIdx] = mat * XMMatrixTranslationFromVector(offset);
 	}
 
 	auto centerNode = _boneNodeTableByIdx[0];
 	RecursiveMatrixMultiply(&centerNode, XMMatrixIdentity());
 
-	IKSolve(frameNo);
+	//IKSolve(frameNo);
 
 	copy(_boneMatrices.begin(), _boneMatrices.end(), _mappedMatrices + 1);
 }
@@ -818,29 +828,37 @@ void PMDActor::SolveCCDIK(const PMDIK& ik)
 
 void PMDActor::SolveCosineIK(const PMDIK& ik)
 {
-	vector<XMVECTOR> positions;
-	std::array<float, 2> edgeLens;
+	vector<XMVECTOR> positions;//IK?맟?귩뺎뫔
+	std::array<float, 2> edgeLens;//IK궻궩귢궪귢궻??깛듩궻떁뿣귩뺎뫔
 
+	//??긒긞긣(뼎???깛궳궼궶궘갂뼎???깛궕뗟궱궘뽞뷭??깛궻띆뷭귩롦벦)
 	auto& targetNode = _boneNodeAddressArray[ik.boneIdx];
 	auto targetPos = XMVector3Transform(XMLoadFloat3(&targetNode->startPos), _boneMatrices[ik.boneIdx]);
 
+	//IK?긃?깛궕땤룈궶궻궳갂땤궸빥귆귝궎궸궢궲궋귡
+	//뼎???깛
 	auto endNode = _boneNodeAddressArray[ik.targetIdx];
 	positions.emplace_back(XMLoadFloat3(&endNode->startPos));
-
+	//뭷듩땩귂깑?긣??깛
 	for (auto& chainBoneIdx : ik.nodeIdx) {
 		auto boneNode = _boneNodeAddressArray[chainBoneIdx];
 		positions.emplace_back(XMLoadFloat3(&boneNode->startPos));
 	}
-
+	//궭귛궯궴빁궔귟궱귞궋궴럙궯궫궻궳땤궸궢궲궓궖귏궥갃궩궎궳귖궶궋릐궼궩궻귏귏
+	//똶럁궢궲귖귞궯궲?귦궶궋궳궥갃
 	reverse(positions.begin(), positions.end());
 
+	//뙰궻뮮궠귩뫇궯궲궓궘
 	edgeLens[0] = XMVector3Length(XMVectorSubtract(positions[1], positions[0])).m128_f32[0];
 	edgeLens[1] = XMVector3Length(XMVectorSubtract(positions[2], positions[1])).m128_f32[0];
 
+	//깑?긣??깛띆뷭빾듂(땤룈궸궶궯궲궋귡궫귕럊뾭궥귡귽깛긢긞긏긚궸뭾댰)
 	positions[0] = XMVector3Transform(positions[0], _boneMatrices[ik.nodeIdx[1]]);
-
+	//?귪뭷궼궵궎궧렔벍똶럁궠귢귡궻궳똶럁궢궶궋
+	//먩???깛
 	positions[2] = XMVector3Transform(positions[2], _boneMatrices[ik.boneIdx]);//긼깛?궼ik.targetIdx궬궕갷갏갎
 
+	//깑?긣궔귞먩?귉궻긹긏긣깑귩띿궯궲궓궘
 	auto linearVec = XMVectorSubtract(positions[2], positions[0]);
 	float A = XMVector3Length(linearVec).m128_f32[0];
 	float B = edgeLens[0];
@@ -848,21 +866,33 @@ void PMDActor::SolveCosineIK(const PMDIK& ik)
 
 	linearVec = XMVector3Normalize(linearVec);
 
+	//깑?긣궔귞?귪뭷귉궻둷뱗똶럁
 	float theta1 = acosf((A * A + B * B - C * C) / (2 * A * B));
 
+	//?귪뭷궔귞??긒긞긣귉궻둷뱗똶럁
 	float theta2 = acosf((B * B + C * C - A * A) / (2 * B * C));
 
+	//걏렡걐귩땫귕귡
+	//귖궢?귪뭷궕걏궿궡걐궳궇궯궫뤾뜃궸궼떗맕밒궸X렡궴궥귡갃
 	XMVECTOR axis;
 	if (find(_kneeIdxes.begin(), _kneeIdxes.end(), ik.nodeIdx[0]) == _kneeIdxes.end()) {
 		auto vm = XMVector3Normalize(XMVectorSubtract(positions[2], positions[0]));
 		auto vt = XMVector3Normalize(XMVectorSubtract(targetPos, positions[0]));
 		axis = XMVector3Cross(vt, vm);
 	}
-	else {
+	else
+	{
 		auto right = XMFLOAT3(1, 0, 0);
 		axis = XMLoadFloat3(&right);
 	}
 
+	//if (XMVector3Equal(axis, XMVectorZero()))
+	//{
+	//	auto right = XMFLOAT3(1, 0, 0);
+	//	axis = XMLoadFloat3(&right);
+	//}
+
+	//뭾댰?갷IK?긃?깛궼뜧궯궞궸뛀궔궯궲궔귞릶궑귞귢귡궫귕1궕뜧궯궞궸뗟궋
 	auto mat1 = XMMatrixTranslationFromVector(-positions[0]);
 	mat1 *= XMMatrixRotationAxis(axis, theta1);
 	mat1 *= XMMatrixTranslationFromVector(positions[0]);
@@ -874,7 +904,10 @@ void PMDActor::SolveCosineIK(const PMDIK& ik)
 
 	_boneMatrices[ik.nodeIdx[1]] *= mat1;
 	_boneMatrices[ik.nodeIdx[0]] = mat2 * _boneMatrices[ik.nodeIdx[1]];
-	_boneMatrices[ik.targetIdx] = _boneMatrices[ik.nodeIdx[0]];
+	_boneMatrices[ik.targetIdx] = _boneMatrices[ik.nodeIdx[0]];//뮳멟궻뎓떯귩롷궚귡
+	//_boneMatrices[ik.nodeIdxes[1]] = _boneMatrices[ik.boneIdx];
+	//_boneMatrices[ik.nodeIdxes[0]] = _boneMatrices[ik.boneIdx];
+	//_boneMatrices[ik.targetIdx] *= _boneMatrices[ik.boneIdx];
 }
 
 void PMDActor::SolveLookAt(const PMDIK& ik)
@@ -894,7 +927,11 @@ void PMDActor::SolveLookAt(const PMDIK& ik)
 	originVec = XMVector3Normalize(originVec);
 	targetVec = XMVector3Normalize(targetVec);
 
-	_boneMatrices[ik.nodeIdx[0]] = LookAtMatrix(originVec, targetVec, XMFLOAT3(0, 1, 0), XMFLOAT3(1, 0, 1));
+	XMMATRIX mat = XMMatrixTranslationFromVector(-rpos2) *
+		           LookAtMatrix(originVec, targetVec, XMFLOAT3(0, 1, 0), XMFLOAT3(1, 0, 0)) *
+		           XMMatrixTranslationFromVector(rpos2);
+
+	_boneMatrices[ik.nodeIdx[0]] = mat;
 }
 
 PMDActor::PMDActor(const char* filepath, PMDRenderer& renderer):
@@ -904,7 +941,7 @@ PMDActor::PMDActor(const char* filepath, PMDRenderer& renderer):
 {
 	_transform.world = XMMatrixIdentity() * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 	LoadPMDFile(filepath);
-	LoadVMDFile("Model/DECORATOR.vmd");
+	LoadVMDFile("Model/squat.vmd");
 	CreateTransformView();
 	CreateMaterialData();
 	CreateMaterialAndTextureView();
@@ -918,39 +955,116 @@ void PMDActor::LoadVMDFile(const char* filepath)
 {
 	auto fp = fopen(filepath, "rb");
 	fseek(fp, 50, SEEK_SET);
+	unsigned int keyframeNum = 0;
+	fread(&keyframeNum, sizeof(keyframeNum), 1, fp);
 
-	unsigned int motionDataNum = 0;
-	fread(&motionDataNum, sizeof(motionDataNum), 1, fp);
-
-	struct VMDMotion
+	struct VMDKeyFrame 
 	{
-		char boneName[15];
-		unsigned int frameNo;
-		XMFLOAT3 location;
-		XMFLOAT4 quaternion;
-		unsigned char bezier[64];
+		char boneName[15]; 
+		unsigned int frameNo; 
+		XMFLOAT3 location; 
+		XMFLOAT4 quaternion; 
+		unsigned char bezier[64]; 
 	};
 
-	std::vector<VMDMotion> vmdMotionData(motionDataNum);
-	for (auto& motion : vmdMotionData)
+	vector<VMDKeyFrame> keyframes(keyframeNum);
+	for (auto& keyframe : keyframes)
 	{
-		fread(motion.boneName, sizeof(motion.boneName), 1, fp);
-		fread(&motion.frameNo,
-			sizeof(motion.frameNo)
-			+ sizeof(motion.location)
-			+ sizeof(motion.quaternion)
-			+ sizeof(motion.bezier),
-			1, fp);
+		fread(keyframe.boneName, sizeof(keyframe.boneName), 1, fp);
+		fread(&keyframe.frameNo, sizeof(keyframe.frameNo) +
+			sizeof(keyframe.location) +
+			sizeof(keyframe.quaternion) +
+			sizeof(keyframe.bezier), 1, fp);
 	}
 
-	for (auto& vmdMotion : vmdMotionData)
+#pragma pack(1)
+	struct VMDMorph 
+	{
+		char name[15];
+		uint32_t frameNo;
+		float weight;
+	};
+#pragma pack()
+
+	uint32_t morphCount = 0;
+	fread(&morphCount, sizeof(morphCount), 1, fp);
+	vector<VMDMorph> morphs(morphCount);
+	fread(morphs.data(), sizeof(VMDMorph), morphCount, fp);
+
+#pragma pack(1)
+	struct VMDCamera 
+	{
+		uint32_t frameNo; 
+		float distance;
+		XMFLOAT3 pos;
+		XMFLOAT3 eulerAngle; 
+		uint8_t Interpolation[24];
+		uint32_t fov;
+		uint8_t persFlg; 
+	};
+#pragma pack()
+	uint32_t vmdCameraCount = 0;
+	fread(&vmdCameraCount, sizeof(vmdCameraCount), 1, fp);
+	vector<VMDCamera> cameraData(vmdCameraCount);
+	fread(cameraData.data(), sizeof(VMDCamera), vmdCameraCount, fp);
+
+
+	struct VMDLight 
+	{
+		uint32_t frameNo;
+		XMFLOAT3 rgb;
+		XMFLOAT3 vec; 
+	};
+
+	uint32_t vmdLightCount = 0;
+	fread(&vmdLightCount, sizeof(vmdLightCount), 1, fp);
+	vector<VMDLight> lights(vmdLightCount);
+	fread(lights.data(), sizeof(VMDLight), vmdLightCount, fp);
+
+#pragma pack(1)
+	struct VMDSelfShadow 
+	{
+		uint32_t frameNo;
+		uint8_t mode; 
+		float distance; 
+	};
+#pragma pack()
+
+	uint32_t selfShadowCount = 0;
+	fread(&selfShadowCount, sizeof(selfShadowCount), 1, fp);
+	vector<VMDSelfShadow> selfShadowData(selfShadowCount);
+	fread(selfShadowData.data(), sizeof(VMDSelfShadow), selfShadowCount, fp);
+
+	uint32_t ikSwitchCount = 0;
+	fread(&ikSwitchCount, sizeof(ikSwitchCount), 1, fp);
+	
+	_ikEnableData.resize(ikSwitchCount);
+	for (auto& ikEnable : _ikEnableData)
+	{
+		fread(&ikEnable.frameNo, sizeof(ikEnable.frameNo), 1, fp);
+		uint8_t visibleFlg = 0;
+		fread(&visibleFlg, sizeof(visibleFlg), 1, fp);
+		uint32_t ikBoneCount = 0;
+		fread(&ikBoneCount, sizeof(ikBoneCount), 1, fp);
+		for (int i = 0; i < ikBoneCount; ++i)
+		{
+			char ikBoneName[20];
+			fread(ikBoneName, _countof(ikBoneName), 1, fp);
+			uint8_t flg = 0;
+			fread(&flg, sizeof(flg), 1, fp);
+			ikEnable.ikEnableTable[ikBoneName] = flg;
+		}
+	}
+	fclose(fp);
+
+	for (auto& vmdMotion : keyframes)
 	{
 		_motiondata[vmdMotion.boneName].
-			emplace_back(Motion(vmdMotion.frameNo, 
+			emplace_back(Motion(vmdMotion.frameNo,
 				XMLoadFloat4(&vmdMotion.quaternion),
 				vmdMotion.location,
-				XMFLOAT2((float)vmdMotion.bezier[3]/127.0f, (float)vmdMotion.bezier[7]/127.0f),
-				XMFLOAT2((float)vmdMotion.bezier[11]/127.0f, (float)vmdMotion.bezier[15]/127.0f)));
+				XMFLOAT2((float)vmdMotion.bezier[3] / 127.0f, (float)vmdMotion.bezier[7] / 127.0f),
+				XMFLOAT2((float)vmdMotion.bezier[11] / 127.0f, (float)vmdMotion.bezier[15] / 127.0f)));
 	}
 
 	for (auto& motions : _motiondata)
@@ -967,90 +1081,6 @@ void PMDActor::LoadVMDFile(const char* filepath)
 			_duration = std::max<unsigned int>(_duration, motion.frameNo);
 		}
 	}
-
-#pragma pack(1)
-	struct VMDMorph
-	{
-		char name[15];
-		uint32_t frameNo;
-		float weight;
-	};
-#pragma pack()
-
-	uint32_t morphCount = 0;
-	fread(&morphCount, sizeof(morphCount), 1, fp);
-
-	std::vector<VMDMorph> morphs(morphCount);
-	fread(morphs.data(), sizeof(morphCount), 1, fp);
-
-#pragma pack(1)
-	struct VMDCamera
-	{
-		uint32_t frameNo; 
-		float distance; 
-		XMFLOAT3 pos; 
-		XMFLOAT3 eulerAngle;
-		uint8_t Interpolation[24]; 
-		uint32_t fov; 
-		uint8_t persFlg; 
-	};
-#pragma pack()
-	uint32_t vmdCameraCount = 0;
-	fread(&vmdCameraCount, sizeof(vmdCameraCount), 1, fp);
-	vector<VMDCamera> cameraData(vmdCameraCount);
-	fread(cameraData.data(), sizeof(VMDCamera), vmdCameraCount, fp);
-
-	struct VMDLight
-	{
-		uint32_t frameNo; 
-		XMFLOAT3 rgb; 
-		XMFLOAT3 vec; 
-	};
-
-	uint32_t vmdLightCount = 0;
-	fread(&vmdLightCount, sizeof(vmdLightCount), 1, fp);
-
-	vector<VMDLight> lights(vmdLightCount);
-	fread(lights.data(), sizeof(VMDLight), vmdLightCount, fp);
-
-#pragma pack(1)
-	struct VMDSelfShadow 
-	{
-		uint32_t frameNo; 
-		uint8_t mode; 
-		float distance;
-	};
-#pragma pack()
-	uint32_t selfShadowCount = 0;
-	fread(&selfShadowCount, sizeof(selfShadowCount), 1, fp);
-	vector<VMDSelfShadow> selfShadowData(selfShadowCount);
-	fread(selfShadowData.data(), sizeof(VMDSelfShadow), selfShadowCount, fp);
-
-	uint32_t ikSwitchCount = 0;
-	fread(&ikSwitchCount, sizeof(ikSwitchCount), 1, fp);
-
-	_ikEnableData.resize(ikSwitchCount);
-	for (auto& ikEnable : _ikEnableData)
-	{
-		fread(&ikEnable.frameNo, sizeof(ikEnable.frameNo), 1, fp);
-
-		uint8_t visibleFlg = 0;
-		fread(&visibleFlg, sizeof(visibleFlg), 1, fp);
-
-		uint32_t ikBoneCount = 0;
-		fread(&ikBoneCount, sizeof(ikBoneCount), 1, fp);
-
-		for (int i = 0; i < ikBoneCount; ++i) 
-		{
-			char ikBoneName[20];
-			fread(ikBoneName, _countof(ikBoneName), 1, fp);
-			uint8_t flg = 0;
-			fread(&flg, sizeof(flg), 1, fp);
-			ikEnable.ikEnableTable[ikBoneName] = flg;
-		}
-	}
-
-	fclose(fp);
 }
 
 void PMDActor::LoadVMDIKFile(const char* filepath)
@@ -1177,7 +1207,7 @@ void PMDActor::Update()
 	_angle += 0.005f;
 	//_mappedMatrices[0] = XMMatrixRotationY(_angle) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 
-	MotionUpdate();
+	//MotionUpdate();
 }
 
 void PMDActor::Draw()
