@@ -50,12 +50,21 @@
     <FxCompile Include="PMXPixelShader.hlsl">
       <Filter>소스 파일</Filter>
     </FxCompile>
+    <FxCompile Include="peraVertex.hlsl">
+      <Filter>소스 파일</Filter>
+    </FxCompile>
+    <FxCompile Include="peraPixel.hlsl">
+      <Filter>소스 파일</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="BasicShaderHeader.hlsli">
       <Filter>소스 파일</Filter>
     </None>
     <None Include="PmxShaderHeader.hlsli">
+      <Filter>소스 파일</Filter>
+    </None>
+    <None Include="peraHeader.hlsli">
       <Filter>소스 파일</Filter>
     </None>
   </ItemGroup>

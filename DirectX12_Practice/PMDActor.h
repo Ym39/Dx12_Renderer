@@ -78,6 +78,7 @@ private:
 	{
 		uint32_t boneIdx;
 		uint32_t boneType;
+		uint32_t parentBone;
 		uint32_t ikParentBone;
 		DirectX::XMFLOAT3 startPos;
 		std::vector<BoneNode*> children;

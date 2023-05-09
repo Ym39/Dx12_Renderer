@@ -32,6 +32,16 @@ class Dx12Wrapper
 
 	ComPtr<ID3D12Resource> _sceneConstBuff = nullptr;
 
+	ComPtr<ID3D12Resource> _peraResource = nullptr;
+	ComPtr<ID3D12DescriptorHeap> _peraRTVHeap = nullptr;
+	ComPtr<ID3D12DescriptorHeap> _peraSRVHeap = nullptr;
+
+	ComPtr<ID3D12Resource> _peraVB;
+	D3D12_VERTEX_BUFFER_VIEW _peraVBV;
+
+	ComPtr<ID3D12PipelineState> _peraPipeline;
+	ComPtr<ID3D12RootSignature> _peraRS;
+
 	struct SceneMatricesData
 	{
 		DirectX::XMMATRIX view;
@@ -48,6 +58,8 @@ class Dx12Wrapper
 	HRESULT CreateFinalRenderTargets();
 
 	HRESULT CreateDepthStencilView();
+
+	HRESULT CreatePeraResource();
 
 	HRESULT CreateSwapChain(const HWND& hwnd);
 
@@ -73,8 +85,12 @@ public:
 	~Dx12Wrapper();
 
 	void Update();
+	void Draw();
 	void BeginDraw();
 	void EndDraw();
+	bool PreDrawToPera1();
+	bool CreatePeraVertex();
+	bool CreatePeraPipeline();
 
 	ComPtr<ID3D12Resource> GetTextureByPath(const char* texpath);
 	ComPtr<ID3D12Resource> GetTextureByPath(const std::wstring& texpath);
