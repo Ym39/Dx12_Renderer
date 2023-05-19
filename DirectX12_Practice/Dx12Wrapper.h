@@ -86,6 +86,7 @@ public:
 
 	void Update();
 	void Draw();
+	void Clear();
 	void BeginDraw();
 	void EndDraw();
 	bool PreDrawToPera1();
