@@ -666,6 +666,33 @@ void Dx12Wrapper::Draw()
 	_cmdList->DrawInstanced(4, 1, 0, 0);
 }
 
+void Dx12Wrapper::Clear()
+{
+	auto bbIdx = _swapChain->GetCurrentBackBufferIndex();
+
+	D3D12_RESOURCE_BARRIER BarrierDesc = {};
+
+	BarrierDesc.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	BarrierDesc.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	BarrierDesc.Transition.pResource = _backBuffers[bbIdx];
+	BarrierDesc.Transition.Subresource = 0;
+
+	BarrierDesc.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+	BarrierDesc.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+	auto rtvHeapPointer = _rtvHeaps->GetCPUDescriptorHandleForHeapStart();
+	rtvHeapPointer.ptr += bbIdx * _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+	_cmdList->OMSetRenderTargets(1, &rtvHeapPointer, false, nullptr);
+
+	//ƒNƒŠƒAƒJƒ‰?		 R   G   B   A
+	float clsClr[4] = { 0.2,0.5,0.5,1.0 };
+	_cmdList->ClearRenderTargetView(rtvHeapPointer, clsClr, 0, nullptr);
+	//_cmdList->ClearDepthStencilView(_dsvHeap->GetCPUDescriptorHandleForHeapStart(),
+	//	D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+}
+
 void Dx12Wrapper::BeginDraw()
 {
 	int bbIdx = _swapChain->GetCurrentBackBufferIndex();

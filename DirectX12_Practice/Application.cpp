@@ -90,7 +90,7 @@ void Application::Run()
 			break;
 		}
 
-		_dx12->BeginDraw();
+		/*_dx12->BeginDraw();
 
 		_dx12->CommandList()->SetPipelineState(_pmdRenderer->GetPipelineState());
 
@@ -112,7 +112,14 @@ void Application::Run()
 		_dx12->SetScene();
 
 		_pmxActor->Update();
-		_pmxActor->Draw();
+		_pmxActor->Draw();*/
+
+		//_dx12->BeginDraw();
+
+		_dx12->PreDrawToPera1();
+
+		_dx12->Clear();
+		_dx12->Draw();
 
 		_dx12->EndDraw();
 
