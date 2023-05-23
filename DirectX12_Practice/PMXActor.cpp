@@ -718,6 +718,7 @@ void PMXActor::Draw()
 {
 	_dx12.CommandList()->IASetVertexBuffers(0, 1, &_vbView);
 	_dx12.CommandList()->IASetIndexBuffer(&_ibView);
+	_dx12.CommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	ID3D12DescriptorHeap* transheap[] = { _transformHeap.Get() };
 	_dx12.CommandList()->SetDescriptorHeaps(1, transheap);
@@ -738,4 +739,11 @@ void PMXActor::Draw()
 		materialH.ptr += cbvsrvIncSize;
 		idxOffset += m.vertexNum;
 	}
+}
+
+void PMXActor::BeforeDraw()
+{
+	auto cmdList = _dx12.CommandList();
+	cmdList.Get()->SetPipelineState(_renderer.GetPipelineState());
+	cmdList.Get()->SetGraphicsRootSignature(_renderer.GetRootSignature());
 }

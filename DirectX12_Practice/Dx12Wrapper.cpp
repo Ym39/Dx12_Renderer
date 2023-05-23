@@ -651,10 +651,10 @@ void Dx12Wrapper::Draw()
 	_cmdList->RSSetScissorRects(1, &rc);
 
 	_cmdList->SetGraphicsRootSignature(_peraRS.Get());
-	//_cmdList->SetDescriptorHeaps(1, _peraRegisterHeap.GetAddressOf());
+	_cmdList->SetDescriptorHeaps(1, _peraSRVHeap.GetAddressOf());
 
-	//auto handle = _peraRegisterHeap->GetGPUDescriptorHandleForHeapStart();
-	//_cmdList->SetGraphicsRootDescriptorTable(0, handle);
+    auto handle = _peraSRVHeap->GetGPUDescriptorHandleForHeapStart();
+	_cmdList->SetGraphicsRootDescriptorTable(0, handle);
 	//handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	//handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	//_cmdList->SetGraphicsRootDescriptorTable(1, handle);
@@ -759,6 +759,8 @@ void Dx12Wrapper::EndDraw()
 
 	_cmdAllocator->Reset();
 	_cmdList->Reset(_cmdAllocator.Get(), nullptr);
+
+	_swapChain->Present(0, 0);
 }
 
 bool Dx12Wrapper::PreDrawToPera1()
@@ -771,6 +773,7 @@ bool Dx12Wrapper::PreDrawToPera1()
 
 	auto rtvHeapPointer = _peraRTVHeap->GetCPUDescriptorHandleForHeapStart();
 	auto dsvHeapPointer = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
+
 	_cmdList->OMSetRenderTargets(1, &rtvHeapPointer, false, &dsvHeapPointer);
 
 	float clsClr[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -778,6 +781,29 @@ bool Dx12Wrapper::PreDrawToPera1()
 	_cmdList->ClearDepthStencilView(dsvHeapPointer, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 	return true;
+}
+
+void Dx12Wrapper::DrawToPera1()
+{
+	auto wsize = Application::Instance().GetWindowSize();
+
+	ID3D12DescriptorHeap* sceneheaps[] = { _sceneDescHeap.Get() };
+	_cmdList->SetDescriptorHeaps(1, sceneheaps);
+	_cmdList->SetGraphicsRootDescriptorTable(0, _sceneDescHeap->GetGPUDescriptorHandleForHeapStart());
+
+	D3D12_VIEWPORT vp = CD3DX12_VIEWPORT(0.0f, 0.0f, wsize.cx, wsize.cy);
+	_cmdList->RSSetViewports(1, &vp);
+
+	CD3DX12_RECT rc(0, 0, wsize.cx, wsize.cy);
+	_cmdList->RSSetScissorRects(1, &rc);
+}
+
+void Dx12Wrapper::PostDrawToPera1()
+{
+	auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(_peraResource.Get(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	_cmdList->ResourceBarrier(1, &barrier);
 }
 
 bool Dx12Wrapper::CreatePeraVertex()
@@ -822,44 +848,57 @@ bool Dx12Wrapper::CreatePeraVertex()
 
 bool Dx12Wrapper::CreatePeraPipeline()
 {
-	D3D12_DESCRIPTOR_RANGE range[3] = {};
-	range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;//b
-	range[0].BaseShaderRegister = 0;//0
-	range[0].NumDescriptors = 1;
+	//D3D12_DESCRIPTOR_RANGE range[3] = {};
+	//range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;//b
+	//range[0].BaseShaderRegister = 0;//0
+	//range[0].NumDescriptors = 1;
 
-	range[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;//t
-	range[1].BaseShaderRegister = 0;//0
-	range[1].NumDescriptors = 1;
+	//range[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;//t
+	//range[1].BaseShaderRegister = 0;//0
+	//range[1].NumDescriptors = 1;
 
-	range[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;//t
-	range[2].BaseShaderRegister = 1;//1
-	range[2].NumDescriptors = 1;
+	//range[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;//t
+	//range[2].BaseShaderRegister = 1;//1
+	//range[2].NumDescriptors = 1;
 
-	D3D12_ROOT_PARAMETER rp[3] = {};
-	rp[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;//
-	rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-	rp[0].DescriptorTable.pDescriptorRanges = &range[0];
-	rp[0].DescriptorTable.NumDescriptorRanges = 1;
+	//D3D12_ROOT_PARAMETER rp[3] = {};
+	//rp[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;//
+	//rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	//rp[0].DescriptorTable.pDescriptorRanges = &range[0];
+	//rp[0].DescriptorTable.NumDescriptorRanges = 1;
 
-	rp[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;//
-	rp[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-	rp[1].DescriptorTable.pDescriptorRanges = &range[1];
-	rp[1].DescriptorTable.NumDescriptorRanges = 1;
+	////rp[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;//
+	////rp[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	////rp[1].DescriptorTable.pDescriptorRanges = &range[1];
+	////rp[1].DescriptorTable.NumDescriptorRanges = 1;
 
-	rp[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;//
-	rp[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-	rp[2].DescriptorTable.pDescriptorRanges = &range[2];
-	rp[2].DescriptorTable.NumDescriptorRanges = 1;
+	////rp[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;//
+	////rp[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	////rp[2].DescriptorTable.pDescriptorRanges = &range[2];
+	//rp[2].DescriptorTable.NumDescriptorRanges = 1;
+
+
+	D3D12_DESCRIPTOR_RANGE range = {};
+	range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	range.BaseShaderRegister = 0;
+	range.NumDescriptors = 1;
+
+
+	D3D12_ROOT_PARAMETER rp = {};
+	rp.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rp.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rp.DescriptorTable.pDescriptorRanges = &range;
+	rp.DescriptorTable.NumDescriptorRanges = 1;
 
 	D3D12_ROOT_SIGNATURE_DESC rsDesc = {};
-	rsDesc.NumParameters = 0;
-	//rsDesc.pParameters = rp;
+	rsDesc.NumParameters = 1;
+	rsDesc.pParameters = &rp;
 
-	//D3D12_STATIC_SAMPLER_DESC sampler = CD3DX12_STATIC_SAMPLER_DESC(0);
+	D3D12_STATIC_SAMPLER_DESC sampler = CD3DX12_STATIC_SAMPLER_DESC(0);
 	//sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	//sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	//rsDesc.pStaticSamplers = &sampler;
-	rsDesc.NumStaticSamplers = 0;
+	rsDesc.pStaticSamplers = &sampler;
+	rsDesc.NumStaticSamplers = 1;
 	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 

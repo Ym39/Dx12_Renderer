@@ -90,6 +90,8 @@ public:
 	void BeginDraw();
 	void EndDraw();
 	bool PreDrawToPera1();
+	void DrawToPera1();
+	void PostDrawToPera1();
 	bool CreatePeraVertex();
 	bool CreatePeraPipeline();
 

@@ -170,5 +170,6 @@ public:
 	PMDActor* clone();
 	void Update();
 	void Draw();
+	void BeforeDraw();
 };
 
