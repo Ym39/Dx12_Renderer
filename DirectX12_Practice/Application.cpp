@@ -112,9 +112,7 @@ void Application::Run()
 		_dx12->SetScene();
 
 		_pmxActor->Update();
-		_pmxActor->Draw();*/
-
-		//_dx12->BeginDraw();
+		_pmxActor->Draw();
 
 		_dx12->PreDrawToPera1();
 
@@ -123,7 +121,28 @@ void Application::Run()
 
 		_dx12->EndDraw();
 
-		_dx12->Swapchain()->Present(1, 0);
+		_dx12->Swapchain()->Present(1, 0);*/
+
+		_dx12->PreDrawToPera1();
+
+		_pmdActor->Update();
+		_pmdActor->BeforeDraw();
+
+		_pmxActor->Update();
+
+		_dx12->DrawToPera1();
+
+		_pmdActor->Draw();
+
+		_pmxActor->BeforeDraw();
+		_pmxActor->Draw();
+
+		_dx12->PostDrawToPera1();
+		_dx12->Clear();
+
+		_dx12->Draw();
+
+		_dx12->EndDraw();
 	}
 }
 

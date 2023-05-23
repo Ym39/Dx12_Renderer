@@ -65,6 +65,7 @@ public:
 
 	void Update();
 	void Draw();
+	void BeforeDraw();
 
 	struct PMXModelData
 	{
