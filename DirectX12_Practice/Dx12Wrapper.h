@@ -33,6 +33,7 @@ class Dx12Wrapper
 	ComPtr<ID3D12Resource> _sceneConstBuff = nullptr;
 
 	ComPtr<ID3D12Resource> _peraResource = nullptr;
+	ComPtr<ID3D12Resource> _peraResource2 = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _peraRTVHeap = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _peraSRVHeap = nullptr;
 
@@ -40,7 +41,10 @@ class Dx12Wrapper
 	D3D12_VERTEX_BUFFER_VIEW _peraVBV;
 
 	ComPtr<ID3D12PipelineState> _peraPipeline;
+	ComPtr<ID3D12PipelineState> _peraPipeline2;
 	ComPtr<ID3D12RootSignature> _peraRS;
+
+	ComPtr<ID3D12Resource> _bokehParamResource;
 
 	struct SceneMatricesData
 	{
@@ -60,6 +64,8 @@ class Dx12Wrapper
 	HRESULT CreateDepthStencilView();
 
 	HRESULT CreatePeraResource();
+
+	HRESULT CreateBokehParamResource();
 
 	HRESULT CreateSwapChain(const HWND& hwnd);
 
@@ -92,6 +98,7 @@ public:
 	bool PreDrawToPera1();
 	void DrawToPera1();
 	void PostDrawToPera1();
+	void DrawBokeh();
 	bool CreatePeraVertex();
 	bool CreatePeraPipeline();
 
