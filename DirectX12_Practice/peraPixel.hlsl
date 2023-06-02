@@ -43,7 +43,8 @@ float4 ps(Output input) : SV_TARGET
 		ret += bkweights[i >> 2][i % 4] * tex.Sample(smp, input.uv + float2(-i * dx, 0));
 	}
 
-	return float4(ret.rgb, col.a);
+	return col;
+	//return float4(ret.rgb, col.a);
 }
 
 float4 VerticalBokehPS(Output input) : SV_TARGET
@@ -64,5 +65,9 @@ float4 VerticalBokehPS(Output input) : SV_TARGET
 		ret += bkweights[i >> 2][i % 4] * tex.Sample(smp, input.uv + float2(0, -dy * i));
 	}
 
-	return float4(ret.rgb, col.a);
+	return col;
+	//return float4(ret.rgb, col.a);
+
+	float dep = pow(depthTex.Sample(smp, input.uv), 20);
+	return float4(dep, dep, dep, 1);
 }

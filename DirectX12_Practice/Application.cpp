@@ -123,19 +123,28 @@ void Application::Run()
 
 		_dx12->Swapchain()->Present(1, 0);*/
 
-		_dx12->PreDrawToPera1();
+		_dx12->SetCameraSetting();
 
 		_pmdActor->Update();
+
+		_pmdActor->BeforeDrawFromLight();
+
+		_dx12->PreDrawShadow();
+
+		_pmdActor->DrawFromLight();
+
+		_dx12->PreDrawToPera1();
+
 		_pmdActor->BeforeDraw();
 
-		_pmxActor->Update();
+		//_pmxActor->Update();
 
 		_dx12->DrawToPera1();
 
-		_pmdActor->Draw();
+		_pmdActor->Draw(false);
 
-		_pmxActor->BeforeDraw();
-		_pmxActor->Draw();
+		//_pmxActor->BeforeDraw();
+		//_pmxActor->Draw();
 
 		_dx12->PostDrawToPera1();
 

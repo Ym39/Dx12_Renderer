@@ -13,6 +13,8 @@ using namespace std;
 using namespace DirectX;
 using namespace Microsoft::WRL;
 
+constexpr uint32_t shadow_difinition = 1024;
+
 namespace
 {
 	std::vector<float> GetGaussianWeights(size_t count, float s) 
@@ -159,13 +161,7 @@ HRESULT Dx12Wrapper::CreateDepthStencilView()
     auto result = _swapChain->GetDesc1(&desc);
 
 	//±íÀÌ ¹öÆÛ ÀÛ¼º
-	D3D12_RESOURCE_DESC depthResDesc = {};
-	depthResDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	depthResDesc.Width = desc.Width;
-	depthResDesc.Height = desc.Height;
-	depthResDesc.DepthOrArraySize = 1;
-	depthResDesc.Format = DXGI_FORMAT_D32_FLOAT;
-	depthResDesc.SampleDesc.Count = 1;
+	D3D12_RESOURCE_DESC depthResDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R32_TYPELESS, desc.Width, desc.Height);
 	depthResDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
 	D3D12_HEAP_PROPERTIES depthHeapProp = {};
@@ -190,9 +186,19 @@ HRESULT Dx12Wrapper::CreateDepthStencilView()
 		return result;
 	}
 
+	depthResDesc.Width = shadow_difinition;
+	depthResDesc.Height = shadow_difinition;
+	result = _dev->CreateCommittedResource(&depthHeapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&depthResDesc,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		&depthClearValue,
+		IID_PPV_ARGS(_lightDepthBuffer.ReleaseAndGetAddressOf()));
+
+
 	//±íÀÌ ¹öÆÛ ºä ÀÛ¼º
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-	dsvHeapDesc.NumDescriptors = 1;
+	dsvHeapDesc.NumDescriptors = 2;
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
@@ -204,11 +210,40 @@ HRESULT Dx12Wrapper::CreateDepthStencilView()
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
 
-	_dev->CreateDepthStencilView(
-		_depthBuffer.Get(),
-		&dsvDesc,
-		_dsvHeap->GetCPUDescriptorHandleForHeapStart()
-	);
+	auto handle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
+
+	_dev->CreateDepthStencilView(_depthBuffer.Get() ,&dsvDesc, handle);
+
+	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+	_dev->CreateDepthStencilView(_lightDepthBuffer.Get(), &dsvDesc, handle);
+
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	heapDesc.NodeMask = 0;
+	heapDesc.NumDescriptors = 2;
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+
+	result = _dev->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_depthSRVHeap));
+
+	if (FAILED(result))
+	{
+		return result;
+	}
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC depthSrvResDesc = {};
+	depthSrvResDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	depthSrvResDesc.Texture2D.MipLevels = 1;
+	depthSrvResDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	depthSrvResDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+
+    handle = _depthSRVHeap->GetCPUDescriptorHandleForHeapStart();
+
+	_dev->CreateShaderResourceView(_depthBuffer.Get(), &depthSrvResDesc, handle);
+
+	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	_dev->CreateShaderResourceView(_lightDepthBuffer.Get(), &depthSrvResDesc, handle);
 
     return result;
 }
@@ -476,6 +511,9 @@ HRESULT Dx12Wrapper::CreateSceneView()
 	_mappedSceneMatricesData->proj = projectionMatrix;
 	_mappedSceneMatricesData->eye = eye;
 
+	XMFLOAT4 planeVec(0, 1, 0, 0);
+	_mappedSceneMatricesData->shadow = XMMatrixShadow(XMLoadFloat4(&planeVec), -XMLoadFloat3(&_parallelLightVec));
+
 	D3D12_DESCRIPTOR_HEAP_DESC descHeapDesc = {};
 	descHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	descHeapDesc.NodeMask = 0;
@@ -590,6 +628,7 @@ ID3D12Resource* Dx12Wrapper::CreateTextureFromFile(const char* texpath)
 	return texbuff;
 }
 
+
 ID3D12Resource* Dx12Wrapper::CreateTextureFromFile(const std::wstring& texpath)
 {
 	TexMetadata metadata = {};
@@ -652,7 +691,11 @@ ID3D12Resource* Dx12Wrapper::CreateTextureFromFile(const std::wstring& texpath)
 	return texbuff;
 }
 
-Dx12Wrapper::Dx12Wrapper(HWND hwnd)
+Dx12Wrapper::Dx12Wrapper(HWND hwnd) : 
+	_parallelLightVec(-1, 1, -1),
+	_eye(0, 10, -30),
+	_target(0, 10, 0),
+	_up(0, 1, 0)
 {
 #ifdef _DEBUG
 	EnableDebugLayer();
@@ -757,6 +800,9 @@ void Dx12Wrapper::Draw()
 	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	_cmdList->SetGraphicsRootDescriptorTable(1, handle);
+
+	_cmdList->SetDescriptorHeaps(1, _depthSRVHeap.GetAddressOf());
+	_cmdList->SetGraphicsRootDescriptorTable(2, _depthSRVHeap->GetGPUDescriptorHandleForHeapStart());
 
 	_cmdList->SetPipelineState(_peraPipeline2.Get());
 	_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
@@ -896,6 +942,11 @@ void Dx12Wrapper::DrawToPera1()
 
 	CD3DX12_RECT rc(0, 0, wsize.cx, wsize.cy);
 	_cmdList->RSSetScissorRects(1, &rc);
+
+	_cmdList->SetDescriptorHeaps(1, _depthSRVHeap.GetAddressOf());
+	auto handle = _depthSRVHeap->GetGPUDescriptorHandleForHeapStart();
+	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	_cmdList->SetGraphicsRootDescriptorTable(3, handle);
 }
 
 void Dx12Wrapper::PostDrawToPera1()
@@ -1016,7 +1067,7 @@ bool Dx12Wrapper::CreatePeraPipeline()
 	//rp[2].DescriptorTable.NumDescriptorRanges = 1;
 
 
-	D3D12_DESCRIPTOR_RANGE range[2] = {};
+	D3D12_DESCRIPTOR_RANGE range[3] = {};
 	range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	range[0].BaseShaderRegister = 0;
 	range[0].NumDescriptors = 1;
@@ -1025,8 +1076,12 @@ bool Dx12Wrapper::CreatePeraPipeline()
 	range[1].BaseShaderRegister = 0;
 	range[1].NumDescriptors = 1;
 
+	range[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	range[2].BaseShaderRegister = 1;
+	range[2].NumDescriptors = 1;
 
-	D3D12_ROOT_PARAMETER rp[2] = {};
+
+	D3D12_ROOT_PARAMETER rp[3] = {};
 	rp[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rp[0].DescriptorTable.pDescriptorRanges = &range[0];
@@ -1037,8 +1092,13 @@ bool Dx12Wrapper::CreatePeraPipeline()
 	rp[1].DescriptorTable.pDescriptorRanges = &range[1];
 	rp[1].DescriptorTable.NumDescriptorRanges = 1;
 
+	rp[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rp[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rp[2].DescriptorTable.pDescriptorRanges = &range[2];
+	rp[2].DescriptorTable.NumDescriptorRanges = 1;
+
 	D3D12_ROOT_SIGNATURE_DESC rsDesc = {};
-	rsDesc.NumParameters = 2;
+	rsDesc.NumParameters = 3;
 	rsDesc.pParameters = rp;
 
 	D3D12_STATIC_SAMPLER_DESC sampler = CD3DX12_STATIC_SAMPLER_DESC(0);
@@ -1164,9 +1224,61 @@ ComPtr<ID3D12Resource> Dx12Wrapper::GetTextureByPath(const std::wstring& texpath
 	}
 }
 
+void Dx12Wrapper::PreDrawShadow()
+{
+	auto handle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
+	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+	_cmdList->OMSetRenderTargets(0, nullptr, false, &handle);
+
+	_cmdList->ClearDepthStencilView(handle,
+		D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	auto wsize = Application::Instance().GetWindowSize();
+
+	ID3D12DescriptorHeap* heaps[] = { _sceneDescHeap.Get() };
+
+	heaps[0] = _sceneDescHeap.Get();
+	_cmdList->SetDescriptorHeaps(1, heaps);
+	auto sceneHandle = _sceneDescHeap->GetGPUDescriptorHandleForHeapStart();
+	_cmdList->SetGraphicsRootDescriptorTable(0, sceneHandle);
+
+	D3D12_VIEWPORT vp = CD3DX12_VIEWPORT(0.0f, 0.0f, shadow_difinition, shadow_difinition);
+	_cmdList->RSSetViewports(1, &vp);
+
+	CD3DX12_RECT rc(0, 0, shadow_difinition, shadow_difinition);
+	_cmdList->RSSetScissorRects(1, &rc);
+}
+
 ComPtr<ID3D12Device> Dx12Wrapper::Device()
 {
 	return _dev;
+}
+
+void Dx12Wrapper::SetCameraSetting()
+{
+	auto wsize = Application::Instance().GetWindowSize();
+
+	auto eyePos = XMLoadFloat3(&_eye);
+	auto targetPos = XMLoadFloat3(&_target);
+	auto upVec = XMLoadFloat3(&_up);
+
+	XMMATRIX lookMatrix = XMMatrixLookAtLH(eyePos, targetPos, upVec);
+	XMMATRIX projectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV4, static_cast<float>(wsize.cx) / static_cast<float>(wsize.cy), 0.1f, 1000.0f);
+
+	_mappedSceneMatricesData->view = lookMatrix;
+	_mappedSceneMatricesData->proj = projectionMatrix;
+	_mappedSceneMatricesData->eye = _eye;
+
+	XMFLOAT4 planeVec(0, 1, 0, 0);
+	_mappedSceneMatricesData->shadow = XMMatrixShadow(XMLoadFloat4(&planeVec), -XMLoadFloat3(&_parallelLightVec));
+
+
+	auto light = XMFLOAT4(_parallelLightVec.x, _parallelLightVec.y, _parallelLightVec.z, 0);
+	auto lightVector = XMLoadFloat4(&light);
+
+	auto lightPos = targetPos + XMVector3Normalize(lightVector) * XMVector3Length(XMVectorSubtract(targetPos, eyePos)).m128_f32[0];
+
+	_mappedSceneMatricesData->lightCamera = XMMatrixLookAtLH(lightPos, targetPos, upVec) * XMMatrixOrthographicLH(40, 40, 1.0f, 100.0f);
 }
 
 ComPtr<ID3D12GraphicsCommandList> Dx12Wrapper::CommandList()

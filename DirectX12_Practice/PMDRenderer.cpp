@@ -210,13 +210,39 @@ HRESULT PMDRenderer::CreateGraphicsPipelineForPMD()
 	if (FAILED(result)) {
 		assert(SUCCEEDED(result));
 	}
+
+    result = D3DCompileFromFile(L"BasicVertexShader.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"ShadowVS",
+		"vs_5_0",
+		flags,
+		0,
+		&vsBlob,
+		&errorBlob);
+
+	if (!CheckShaderComplieResult(result, errorBlob.Get()))
+	{
+		assert(0);
+		return result;
+	}
+
+	gpipeline.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
+	gpipeline.PS.BytecodeLength = 0;
+	gpipeline.PS.pShaderBytecode = nullptr;
+	gpipeline.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
+	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(_shadowPipeline.ReleaseAndGetAddressOf()));
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+	}
+
 	return result;
 }
 
 HRESULT PMDRenderer::CreateRootSignature()
 {
 	//디스크립터 레인지 
-	D3D12_DESCRIPTOR_RANGE descTblRange[4] = {};
+	D3D12_DESCRIPTOR_RANGE descTblRange[5] = {};
 	descTblRange[0].NumDescriptors = 1;
 	descTblRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	descTblRange[0].BaseShaderRegister = 0;
@@ -237,8 +263,10 @@ HRESULT PMDRenderer::CreateRootSignature()
 	descTblRange[3].BaseShaderRegister = 0;
 	descTblRange[3].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
+	descTblRange[4] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4);
+
 	//루트 파라미터
-	D3D12_ROOT_PARAMETER rootparam[3] = {};
+	D3D12_ROOT_PARAMETER rootparam[4] = {};
 	rootparam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootparam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	rootparam[0].DescriptorTable.pDescriptorRanges = &descTblRange[0];
@@ -254,14 +282,19 @@ HRESULT PMDRenderer::CreateRootSignature()
 	rootparam[2].DescriptorTable.pDescriptorRanges = &descTblRange[2];
 	rootparam[2].DescriptorTable.NumDescriptorRanges = 2;
 
+	rootparam[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootparam[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootparam[3].DescriptorTable.pDescriptorRanges = &descTblRange[4];
+	rootparam[3].DescriptorTable.NumDescriptorRanges = 1;
+
 	//루트 시그니쳐
 	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
 
 	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 	rootSignatureDesc.pParameters = rootparam;
-	rootSignatureDesc.NumParameters = 3;
+	rootSignatureDesc.NumParameters = 4;
 
-	D3D12_STATIC_SAMPLER_DESC samplerDesc[2] = {};
+	D3D12_STATIC_SAMPLER_DESC samplerDesc[3] = {};
 
 	samplerDesc[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	samplerDesc[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -281,8 +314,17 @@ HRESULT PMDRenderer::CreateRootSignature()
 	samplerDesc[1].Filter = D3D12_FILTER_ANISOTROPIC;
 	samplerDesc[1].ShaderRegister = 1;
 
+	samplerDesc[2] = samplerDesc[0];
+	samplerDesc[2].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc[2].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc[2].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc[2].ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	samplerDesc[2].MaxAnisotropy = 1;
+	samplerDesc[2].Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+	samplerDesc[2].ShaderRegister = 2;
+
 	rootSignatureDesc.pStaticSamplers = samplerDesc;
-	rootSignatureDesc.NumStaticSamplers = 2;
+	rootSignatureDesc.NumStaticSamplers = 3;
 
     ComPtr<ID3DBlob> rootSigBlob = nullptr;
 	ComPtr<ID3DBlob> errorBlob = nullptr;
@@ -343,13 +385,30 @@ void PMDRenderer::Update()
 {
 }
 
+void PMDRenderer::BeforeDrawFromLight()
+{
+}
+
+void PMDRenderer::BeforeDraw()
+{
+	auto cmdList = _dx12.CommandList();
+	cmdList->SetPipelineState(_pipeline.Get());
+	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+}
+
 void PMDRenderer::Draw()
 {
+	
 }
 
 ID3D12PipelineState* PMDRenderer::GetPipelineState()
 {
 	return _pipeline.Get();
+}
+
+ID3D12PipelineState* PMDRenderer::GetShadowPipelineState()
+{
+	return _shadowPipeline.Get();
 }
 
 ID3D12RootSignature* PMDRenderer::GetRootSignature()

@@ -158,6 +158,9 @@ private:
 	};
 	std::vector<VMDIKEnable> _ikEnableData;
 
+	unsigned int _vertNum;
+	unsigned int _indexNum;
+
 public:
 	PMDActor(const char* filepath, PMDRenderer& renderer);
 	~PMDActor();
@@ -169,7 +172,11 @@ public:
 
 	PMDActor* clone();
 	void Update();
-	void Draw();
+
+	void BeforeDrawFromLight();
+	void DrawFromLight();
+
+	void Draw(bool isShadow);
 	void BeforeDraw();
 };
 

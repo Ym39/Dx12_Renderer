@@ -15,6 +15,7 @@ private:
 	using ComPtr = Microsoft::WRL::ComPtr<T>;
 
 	ComPtr<ID3D12PipelineState> _pipeline = nullptr;
+	ComPtr<ID3D12PipelineState> _shadowPipeline = nullptr;
 	ComPtr<ID3D12RootSignature> _rootSignature = nullptr;
 
 	ComPtr<ID3D12Resource> _whiteTex = nullptr;
@@ -36,8 +37,15 @@ public:
 	PMDRenderer(Dx12Wrapper& dx12);
 	~PMDRenderer();
 	void Update();
+
+	void BeforeDrawFromLight();
+	void DrawFromLight();
+
+	void BeforeDraw();
 	void Draw();
+
 	ID3D12PipelineState* GetPipelineState();
+	ID3D12PipelineState* GetShadowPipelineState();
 	ID3D12RootSignature* GetRootSignature();
 };
 
