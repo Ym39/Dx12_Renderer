@@ -305,8 +305,7 @@ HRESULT PMDActor::LoadPMDFile(const char* path)
 	fread(signature, sizeof(signature), 1, fp);
 	fread(&pmdHeader, sizeof(pmdHeader), 1, fp);
 
-	unsigned int vertNum;
-	fread(&vertNum, sizeof(vertNum), 1, fp);
+	fread(&_vertNum, sizeof(_vertNum), 1, fp);
 
 #pragma pack(1)
 
@@ -328,11 +327,10 @@ HRESULT PMDActor::LoadPMDFile(const char* path)
 #pragma pack()
 
 	constexpr size_t pmdvertex_size = 38;
-	std::vector<unsigned char> vertices(vertNum* pmdvertex_size);
+	std::vector<unsigned char> vertices(_vertNum * pmdvertex_size);
 	fread(vertices.data(), vertices.size(), 1, fp);
 
-	unsigned int indicesNum;
-	fread(&indicesNum, sizeof(indicesNum), 1, fp);
+	fread(&_indexNum, sizeof(_indexNum), 1, fp);
 
 	D3D12_HEAP_PROPERTIES heapprop = {};
 
@@ -368,7 +366,7 @@ HRESULT PMDActor::LoadPMDFile(const char* path)
 
 	std::vector<unsigned short> indices;
 
-	indices.resize(indicesNum);
+	indices.resize(_indexNum);
 	fread(indices.data(), indices.size() * sizeof(indices[0]), 1, fp);
 
 	resdesc.Width = indices.size() * sizeof(indices[0]);
@@ -939,7 +937,7 @@ PMDActor::PMDActor(const char* filepath, PMDRenderer& renderer):
 	_dx12(renderer._dx12),
 	_angle(0.0f)
 {
-	_transform.world = XMMatrixIdentity() * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+	_transform.world = XMMatrixIdentity() * XMMatrixRotationY(-45.0f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 	LoadPMDFile(filepath);
 	LoadVMDFile("Model/squat.vmd");
 	CreateTransformView();
@@ -1205,12 +1203,24 @@ void PMDActor::PlayAnimation()
 void PMDActor::Update()
 {
 	_angle += 0.005f;
-	//_mappedMatrices[0] = XMMatrixRotationY(_angle) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+	_mappedMatrices[0] = XMMatrixRotationY(_angle) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 
 	//MotionUpdate();
 }
 
-void PMDActor::Draw()
+void PMDActor::BeforeDrawFromLight()
+{
+	auto cmdList = _dx12.CommandList();
+	cmdList.Get()->SetPipelineState(_renderer.GetShadowPipelineState());
+	cmdList.Get()->SetGraphicsRootSignature(_renderer.GetRootSignature());
+}
+
+void PMDActor::DrawFromLight()
+{
+	Draw(true);
+}
+
+void PMDActor::Draw(bool isShadow = false)
 {
 	_dx12.CommandList()->IASetVertexBuffers(0, 1, &_vbView);
 	_dx12.CommandList()->IASetIndexBuffer(&_ibView);
@@ -1228,12 +1238,20 @@ void PMDActor::Draw()
 	unsigned int idxOffset = 0;
 
 	auto cbvsrvIncSize = _dx12.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 5;
-	for (auto& m : _materials)
+
+	if (isShadow == true)
 	{
-		_dx12.CommandList()->SetGraphicsRootDescriptorTable(2, materialH);
-		_dx12.CommandList()->DrawIndexedInstanced(m.indicesNum, 1, idxOffset, 0, 0);
-		materialH.ptr += cbvsrvIncSize;
-		idxOffset += m.indicesNum;
+		_dx12.CommandList()->DrawIndexedInstanced(_indexNum, 1, 0, 0, 0);
+	}
+	else
+	{
+		for (auto& m : _materials)
+		{
+			_dx12.CommandList()->SetGraphicsRootDescriptorTable(2, materialH);
+			_dx12.CommandList()->DrawIndexedInstanced(m.indicesNum, 1, idxOffset, 0, 0);
+			materialH.ptr += cbvsrvIncSize;
+			idxOffset += m.indicesNum;
+		}
 	}
 }
 

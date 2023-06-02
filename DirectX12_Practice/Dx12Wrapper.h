@@ -27,6 +27,7 @@ class Dx12Wrapper
 	std::vector<ID3D12Resource*> _backBuffers;
 	ComPtr<ID3D12DescriptorHeap> _rtvHeaps = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _dsvHeap = nullptr;
+	ComPtr<ID3D12DescriptorHeap> _depthSRVHeap = nullptr;
 	std::unique_ptr<D3D12_VIEWPORT> _viewport;
 	std::unique_ptr<D3D12_RECT> _scissorrect;
 
@@ -46,12 +47,22 @@ class Dx12Wrapper
 
 	ComPtr<ID3D12Resource> _bokehParamResource;
 
+	ComPtr<ID3D12Resource> _lightDepthBuffer = nullptr;
+
+	DirectX::XMFLOAT3 _eye;
+	DirectX::XMFLOAT3 _target;
+	DirectX::XMFLOAT3 _up;
+
 	struct SceneMatricesData
 	{
 		DirectX::XMMATRIX view;
 		DirectX::XMMATRIX proj;
+		DirectX::XMMATRIX lightCamera;
+		DirectX::XMMATRIX shadow;
 		DirectX::XMFLOAT3 eye;
 	};
+
+	DirectX::XMFLOAT3 _parallelLightVec;
 
 	SceneMatricesData* _mappedSceneMatricesData;
 	ComPtr<ID3D12DescriptorHeap> _sceneDescHeap = nullptr;
@@ -95,10 +106,13 @@ public:
 	void Clear();
 	void BeginDraw();
 	void EndDraw();
+	void PreDrawShadow();
 	bool PreDrawToPera1();
 	void DrawToPera1();
 	void PostDrawToPera1();
 	void DrawBokeh();
+	void SetCameraSetting();
+
 	bool CreatePeraVertex();
 	bool CreatePeraPipeline();
 
