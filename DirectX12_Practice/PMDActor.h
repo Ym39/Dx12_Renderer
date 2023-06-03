@@ -15,8 +15,6 @@ class Dx12Wrapper;
 class PMDRenderer;
 class PMDActor
 {
-	friend PMDRenderer;
-
 private:
 	PMDRenderer& _renderer;
 	Dx12Wrapper& _dx12;
@@ -173,10 +171,6 @@ public:
 	PMDActor* clone();
 	void Update();
 
-	void BeforeDrawFromLight();
-	void DrawFromLight();
-
 	void Draw(bool isShadow);
-	void BeforeDraw();
 };
 

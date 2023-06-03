@@ -97,6 +97,15 @@ class Dx12Wrapper
 	ID3D12Resource* CreateTextureFromFile(const char* texpath);
 	ID3D12Resource* CreateTextureFromFile(const std::wstring& texpath);
 
+	ComPtr<ID3D12Resource> _whiteTex = nullptr;
+	ComPtr<ID3D12Resource> _blackTex = nullptr;
+	ComPtr<ID3D12Resource> _gradTex = nullptr;
+
+	ID3D12Resource* CreateDefaultTexture(size_t width, size_t height);
+	ID3D12Resource* CreateWhiteTexture();
+	ID3D12Resource* CreateBlackTexture();
+	ID3D12Resource* CreateGrayGradiationTexture();
+
 public:
 	Dx12Wrapper(HWND hwnd);
 	~Dx12Wrapper();
@@ -118,6 +127,10 @@ public:
 
 	ComPtr<ID3D12Resource> GetTextureByPath(const char* texpath);
 	ComPtr<ID3D12Resource> GetTextureByPath(const std::wstring& texpath);
+
+	ComPtr<ID3D12Resource> GetWhiteTexture();
+	ComPtr<ID3D12Resource> GetBlackTexture();
+	ComPtr<ID3D12Resource> GetGradTexture();
 
 	ComPtr<ID3D12Device> Device();
 	ComPtr<ID3D12GraphicsCommandList> CommandList();

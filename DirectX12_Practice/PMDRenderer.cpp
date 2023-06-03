@@ -3,94 +3,9 @@
 #include<cassert>
 #include<d3dcompiler.h>
 #include"Dx12Wrapper.h"
+#include"PMDActor.h"
 #include<string>
 #include<algorithm>
-
-ID3D12Resource* PMDRenderer::CreateDefaultTexture(size_t width, size_t height)
-{
-	auto resDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, width, height);
-	auto texHeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_CPU_PAGE_PROPERTY_WRITE_BACK, D3D12_MEMORY_POOL_L0);
-	ID3D12Resource* buff = nullptr;
-	auto result = _dx12.Device()->CreateCommittedResource(
-		&texHeapProp,
-		D3D12_HEAP_FLAG_NONE,//“Á‚ÉŽw’è‚È‚µ
-		&resDesc,
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-		nullptr,
-		IID_PPV_ARGS(&buff)
-	);
-	if (FAILED(result)) {
-		assert(SUCCEEDED(result));
-		return nullptr;
-	}
-	return buff;
-}
-
-ID3D12Resource* PMDRenderer::CreateWhiteTexture()
-{
-	ID3D12Resource* whiteBuff= CreateDefaultTexture(4, 4);
-
-	std::vector<unsigned char> data(4 * 4 * 4);
-	std::fill(data.begin(), data.end(), 0xff);
-
-	auto result = whiteBuff->WriteToSubresource(
-		0,
-		nullptr,
-		data.data(),
-		4 * 4,
-		data.size()
-	);
-
-	assert(SUCCEEDED(result));
-
-	return whiteBuff;
-}
-
-ID3D12Resource* PMDRenderer::CreateBlackTexture()
-{
-	ID3D12Resource* blackBuff = CreateDefaultTexture(4, 4);
-
-	std::vector<unsigned char> data(4 * 4 * 4);
-	std::fill(data.begin(), data.end(), 0x00);
-
-	auto result = blackBuff->WriteToSubresource(
-		0,
-		nullptr,
-		data.data(),
-		4 * 4,
-		data.size()
-	);
-	assert(SUCCEEDED(result));
-
-	return blackBuff;
-}
-
-ID3D12Resource* PMDRenderer::CreateGrayGradiationTexture()
-{
-	ID3D12Resource* gradBuff = CreateDefaultTexture(4, 4);
-
-	std::vector<unsigned char> data(4 * 256);
-	auto it = data.begin();
-	unsigned int c = 0xff;
-	for (; it != data.end(); it += 4)
-	{
-		auto col = (0xff << 24) | RGB(c, c, c);
-		std::fill(it, it + 4, col);
-		--c;
-	}
-
-	auto result = gradBuff->WriteToSubresource(
-		0,
-		nullptr,
-		data.data(),
-		4 * sizeof(unsigned int),
-		sizeof(unsigned int) * data.size()
-	);
-
-	assert(SUCCEEDED(result));
-
-	return gradBuff;
-}
 
 HRESULT PMDRenderer::CreateGraphicsPipelineForPMD()
 {
@@ -372,9 +287,6 @@ PMDRenderer::PMDRenderer(Dx12Wrapper& dx12):
 {
 	assert(SUCCEEDED(CreateRootSignature()));
 	assert(SUCCEEDED(CreateGraphicsPipelineForPMD()));
-	_whiteTex = CreateWhiteTexture();
-	_blackTex = CreateBlackTexture();
-	_gradTex = CreateGrayGradiationTexture();
 }
 
 PMDRenderer::~PMDRenderer()
@@ -383,10 +295,33 @@ PMDRenderer::~PMDRenderer()
 
 void PMDRenderer::Update()
 {
+	for (auto& actor : _actors)
+	{
+		actor->Update();
+	}
+}
+
+void PMDRenderer::PlayAnimation()
+{
+	for (auto& actor : _actors)
+	{
+		actor->PlayAnimation();
+	}
 }
 
 void PMDRenderer::BeforeDrawFromLight()
 {
+	auto cmdList = _dx12.CommandList();
+	cmdList->SetPipelineState(_shadowPipeline.Get());
+	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+}
+
+void PMDRenderer::DrawFromLight()
+{
+	for (auto& actor : _actors)
+	{
+		actor->Draw(true);
+	}
 }
 
 void PMDRenderer::BeforeDraw()
@@ -398,12 +333,20 @@ void PMDRenderer::BeforeDraw()
 
 void PMDRenderer::Draw()
 {
-	
+	for (auto& actor : _actors)
+	{
+		actor->Draw(false);
+	}
 }
 
 ID3D12PipelineState* PMDRenderer::GetPipelineState()
 {
 	return _pipeline.Get();
+}
+
+void PMDRenderer::AddActor(std::shared_ptr<PMDActor> actor)
+{
+	_actors.emplace_back(std::shared_ptr<PMDActor>(actor));
 }
 
 ID3D12PipelineState* PMDRenderer::GetShadowPipelineState()
@@ -414,4 +357,9 @@ ID3D12PipelineState* PMDRenderer::GetShadowPipelineState()
 ID3D12RootSignature* PMDRenderer::GetRootSignature()
 {
 	return _rootSignature.Get();
+}
+
+Dx12Wrapper& PMDRenderer::GetDirect()
+{
+	return _dx12;
 }
