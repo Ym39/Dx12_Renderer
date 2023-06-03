@@ -166,8 +166,8 @@ HRESULT PMDActor::CreateMaterialAndTextureView()
 
 		if (_textureResources[i] == nullptr)
 		{
-			srvDesc.Format = _renderer._whiteTex->GetDesc().Format;
-			_dx12.Device()->CreateShaderResourceView(_renderer._whiteTex.Get(), &srvDesc, matDescHeapH);
+			srvDesc.Format = _dx12.GetWhiteTexture()->GetDesc().Format;
+			_dx12.Device()->CreateShaderResourceView(_dx12.GetWhiteTexture().Get(), &srvDesc, matDescHeapH);
 		}
 		else
 		{
@@ -182,8 +182,8 @@ HRESULT PMDActor::CreateMaterialAndTextureView()
 
 		if (_sphResources[i] == nullptr)
 		{
-			srvDesc.Format = _renderer._whiteTex->GetDesc().Format;
-			_dx12.Device()->CreateShaderResourceView(_renderer._whiteTex.Get(), &srvDesc, matDescHeapH);
+			srvDesc.Format = _dx12.GetWhiteTexture()->GetDesc().Format;
+			_dx12.Device()->CreateShaderResourceView(_dx12.GetWhiteTexture().Get(), &srvDesc, matDescHeapH);
 		}
 		else
 		{
@@ -198,8 +198,8 @@ HRESULT PMDActor::CreateMaterialAndTextureView()
 
 		if (_spaResources[i] == nullptr)
 		{
-			srvDesc.Format = _renderer._blackTex->GetDesc().Format;
-			_dx12.Device()->CreateShaderResourceView(_renderer._blackTex.Get(), &srvDesc, matDescHeapH);
+			srvDesc.Format = _dx12.GetBlackTexture()->GetDesc().Format;
+			_dx12.Device()->CreateShaderResourceView(_dx12.GetBlackTexture().Get(), &srvDesc, matDescHeapH);
 		}
 		else
 		{
@@ -214,8 +214,8 @@ HRESULT PMDActor::CreateMaterialAndTextureView()
 
 		if (_toonResources[i] == nullptr)
 		{
-			srvDesc.Format = _renderer._gradTex->GetDesc().Format;
-			_dx12.Device()->CreateShaderResourceView(_renderer._gradTex.Get(), &srvDesc, matDescHeapH);
+			srvDesc.Format = _dx12.GetGradTexture()->GetDesc().Format;
+			_dx12.Device()->CreateShaderResourceView(_dx12.GetGradTexture().Get(), &srvDesc, matDescHeapH);
 		}
 		else
 		{
@@ -934,7 +934,7 @@ void PMDActor::SolveLookAt(const PMDIK& ik)
 
 PMDActor::PMDActor(const char* filepath, PMDRenderer& renderer):
 	_renderer(renderer),
-	_dx12(renderer._dx12),
+	_dx12(renderer.GetDirect()),
 	_angle(0.0f)
 {
 	_transform.world = XMMatrixIdentity() * XMMatrixRotationY(-45.0f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
@@ -1208,17 +1208,6 @@ void PMDActor::Update()
 	//MotionUpdate();
 }
 
-void PMDActor::BeforeDrawFromLight()
-{
-	auto cmdList = _dx12.CommandList();
-	cmdList.Get()->SetPipelineState(_renderer.GetShadowPipelineState());
-	cmdList.Get()->SetGraphicsRootSignature(_renderer.GetRootSignature());
-}
-
-void PMDActor::DrawFromLight()
-{
-	Draw(true);
-}
 
 void PMDActor::Draw(bool isShadow = false)
 {
@@ -1253,11 +1242,4 @@ void PMDActor::Draw(bool isShadow = false)
 			idxOffset += m.indicesNum;
 		}
 	}
-}
-
-void PMDActor::BeforeDraw()
-{
-	auto cmdList = _dx12.CommandList();
-	cmdList.Get()->SetPipelineState(_renderer.GetPipelineState());
-	cmdList.Get()->SetGraphicsRootSignature(_renderer.GetRootSignature());
 }

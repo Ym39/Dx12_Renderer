@@ -771,6 +771,10 @@ Dx12Wrapper::Dx12Wrapper(HWND hwnd) :
 		assert(0);
 		return;
 	}
+
+	_whiteTex = CreateWhiteTexture();
+	_blackTex = CreateBlackTexture();
+	_gradTex = CreateGrayGradiationTexture();
 }
 
 Dx12Wrapper::~Dx12Wrapper()
@@ -1224,6 +1228,21 @@ ComPtr<ID3D12Resource> Dx12Wrapper::GetTextureByPath(const std::wstring& texpath
 	}
 }
 
+ComPtr<ID3D12Resource> Dx12Wrapper::GetWhiteTexture()
+{
+	return _whiteTex;
+}
+
+ComPtr<ID3D12Resource> Dx12Wrapper::GetBlackTexture()
+{
+	return _blackTex;
+}
+
+ComPtr<ID3D12Resource> Dx12Wrapper::GetGradTexture()
+{
+	return _gradTex;
+}
+
 void Dx12Wrapper::PreDrawShadow()
 {
 	auto handle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
@@ -1296,4 +1315,90 @@ void Dx12Wrapper::SetScene()
 	ID3D12DescriptorHeap* sceneheaps[] = { _sceneDescHeap.Get() };
 	_cmdList->SetDescriptorHeaps(1, sceneheaps);
 	_cmdList->SetGraphicsRootDescriptorTable(0, _sceneDescHeap->GetGPUDescriptorHandleForHeapStart());
+}
+
+ID3D12Resource* Dx12Wrapper::CreateDefaultTexture(size_t width, size_t height)
+{
+	auto resDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, width, height);
+	auto texHeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_CPU_PAGE_PROPERTY_WRITE_BACK, D3D12_MEMORY_POOL_L0);
+	ID3D12Resource* buff = nullptr;
+	auto result = _dev->CreateCommittedResource(
+		&texHeapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&resDesc,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		nullptr,
+		IID_PPV_ARGS(&buff)
+	);
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+		return nullptr;
+	}
+	return buff;
+}
+
+ID3D12Resource* Dx12Wrapper::CreateWhiteTexture()
+{
+	ID3D12Resource* whiteBuff = CreateDefaultTexture(4, 4);
+
+	std::vector<unsigned char> data(4 * 4 * 4);
+	std::fill(data.begin(), data.end(), 0xff);
+
+	auto result = whiteBuff->WriteToSubresource(
+		0,
+		nullptr,
+		data.data(),
+		4 * 4,
+		data.size()
+	);
+
+	assert(SUCCEEDED(result));
+
+	return whiteBuff;
+}
+
+ID3D12Resource* Dx12Wrapper::CreateBlackTexture()
+{
+	ID3D12Resource* blackBuff = CreateDefaultTexture(4, 4);
+
+	std::vector<unsigned char> data(4 * 4 * 4);
+	std::fill(data.begin(), data.end(), 0x00);
+
+	auto result = blackBuff->WriteToSubresource(
+		0,
+		nullptr,
+		data.data(),
+		4 * 4,
+		data.size()
+	);
+	assert(SUCCEEDED(result));
+
+	return blackBuff;
+}
+
+ID3D12Resource* Dx12Wrapper::CreateGrayGradiationTexture()
+{
+	ID3D12Resource* gradBuff = CreateDefaultTexture(4, 4);
+
+	std::vector<unsigned char> data(4 * 256);
+	auto it = data.begin();
+	unsigned int c = 0xff;
+	for (; it != data.end(); it += 4)
+	{
+		auto col = (0xff << 24) | RGB(c, c, c);
+		std::fill(it, it + 4, col);
+		--c;
+	}
+
+	auto result = gradBuff->WriteToSubresource(
+		0,
+		nullptr,
+		data.data(),
+		4 * sizeof(unsigned int),
+		sizeof(unsigned int) * data.size()
+	);
+
+	assert(SUCCEEDED(result));
+
+	return gradBuff;
 }
