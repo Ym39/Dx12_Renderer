@@ -34,10 +34,20 @@ HRESULT PMDRenderer::CreateGraphicsPipelineForPMD()
 		return result;
 	}
 
+	//result = D3DCompileFromFile(L"BasicPixelShader.hlsl",
+	//	nullptr,
+	//	D3D_COMPILE_STANDARD_FILE_INCLUDE,
+	//	"BasicPS",
+	//	"ps_5_0",
+	//	flags,
+	//	0,
+	//	&psBlob,
+	//	&errorBlob);
+
 	result = D3DCompileFromFile(L"BasicPixelShader.hlsl",
 		nullptr,
 		D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		"BasicPS",
+		"DeferrdPS",
 		"ps_5_0",
 		flags,
 		0,
