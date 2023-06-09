@@ -8,6 +8,7 @@
 #include<wrl.h>
 #include<string>
 #include<functional>
+#include<array>
 
 class Dx12Wrapper
 {
@@ -33,7 +34,7 @@ class Dx12Wrapper
 
 	ComPtr<ID3D12Resource> _sceneConstBuff = nullptr;
 
-	ComPtr<ID3D12Resource> _peraResource = nullptr;
+	std::array<ComPtr<ID3D12Resource>, 2> _pera1Resource;
 	ComPtr<ID3D12Resource> _peraResource2 = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _peraRTVHeap = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _peraSRVHeap = nullptr;

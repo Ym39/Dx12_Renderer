@@ -43,6 +43,17 @@ float4 ps(Output input) : SV_TARGET
 		ret += bkweights[i >> 2][i % 4] * tex.Sample(smp, input.uv + float2(-i * dx, 0));
 	}
 
+	if (input.uv.x < 0.2 && input.uv.y < 0.2)
+	{
+		float depth = depthTex.Sample(smp, input.uv * 5);
+		depth = 1.0f - pow(depth, 30);
+		return float4(depth, depth, depth, 1);
+	}
+	else if (input.uv.x < 0.2 && input.uv.y < 0.4)
+	{
+		return texNormal.Sample(smp, (input.uv - float2(0, 0.4)) * 5);
+	}
+
 	return col;
 	//return float4(ret.rgb, col.a);
 }

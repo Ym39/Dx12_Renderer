@@ -10,6 +10,12 @@ struct Output
 	float4 tpos : TPOS;
 };
 
+struct PixelOutput
+{
+	float4 color : SV_TARGET0;
+	float4 normal : SV_TARGET1;
+};
+
 Texture2D<float4> tex : register(t0);
 Texture2D<float4> sph : register(t1);
 Texture2D<float4> spa : register(t2);
