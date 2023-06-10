@@ -118,7 +118,9 @@ void Application::Run()
 
 		_dx12->PostDrawToPera1();
 
-		_dx12->DrawBokeh();
+		_dx12->DrawShrinkTextureForBlur();
+
+		//_dx12->DrawBokeh();
 
 		_dx12->Clear();
 

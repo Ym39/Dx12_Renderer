@@ -44,6 +44,8 @@ HRESULT PMDRenderer::CreateGraphicsPipelineForPMD()
 	//	&psBlob,
 	//	&errorBlob);
 
+	//디퍼드 멀티렌더 타겟에 그릴때
+
 	result = D3DCompileFromFile(L"BasicPixelShader.hlsl",
 		nullptr,
 		D3D_COMPILE_STANDARD_FILE_INCLUDE,
@@ -119,8 +121,10 @@ HRESULT PMDRenderer::CreateGraphicsPipelineForPMD()
 	gpipeline.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
 	gpipeline.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
-	gpipeline.NumRenderTargets = 1;
+	gpipeline.NumRenderTargets = 3;
 	gpipeline.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
+	gpipeline.RTVFormats[1] = DXGI_FORMAT_B8G8R8A8_UNORM;
+	gpipeline.RTVFormats[2] = DXGI_FORMAT_B8G8R8A8_UNORM;
 
 	gpipeline.SampleDesc.Count = 1;
 	gpipeline.SampleDesc.Quality = 0;

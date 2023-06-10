@@ -14,6 +14,7 @@ struct PixelOutput
 {
 	float4 color : SV_TARGET0;
 	float4 normal : SV_TARGET1;
+	float4 highLum : SV_TARGET2;
 };
 
 Texture2D<float4> tex : register(t0);
