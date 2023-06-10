@@ -44,11 +44,14 @@ class Dx12Wrapper
 
 	ComPtr<ID3D12PipelineState> _peraPipeline;
 	ComPtr<ID3D12PipelineState> _peraPipeline2;
+	ComPtr<ID3D12PipelineState> _blurPipeline;
 	ComPtr<ID3D12RootSignature> _peraRS;
 
 	ComPtr<ID3D12Resource> _bokehParamResource;
 
 	ComPtr<ID3D12Resource> _lightDepthBuffer = nullptr;
+
+	std::array<ComPtr<ID3D12Resource>, 2> _bloomBuffer;
 
 	DirectX::XMFLOAT3 _eye;
 	DirectX::XMFLOAT3 _target;
@@ -121,6 +124,7 @@ public:
 	void DrawToPera1();
 	void PostDrawToPera1();
 	void DrawBokeh();
+	void DrawShrinkTextureForBlur();
 	void SetCameraSetting();
 
 	bool CreatePeraVertex();

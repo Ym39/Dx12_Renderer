@@ -62,17 +62,23 @@ PixelOutput DeferrdPS(Output input)
 		+ float4(specularB * specular.rgb, 1))
 		, float4(color * ambient, 1));
 
+
+	float4 texColor = tex.Sample(smp, input.uv);
+
+	float4 spaColor = spa.Sample(smp, sphereMapUV);
+	float4 sphColor = sph.Sample(smp, sphereMapUV);
+
 	float3 posFromLightVP = input.tpos.xyz / input.tpos.w;
-	float2 shadowUV = (posFromLightVP + float2(1, -1)) * float2(0.5, -0.5);
-	float depthFromLight = lightDepthTex.SampleCmp(shadowSmp, shadowUV, posFromLightVP.z - 0.005f);
+    float2 shadowUV = (posFromLightVP + float2(1, -1)) * float2(0.5, -0.5);
+    float depthFromLight = lightDepthTex.SampleCmp(shadowSmp, shadowUV, posFromLightVP.z - 0.005f);
 
-	float shadowWeight = lerp(0.5f, 1.0f, depthFromLight);
-
-	result = float4(result.rgb * shadowWeight, result.a);
-
+	//output.color = float4(spaColor + sphColor * texColor * diffuse);
 	output.color = result;
 	output.normal.rgb = float3((input.normal.xyz + 1.0f) / 2.0f);
-	output.normal.a = 1;
+	output.normal.a = depthFromLight;
+
+	float y = dot(float3(0.299f, 0.587f, 0.114f), output.color);
+	output.highLum = y > 0.7f ? output.color : 0.0f;
 
 	return output;
 }
