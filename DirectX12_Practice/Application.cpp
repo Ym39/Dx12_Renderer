@@ -65,7 +65,13 @@ bool Application::Init()
 
 	auto miku = std::make_shared<PMDActor>("Model/miku.pmd", *_pmdRenderer);
 	miku->PlayAnimation();
+	miku->SetPosition(0.f, 0.f, 0.f);
 	_pmdRenderer->AddActor(miku);
+
+	auto miku2 = std::make_shared<PMDActor>("Model/miku.pmd", *_pmdRenderer);
+	miku2->PlayAnimation();
+	miku2->SetPosition(20.f, 0.f, 50.f);
+	_pmdRenderer->AddActor(miku2);
 
 	_pmxRenderer.reset(new PMXRenderer(*_dx12));
 	_pmxActor.reset(new PMXActor(L"PMXModel\\«ß«¯ªµªó.pmx", *_pmxRenderer));

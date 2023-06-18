@@ -53,6 +53,8 @@ class Dx12Wrapper
 
 	std::array<ComPtr<ID3D12Resource>, 2> _bloomBuffer;
 
+	ComPtr<ID3D12Resource> _dofBuffer;
+
 	DirectX::XMFLOAT3 _eye;
 	DirectX::XMFLOAT3 _target;
 	DirectX::XMFLOAT3 _up;

@@ -159,6 +159,8 @@ private:
 	unsigned int _vertNum;
 	unsigned int _indexNum;
 
+	DirectX::XMFLOAT3 _position;
+
 public:
 	PMDActor(const char* filepath, PMDRenderer& renderer);
 	~PMDActor();
@@ -172,5 +174,7 @@ public:
 	void Update();
 
 	void Draw(bool isShadow);
+
+	void SetPosition(float x, float y, float z);
 };
 
