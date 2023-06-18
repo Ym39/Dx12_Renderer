@@ -194,7 +194,10 @@ HRESULT Dx12Wrapper::CreateDepthStencilView()
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		&depthClearValue,
 		IID_PPV_ARGS(_lightDepthBuffer.ReleaseAndGetAddressOf()));
-
+	if (FAILED(result))
+	{
+		return result;
+	}
 
 	//±íÀÌ ¹öÆÛ ºä ÀÛ¼º
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
@@ -237,13 +240,13 @@ HRESULT Dx12Wrapper::CreateDepthStencilView()
 	depthSrvResDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	depthSrvResDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 
-    handle = _depthSRVHeap->GetCPUDescriptorHandleForHeapStart();
+    auto srvHandle = _depthSRVHeap->GetCPUDescriptorHandleForHeapStart();
 
-	_dev->CreateShaderResourceView(_depthBuffer.Get(), &depthSrvResDesc, handle);
+	_dev->CreateShaderResourceView(_depthBuffer.Get(), &depthSrvResDesc, srvHandle);
 
-	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	srvHandle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	_dev->CreateShaderResourceView(_lightDepthBuffer.Get(), &depthSrvResDesc, handle);
+	_dev->CreateShaderResourceView(_lightDepthBuffer.Get(), &depthSrvResDesc, srvHandle);
 
     return result;
 }
@@ -255,7 +258,7 @@ HRESULT Dx12Wrapper::CreatePeraResource()
 
 	D3D12_HEAP_PROPERTIES heapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
-	float clsClr[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	float clsClr[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
 	D3D12_CLEAR_VALUE clearValue = CD3DX12_CLEAR_VALUE(DXGI_FORMAT_R8G8B8A8_UNORM, clsClr);
 
 	for (auto& resource : _pera1Resource)
@@ -307,8 +310,26 @@ HRESULT Dx12Wrapper::CreatePeraResource()
 		}
 	}
 
+	resDesc = bbuff->GetDesc();
+
+	resDesc.Width >>= 1;
+
+	result = _dev->CreateCommittedResource(
+		&heapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&resDesc,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		&clearValue,
+		IID_PPV_ARGS(_dofBuffer.ReleaseAndGetAddressOf())
+	);
+
+	if (FAILED(result))
+	{
+		return result;
+	}
+
 	auto heapDesc = _rtvHeaps->GetDesc();
-	heapDesc.NumDescriptors = 5;
+	heapDesc.NumDescriptors = 6;
 	result = _dev->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(_peraRTVHeap.ReleaseAndGetAddressOf()));
 
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
@@ -328,10 +349,13 @@ HRESULT Dx12Wrapper::CreatePeraResource()
 		_dev->CreateRenderTargetView(resource.Get(), &rtvDesc, handle);
 		handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	}
+
+	_dev->CreateRenderTargetView(_dofBuffer.Get(), &rtvDesc, handle);
+	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	
 	_dev->CreateRenderTargetView(_peraResource2.Get(), &rtvDesc, handle);
 
-	heapDesc.NumDescriptors = 6;
+	heapDesc.NumDescriptors = 7;
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	heapDesc.NodeMask = 0;
@@ -369,6 +393,9 @@ HRESULT Dx12Wrapper::CreatePeraResource()
 		_dev->CreateShaderResourceView(resource.Get(), &srvDesc, handle);
 		handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	}
+
+	_dev->CreateShaderResourceView(_dofBuffer.Get(), &srvDesc, handle);
+	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	_dev->CreateShaderResourceView(_peraResource2.Get(), &srvDesc, handle);
 
@@ -843,8 +870,9 @@ void Dx12Wrapper::Draw()
 	//handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	_cmdList->SetGraphicsRootDescriptorTable(1, handle);
 
+	auto depthHandle = _depthSRVHeap->GetGPUDescriptorHandleForHeapStart();
 	_cmdList->SetDescriptorHeaps(1, _depthSRVHeap.GetAddressOf());
-	_cmdList->SetGraphicsRootDescriptorTable(2, _depthSRVHeap->GetGPUDescriptorHandleForHeapStart());
+	_cmdList->SetGraphicsRootDescriptorTable(2, depthHandle);
 
 	_cmdList->SetPipelineState(_peraPipeline2.Get());
 	_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
@@ -874,7 +902,7 @@ void Dx12Wrapper::Clear()
 	_cmdList->OMSetRenderTargets(1, &rtvHeapPointer, false, nullptr);
 
 	//ƒNƒŠƒAƒJƒ‰?		 R   G   B   A
-	float clsClr[4] = { 0.0,0.0,0.0,1.0 };
+	float clsClr[4] = { 0.5,0.5,0.5,1.0 };
 	_cmdList->ClearRenderTargetView(rtvHeapPointer, clsClr, 0, nullptr);
 	//_cmdList->ClearDepthStencilView(_dsvHeap->GetCPUDescriptorHandleForHeapStart(),
 	//	D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
@@ -984,7 +1012,7 @@ bool Dx12Wrapper::PreDrawToPera1()
 
 	_cmdList->OMSetRenderTargets(3, rtvs, false, &dsvHeapPointer);
 
-	float clsClr[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	float clsClr[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
 
 	for (int i = 0; i < rtvNum; i++)
 	{
@@ -1043,7 +1071,7 @@ void Dx12Wrapper::DrawBokeh()
 	_cmdList->OMSetRenderTargets(1, &rtvHeapPointer, false, nullptr);
 
 
-	float clsClr[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	float clsClr[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
 	_cmdList->ClearRenderTargetView(rtvHeapPointer, clsClr, 0, nullptr);
 
 	_cmdList->SetGraphicsRootSignature(_peraRS.Get());
@@ -1149,10 +1177,10 @@ bool Dx12Wrapper::CreatePeraPipeline()
 
 	range[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	range[1].BaseShaderRegister = 0;
-	range[1].NumDescriptors = 4;
+	range[1].NumDescriptors = 5;
 
 	range[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	range[2].BaseShaderRegister = 4;
+	range[2].BaseShaderRegister = 5;
 	range[2].NumDescriptors = 1;
 
 
@@ -1240,8 +1268,9 @@ bool Dx12Wrapper::CreatePeraPipeline()
 	gpsDesc.InputLayout.pInputElementDescs = layout;
 	gpsDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	gpsDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	gpsDesc.NumRenderTargets = 1;
+	gpsDesc.NumRenderTargets = 2;
 	gpsDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	gpsDesc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	gpsDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	gpsDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 	gpsDesc.SampleDesc.Count = 1;
@@ -1310,13 +1339,23 @@ void Dx12Wrapper::DrawShrinkTextureForBlur()
 		D3D12_RESOURCE_STATE_RENDER_TARGET);
 	_cmdList->ResourceBarrier(1, &barrier);
 
-	auto rtvHandle = _peraRTVHeap->GetCPUDescriptorHandleForHeapStart();
+	barrier = CD3DX12_RESOURCE_BARRIER::Transition(_dofBuffer.Get(),
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		D3D12_RESOURCE_STATE_RENDER_TARGET);
+	_cmdList->ResourceBarrier(1, &barrier);
+
 	auto srvHandle = _peraSRVHeap->GetGPUDescriptorHandleForHeapStart();
 	srvHandle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	rtvHandle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV) * 3;
+	auto rtvBaseHandle = _peraRTVHeap->GetCPUDescriptorHandleForHeapStart();
+	auto rtvIncSize = _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-	_cmdList->OMSetRenderTargets(1, &rtvHandle, false, nullptr);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandles[2] = {};
+
+	rtvHandles[0].InitOffsetted(rtvBaseHandle, rtvIncSize * 3);
+	rtvHandles[1].InitOffsetted(rtvBaseHandle, rtvIncSize * 4);
+
+	_cmdList->OMSetRenderTargets(2, rtvHandles, false, nullptr);
 
 	_cmdList->SetDescriptorHeaps(1, _peraSRVHeap.GetAddressOf());
 	_cmdList->SetGraphicsRootDescriptorTable(1, srvHandle);
@@ -1350,6 +1389,11 @@ void Dx12Wrapper::DrawShrinkTextureForBlur()
 	}
 
 	barrier = CD3DX12_RESOURCE_BARRIER::Transition(_bloomBuffer[1].Get(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	_cmdList->ResourceBarrier(1, &barrier);
+
+	barrier = CD3DX12_RESOURCE_BARRIER::Transition(_dofBuffer.Get(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	_cmdList->ResourceBarrier(1, &barrier);

@@ -1202,8 +1202,8 @@ void PMDActor::PlayAnimation()
 
 void PMDActor::Update()
 {
-	_angle += 0.005f;
-	_mappedMatrices[0] = XMMatrixRotationY(_angle) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+	//_angle += 0.005f;
+	_mappedMatrices[0] = XMMatrixRotationY(_angle) * XMMatrixTranslation(_position.x, _position.y, _position.z);
 
 	//MotionUpdate();
 }
@@ -1242,4 +1242,11 @@ void PMDActor::Draw(bool isShadow = false)
 			idxOffset += m.indicesNum;
 		}
 	}
+}
+
+void PMDActor::SetPosition(float x, float y, float z)
+{
+	_position.x = x;
+	_position.y = y;
+	_position.z = z;
 }

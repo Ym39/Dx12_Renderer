@@ -141,28 +141,75 @@ float4 VerticalBokehPS(Output input) : SV_TARGET
 	float dx = 1.0f / w;
 	float dy = 1.0f / h;
 
-	float4 ret = float4(0, 0, 0, 0);
-	float4 col = tex.Sample(smp, input.uv);
+	//float4 ret = float4(0, 0, 0, 0);
+	//float4 col = tex.Sample(smp, input.uv);
 
-	ret += bkweights[0] * col;
-	for (int i = 1; i < 8; ++i)
-	{
-		ret += bkweights[i >> 2][i % 4] * tex.Sample(smp, input.uv + float2(0, dy * i));
-		ret += bkweights[i >> 2][i % 4] * tex.Sample(smp, input.uv + float2(0, -dy * i));
-	}
+	//ret += bkweights[0] * col;
+	//for (int i = 1; i < 8; ++i)
+	//{
+	//	ret += bkweights[i >> 2][i % 4] * tex.Sample(smp, input.uv + float2(0, dy * i));
+	//	ret += bkweights[i >> 2][i % 4] * tex.Sample(smp, input.uv + float2(0, -dy * i));
+	//}
 
-	float4 bloomAccum = float4(0, 0, 0, 0);
+	//float4 bloomAccum = float4(0, 0, 0, 0);
+	//float2 uvSize = float2(1, 0.5);
+	//float2 uvOfst = float2(0, 0);
+
+	//for (int i = 0; i < 8; ++i)
+	//{
+	//	bloomAccum += Get5x5GaussianBlur(texShrinkHighLum, smp, input.uv * uvSize + uvOfst, dx, dy, float4(uvOfst, uvOfst + uvSize));
+	//	uvOfst.y += uvSize.y;
+	//	uvSize *= 0.5f;
+	//}
+
+	//return col + Get5x5GaussianBlur(texHighLum, smp, input.uv, dx, dy, float4(0, 0, 1, 1)) * saturate(bloomAccum);
+
+	float depthDiff = abs(depthTex.Sample(smp, float2(0.5, 0.5)) - depthTex.Sample(smp, input.uv));
+
+	depthDiff = pow(depthDiff, 0.5f);
 	float2 uvSize = float2(1, 0.5);
 	float2 uvOfst = float2(0, 0);
 
-	for (int i = 0; i < 8; ++i)
+	float t = depthDiff * 8;
+	float no;
+	t = modf(t, no);
+
+	float4 resultColor[2];
+
+	resultColor[0] = tex.Sample(smp, input.uv);
+
+	if (no == 0.0f)
 	{
-		bloomAccum += Get5x5GaussianBlur(texShrinkHighLum, smp, input.uv * uvSize + uvOfst, dx, dy, float4(uvOfst, uvOfst + uvSize));
-		uvOfst.y += uvSize.y;
-		uvSize *= 0.5f;
+		resultColor[1] = Get5x5GaussianBlur(
+		    texShrink, smp,
+			input.uv * uvSize + uvOfst,
+			dx, dy,
+			float4(uvOfst, uvOfst + uvSize)
+		);
+	}
+	else
+	{
+		for (int i = 1; i <= 8; ++i)
+		{
+			if (i - no < 0)
+			{
+				continue;
+			}
+
+			resultColor[i - no] = Get5x5GaussianBlur(
+				texShrink, smp, input.uv * uvSize + uvOfst,
+				dx, dy, float4(uvOfst, uvOfst + uvSize));
+
+			uvOfst.y += uvSize.y;
+			uvSize *= 0.5f;
+			if (i - no > 1)
+			{
+				break;
+			}
+		}
 	}
 
-	return col + Get5x5GaussianBlur(texHighLum, smp, input.uv, dx, dy, float4(0, 0, 1, 1)) * saturate(bloomAccum);
+	return lerp(resultColor[1], resultColor[0], t);
 
 	//return col;
 	//return float4(ret.rgb, col.a);
@@ -171,11 +218,17 @@ float4 VerticalBokehPS(Output input) : SV_TARGET
 	return float4(dep, dep, dep, 1);
 }
 
-float4 BlurPS(Output input) : SV_Target
+BlurOutput BlurPS(Output input) : SV_Target
 {
 	float w, h, levels;
 	tex.GetDimensions(0, w, h, levels);
 	float dx = 1.0 / w;
 	float dy = 1.0 / h;
-	return Get5x5GaussianBlur(texHighLum, smp, input.uv, dx, dy, float4(0, 0, 1, 1));
+
+	BlurOutput result;
+
+	result.color = Get5x5GaussianBlur(tex, smp, input.uv, dx, dy, float4(0, 0, 1, 1));
+	result.highLum = Get5x5GaussianBlur(texHighLum, smp, input.uv, dx, dy, float4(0, 0, 1, 1));
+
+	return result;
 };
