@@ -141,6 +141,12 @@ float4 VerticalBokehPS(Output input) : SV_TARGET
 	float dx = 1.0f / w;
 	float dy = 1.0f / h;
 
+	if (input.uv.x < 0.2 && input.uv.y >= 0.6 && input.uv.y < 0.8)
+	{
+		float s = texSSAO.Sample(smp, (input.uv - float2(0, 0.6)) * 5);
+		return float4(s, s, s, 1);
+	}
+
 	//float4 ret = float4(0, 0, 0, 0);
 	//float4 col = tex.Sample(smp, input.uv);
 

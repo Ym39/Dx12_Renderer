@@ -22,6 +22,8 @@ Texture2D<float4> sph : register(t1);
 Texture2D<float4> spa : register(t2);
 Texture2D<float4> toon : register(t3);
 Texture2D<float4> lightDepthTex : register(t4);
+Texture2D<float4> normalTex : register(t5);
+
 SamplerState smp : register(s0);
 SamplerState smpToon : register(s1);
 SamplerComparisonState shadowSmp : register(s2);
@@ -30,6 +32,7 @@ cbuffer SceneBuffer : register(b0)
 {
 	matrix view;
 	matrix proj;
+	matrix invproj;
 	matrix lightCamera;
 	matrix shadow;
 	float3 eye;

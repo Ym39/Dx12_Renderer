@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Shader">
+      <UniqueIdentifier>{ddf35bb2-457b-4cde-b073-a5c6ece882e1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -38,34 +41,37 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="BasicVertexShader.hlsl">
-      <Filter>소스 파일</Filter>
-    </FxCompile>
-    <FxCompile Include="BasicPixelShader.hlsl">
-      <Filter>소스 파일</Filter>
-    </FxCompile>
-    <FxCompile Include="PMXVertexShader.hlsl">
-      <Filter>소스 파일</Filter>
-    </FxCompile>
-    <FxCompile Include="PMXPixelShader.hlsl">
-      <Filter>소스 파일</Filter>
+    <FxCompile Include="peraPixel.hlsl">
+      <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="peraVertex.hlsl">
-      <Filter>소스 파일</Filter>
+      <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="peraPixel.hlsl">
-      <Filter>소스 파일</Filter>
+    <FxCompile Include="BasicPixelShader.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="BasicVertexShader.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="PMXPixelShader.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="PMXVertexShader.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="ssao.hlsl">
+      <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="peraHeader.hlsli">
+      <Filter>Shader</Filter>
+    </None>
     <None Include="BasicShaderHeader.hlsli">
-      <Filter>소스 파일</Filter>
+      <Filter>Shader</Filter>
     </None>
     <None Include="PmxShaderHeader.hlsli">
-      <Filter>소스 파일</Filter>
-    </None>
-    <None Include="peraHeader.hlsli">
-      <Filter>소스 파일</Filter>
+      <Filter>Shader</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

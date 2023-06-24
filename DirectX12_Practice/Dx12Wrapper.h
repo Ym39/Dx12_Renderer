@@ -55,6 +55,12 @@ class Dx12Wrapper
 
 	ComPtr<ID3D12Resource> _dofBuffer;
 
+	ComPtr<ID3D12Resource> _aoBuffer;
+	ComPtr<ID3D12PipelineState> _aoPipeline;
+
+	ComPtr<ID3D12DescriptorHeap> _aoRTVDH;
+	ComPtr<ID3D12DescriptorHeap> _aoSRVDH;
+
 	DirectX::XMFLOAT3 _eye;
 	DirectX::XMFLOAT3 _target;
 	DirectX::XMFLOAT3 _up;
@@ -63,6 +69,7 @@ class Dx12Wrapper
 	{
 		DirectX::XMMATRIX view;
 		DirectX::XMMATRIX proj;
+		DirectX::XMMATRIX invProj;
 		DirectX::XMMATRIX lightCamera;
 		DirectX::XMMATRIX shadow;
 		DirectX::XMFLOAT3 eye;
@@ -112,6 +119,9 @@ class Dx12Wrapper
 	ID3D12Resource* CreateBlackTexture();
 	ID3D12Resource* CreateGrayGradiationTexture();
 
+	bool CreateAmbientOcclusionBuffer();
+	bool CreateAmbientOcclusionDescriptorHeap();
+
 public:
 	Dx12Wrapper(HWND hwnd);
 	~Dx12Wrapper();
@@ -128,6 +138,7 @@ public:
 	void DrawBokeh();
 	void DrawShrinkTextureForBlur();
 	void SetCameraSetting();
+	void DrawAmbientOcclusion();
 
 	bool CreatePeraVertex();
 	bool CreatePeraPipeline();
@@ -144,5 +155,26 @@ public:
 	ComPtr<IDXGISwapChain4> Swapchain();
 
 	void SetScene();
+
+	bool CheckResult(HRESULT& result, ID3DBlob* errBlob)
+	{
+		if (FAILED(result)) {
+#ifdef _DEBUG
+			if (errBlob != nullptr) {
+				std::string outmsg;
+				outmsg.resize(errBlob->GetBufferSize());
+				std::copy_n(static_cast<char*>(errBlob->GetBufferPointer()),
+					errBlob->GetBufferSize(),
+					outmsg.begin());
+				OutputDebugStringA(outmsg.c_str());//出力ウィンドウに出力してね
+			}
+			assert(SUCCEEDED(result));
+#endif
+			return false;
+		}
+		else {
+			return true;
+		}
+	}
 };
 
