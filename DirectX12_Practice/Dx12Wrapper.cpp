@@ -1393,10 +1393,16 @@ bool Dx12Wrapper::CreatePeraPipeline()
 		return false;
 	}
 
+
+	UINT flags = 0;
+#if defined( DEBUG ) || defined( _DEBUG )
+	flags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+
 	result = D3DCompileFromFile(L"ssao.hlsl", 
 		nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
 		"SsaoPs", "ps_5_0",
-		0, 0, ps.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
+		flags, 0, ps.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
 
 	if (FAILED(result))
 	{
@@ -1562,6 +1568,7 @@ void Dx12Wrapper::DrawAmbientOcclusion()
 	_cmdList->SetDescriptorHeaps(1, _peraSRVHeap.GetAddressOf());
 
 	auto srvHandle = _peraSRVHeap->GetGPUDescriptorHandleForHeapStart();
+	srvHandle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	_cmdList->SetGraphicsRootDescriptorTable(1, srvHandle);
 
 	_cmdList->SetDescriptorHeaps(1, _depthSRVHeap.GetAddressOf());
