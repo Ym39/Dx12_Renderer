@@ -1576,6 +1576,8 @@ void Dx12Wrapper::DrawAmbientOcclusion()
 	auto srvDSVHandle = _depthSRVHeap->GetGPUDescriptorHandleForHeapStart();
 	_cmdList->SetGraphicsRootDescriptorTable(2, srvDSVHandle);
 
+	_cmdList->SetDescriptorHeaps(1, _sceneDescHeap.GetAddressOf());
+
 	auto sceneConstantViewHandle = _sceneDescHeap->GetGPUDescriptorHandleForHeapStart();
 	_cmdList->SetGraphicsRootDescriptorTable(4, sceneConstantViewHandle);
 
