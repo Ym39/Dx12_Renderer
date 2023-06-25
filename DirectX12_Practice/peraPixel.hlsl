@@ -170,52 +170,59 @@ float4 VerticalBokehPS(Output input) : SV_TARGET
 
 	//return col + Get5x5GaussianBlur(texHighLum, smp, input.uv, dx, dy, float4(0, 0, 1, 1)) * saturate(bloomAccum);
 
-	float depthDiff = abs(depthTex.Sample(smp, float2(0.5, 0.5)) - depthTex.Sample(smp, input.uv));
+	//DOF
 
-	depthDiff = pow(depthDiff, 0.5f);
-	float2 uvSize = float2(1, 0.5);
-	float2 uvOfst = float2(0, 0);
+	//float depthDiff = abs(depthTex.Sample(smp, float2(0.5, 0.5)) - depthTex.Sample(smp, input.uv));
 
-	float t = depthDiff * 8;
-	float no;
-	t = modf(t, no);
+	//depthDiff = pow(depthDiff, 0.5f);
+	//float2 uvSize = float2(1, 0.5);
+	//float2 uvOfst = float2(0, 0);
 
-	float4 resultColor[2];
+	//float t = depthDiff * 8;
+	//float no;
+	//t = modf(t, no);
 
-	resultColor[0] = tex.Sample(smp, input.uv);
+	//float4 resultColor[2];
 
-	if (no == 0.0f)
-	{
-		resultColor[1] = Get5x5GaussianBlur(
-		    texShrink, smp,
-			input.uv * uvSize + uvOfst,
-			dx, dy,
-			float4(uvOfst, uvOfst + uvSize)
-		);
-	}
-	else
-	{
-		for (int i = 1; i <= 8; ++i)
-		{
-			if (i - no < 0)
-			{
-				continue;
-			}
+	//resultColor[0] = tex.Sample(smp, input.uv);
 
-			resultColor[i - no] = Get5x5GaussianBlur(
-				texShrink, smp, input.uv * uvSize + uvOfst,
-				dx, dy, float4(uvOfst, uvOfst + uvSize));
+	//if (no == 0.0f)
+	//{
+	//	resultColor[1] = Get5x5GaussianBlur(
+	//	    texShrink, smp,
+	//		input.uv * uvSize + uvOfst,
+	//		dx, dy,
+	//		float4(uvOfst, uvOfst + uvSize)
+	//	);
+	//}
+	//else
+	//{
+	//	for (int i = 1; i <= 8; ++i)
+	//	{
+	//		if (i - no < 0)
+	//		{
+	//			continue;
+	//		}
 
-			uvOfst.y += uvSize.y;
-			uvSize *= 0.5f;
-			if (i - no > 1)
-			{
-				break;
-			}
-		}
-	}
+	//		resultColor[i - no] = Get5x5GaussianBlur(
+	//			texShrink, smp, input.uv * uvSize + uvOfst,
+	//			dx, dy, float4(uvOfst, uvOfst + uvSize));
 
-	return lerp(resultColor[1], resultColor[0], t);
+	//		uvOfst.y += uvSize.y;
+	//		uvSize *= 0.5f;
+	//		if (i - no > 1)
+	//		{
+	//			break;
+	//		}
+	//	}
+	//}
+
+	//return lerp(resultColor[1], resultColor[0], t);
+
+	float4 ssao = texSSAO.Sample(smp, input.uv);
+	float4 color = tex.Sample(smp, input.uv);
+
+	return color * ssao;
 
 	//return col;
 	//return float4(ret.rgb, col.a);

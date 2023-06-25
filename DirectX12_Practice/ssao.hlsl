@@ -22,7 +22,7 @@ float SsaoPs(Output input) : SV_Target
 	float div = 0.0f;
 	float ao = 0.0f;
 	float3 normal = normalize((texNormal.Sample(smp, input.uv).xyz * 2) - 1);
-	const int trycnt = 256;
+	const int trycnt = 32;
 	const float radius = 0.5f;
 
 	if (depth < 1.0f)
@@ -51,6 +51,4 @@ float SsaoPs(Output input) : SV_Target
 	}
 
 	return 1.0f - ao;
-
-	//return float4(1.0f,1.0f,1.0f,1.0f);
 }
