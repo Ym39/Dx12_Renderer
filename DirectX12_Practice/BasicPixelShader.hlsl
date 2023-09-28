@@ -7,7 +7,7 @@ float4 BasicPS(Output input) : SV_TARGET
 		return float4(0, 0, 0, 1);
 	}
 
-	float3 light = normalize(float3(1, -1, 1));
+	float3 light = normalize(lightVec);
 
 	float diffuseB = saturate(dot(-light, input.normal));
 	float4 toonDif = toon.Sample(smpToon, float2(0, 1.0 - diffuseB));
@@ -42,7 +42,7 @@ PixelOutput DeferrdPS(Output input)
 {
 	PixelOutput output;
 
-	float3 light = normalize(float3(1, -1, 1));
+	float3 light = normalize(lightVec);
 
 	float diffuseB = saturate(dot(-light, input.normal));
 	float4 toonDif = toon.Sample(smpToon, float2(0, 1.0 - diffuseB));

@@ -569,7 +569,7 @@ HRESULT Dx12Wrapper::CreateSceneView()
 	XMFLOAT3 up(0, 1, 0);
 
 	XMMATRIX lookMatrix = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&up));
-	XMMATRIX projectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV4, static_cast<float>(desc.Width) / static_cast<float>(desc.Height), 0.1f, 1000.0f);
+	XMMATRIX projectionMatrix = XMMatrixPerspectiveFovLH(_fov, static_cast<float>(desc.Width) / static_cast<float>(desc.Height), 0.1f, 1000.0f);
 
 	_mappedSceneMatricesData->view = lookMatrix;
 	_mappedSceneMatricesData->proj = projectionMatrix;
@@ -893,6 +893,13 @@ Dx12Wrapper::Dx12Wrapper(HWND hwnd) :
 	_whiteTex = CreateWhiteTexture();
 	_blackTex = CreateBlackTexture();
 	_gradTex = CreateGrayGradiationTexture();
+
+	_heapForImgui = CreateDescriptorHeapForImgui();
+	if (_heapForImgui == nullptr)
+	{
+		assert(0);
+		return;
+	}
 }
 
 Dx12Wrapper::~Dx12Wrapper()
@@ -1593,6 +1600,23 @@ void Dx12Wrapper::DrawAmbientOcclusion()
 	_cmdList->ResourceBarrier(1, &barrier);
 }
 
+ComPtr<ID3D12DescriptorHeap> Dx12Wrapper::GetHeapForImgui()
+{
+	return _heapForImgui;
+}
+
+void Dx12Wrapper::SetFov(float fov)
+{
+	_fov = fov;
+}
+
+void Dx12Wrapper::SetLightVector(float vec[3])
+{
+	_parallelLightVec.x = vec[0];
+	_parallelLightVec.y = vec[1];
+	_parallelLightVec.z = vec[2];
+}
+
 void Dx12Wrapper::PreDrawShadow()
 {
 	auto handle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
@@ -1632,7 +1656,7 @@ void Dx12Wrapper::SetCameraSetting()
 	auto upVec = XMLoadFloat3(&_up);
 
 	XMMATRIX lookMatrix = XMMatrixLookAtLH(eyePos, targetPos, upVec);
-	XMMATRIX projectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV4, static_cast<float>(wsize.cx) / static_cast<float>(wsize.cy), 0.1f, 1000.0f);
+	XMMATRIX projectionMatrix = XMMatrixPerspectiveFovLH(_fov, static_cast<float>(wsize.cx) / static_cast<float>(wsize.cy), 0.1f, 1000.0f);
 
 	XMVECTOR det;
 	_mappedSceneMatricesData->view = lookMatrix;
@@ -1645,6 +1669,8 @@ void Dx12Wrapper::SetCameraSetting()
 
 
 	auto light = XMFLOAT4(_parallelLightVec.x, _parallelLightVec.y, _parallelLightVec.z, 0);
+	_mappedSceneMatricesData->light = light;
+
 	auto lightVector = XMLoadFloat4(&light);
 
 	auto lightPos = targetPos + XMVector3Normalize(lightVector) * XMVector3Length(XMVectorSubtract(targetPos, eyePos)).m128_f32[0];
@@ -1783,3 +1809,19 @@ ID3D12Resource* Dx12Wrapper::CreateGrayGradiationTexture()
 
 	return gradBuff;
 }
+
+ComPtr<ID3D12DescriptorHeap> Dx12Wrapper::CreateDescriptorHeapForImgui()
+{
+	ComPtr<ID3D12DescriptorHeap> result;
+
+	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	desc.NodeMask = 0;
+	desc.NumDescriptors = 1;
+	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+
+	_dev->CreateDescriptorHeap(&desc, IID_PPV_ARGS(result.ReleaseAndGetAddressOf()));
+
+	return result;
+}
+

@@ -35,6 +35,7 @@ cbuffer SceneBuffer : register(b0)
 	matrix invproj;
 	matrix lightCamera;
 	matrix shadow;
+	float4 lightVec;
 	float3 eye;
 };
 

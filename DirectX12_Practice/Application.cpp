@@ -5,8 +5,14 @@
 #include"PMXActor.h"
 #include "PMXRenderer.h"
 
+#include "Imgui/imgui.h"
+#include "Imgui/imgui_impl_dx12.h"
+#include "Imgui/imgui_impl_win32.h"
+
 const unsigned int window_width = 1600;
 const unsigned int window_height = 800;
+
+extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
 LRESULT WindowProcedure(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
@@ -16,6 +22,7 @@ LRESULT WindowProcedure(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 		return 0;
 	}
 
+	ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam);
 	return DefWindowProc(hwnd, msg, wparam, lparam);
 }
 
@@ -76,6 +83,26 @@ bool Application::Init()
 	_pmxRenderer.reset(new PMXRenderer(*_dx12));
 	_pmxActor.reset(new PMXActor(L"PMXModel\\«ß«¯ªµªó.pmx", *_pmxRenderer));
 
+	if (ImGui::CreateContext() == nullptr)
+	{
+		assert(0);
+		return false;
+	}
+
+	bool blnResult = ImGui_ImplWin32_Init(_hwnd);
+	if (blnResult == false)
+	{
+		assert(0);
+		return false;
+	}
+
+	blnResult = ImGui_ImplDX12_Init(_dx12->Device().Get(),
+		3,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		_dx12->GetHeapForImgui().Get(),
+		_dx12->GetHeapForImgui()->GetCPUDescriptorHandleForHeapStart(),
+		_dx12->GetHeapForImgui()->GetGPUDescriptorHandleForHeapStart());
+
 	return true;
 }
 
@@ -134,7 +161,30 @@ void Application::Run()
 
 		_dx12->Draw();
 
+		ImGui_ImplDX12_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+
+		ImGui::Begin("Rendering Test Menu");
+		ImGui::SetWindowSize(ImVec2(400, 500), ImGuiCond_::ImGuiCond_FirstUseEver);
+
+		constexpr float pi = 3.141592653589f;
+		static float fov = pi / 4.0f;
+		ImGui::SliderFloat("FOV", &fov, pi / 6.0f, pi * 5.0f / 6.0f);
+
+		static float lightVec[3] = { 1.0f, -1.0f, 1.0f };
+		ImGui::SliderFloat3("Light Vector", lightVec, -1.0f, 1.0f);
+
+		ImGui::End();
+
+		ImGui::Render();
+		_dx12->CommandList()->SetDescriptorHeaps(1, _dx12->GetHeapForImgui().GetAddressOf());
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), _dx12->CommandList().Get());
+
 		_dx12->EndDraw();
+
+		_dx12->SetFov(fov);
+		_dx12->SetLightVector(lightVec);
 	}
 }
 

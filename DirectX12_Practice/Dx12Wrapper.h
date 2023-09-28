@@ -72,6 +72,7 @@ class Dx12Wrapper
 		DirectX::XMMATRIX invProj;
 		DirectX::XMMATRIX lightCamera;
 		DirectX::XMMATRIX shadow;
+		DirectX::XMFLOAT4 light;
 		DirectX::XMFLOAT3 eye;
 	};
 
@@ -122,6 +123,14 @@ class Dx12Wrapper
 	bool CreateAmbientOcclusionBuffer();
 	bool CreateAmbientOcclusionDescriptorHeap();
 
+	ComPtr<ID3D12DescriptorHeap> _heapForImgui;
+
+	ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeapForImgui();
+
+	//Setting Value
+	float _fov;
+	float _lightVector[3];
+
 public:
 	Dx12Wrapper(HWND hwnd);
 	~Dx12Wrapper();
@@ -153,6 +162,12 @@ public:
 	ComPtr<ID3D12Device> Device();
 	ComPtr<ID3D12GraphicsCommandList> CommandList();
 	ComPtr<IDXGISwapChain4> Swapchain();
+
+	ComPtr<ID3D12DescriptorHeap> GetHeapForImgui();
+
+	void SetFov(float fov);
+
+	void SetLightVector(float vec[3]);
 
 	void SetScene();
 
