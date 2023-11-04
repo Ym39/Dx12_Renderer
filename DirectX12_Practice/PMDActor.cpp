@@ -1,287 +1,91 @@
 ﻿#include "PMDActor.h"
 #include "PMDRenderer.h"
 #include "Dx12Wrapper.h"
+#include "Utill.h"
 #include <d3dx12.h>
 
 using namespace Microsoft::WRL;
 using namespace std;
-using namespace DirectX;
 
 #pragma comment(lib,"winmm.lib")
 
-namespace
-{
-	std::string GetExtension(const std::string& path)
-	{
-		int idx = path.rfind(".");
-		return path.substr(idx + 1, path.length() - idx - 1);
-	}
-
-	std::pair<std::string, std::string> SplitFileName(const std::string path, const char splitter = '*')
-	{
-		int idx = path.find(splitter);
-		pair<std::string, std::string> ret;
-		ret.first = path.substr(0, idx);
-		ret.second = path.substr(idx + 1, path.length() - idx - 1);
-		return ret;
-	}
-
-	std::string GetTexturePathFromModelAndTexPath(const std::string& modelPath, const char* texPath)
-	{
-		auto pathIndex1 = modelPath.rfind('/');
-		auto folderPath = modelPath.substr(0, pathIndex1);
-
-		//string texPathString = texPath;
-
-		//size_t nPos = texPathString.find(".bmp");
-
-		//if (nPos != string::npos)
-		//{
-		//	texPathString = texPathString.substr(0, nPos + 4);
-		//}
-
-		return folderPath + "/" + texPath;
-	}
-
-	enum class BoneType
-	{
-		Rotation,
-		RotAndMove,
-		IK,
-		Undefined,
-		IKChild,
-		RotationChild,
-		IKDestination,
-		Invisible
-	};
-
-	XMMATRIX LookAtMatrix(const XMVECTOR& lookat, XMFLOAT3& up, XMFLOAT3& right)
-	{
-		XMVECTOR vz = lookat;
-
-		XMVECTOR vy = XMVector3Normalize(XMLoadFloat3(&up));
-
-		XMVECTOR vx = XMVector3Normalize(XMVector3Cross(vy, vz));
-		vy = XMVector3Normalize(XMVector3Cross(vz, vx));
-
-		if (std::abs(XMVector3Dot(vy, vz).m128_f32[0] == 1.0f))
-		{
-			vx = XMVector3Normalize(XMLoadFloat3(&right));
-			vy = XMVector3Normalize(XMVector3Cross(vz, vx));
-			vx = XMVector3Normalize(XMVector3Cross(vy, vz));
-		}
-
-		XMMATRIX ret = XMMatrixIdentity();
-		ret.r[0] = vx;
-		ret.r[1] = vy;
-		ret.r[2] = vz;
-
-		return ret;
-	}
-
-	XMMATRIX LookAtMatrix(const XMVECTOR& origin, const XMVECTOR& lookat, XMFLOAT3& up, XMFLOAT3 right)
-	{
-		return XMMatrixTranspose(LookAtMatrix(origin, up, right) * LookAtMatrix(lookat, up, right));
-	}
-}
+constexpr float epsilon = 0.0005f;
 
 void* PMDActor::Transform::operator new(size_t size) {
 	return _aligned_malloc(size, 16);
 }
 
-HRESULT PMDActor::CreateMaterialData()
+PMDActor::PMDActor(const char* filepath, Dx12Wrapper& dx):
+	_angle(0.0f)
 {
-	int materialBufferSize = sizeof(MaterialForHlsl);
-	materialBufferSize = (materialBufferSize + 0xff) & ~0xff;
-
-	auto result = _dx12.Device()->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(materialBufferSize * _materials.size()),
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(_materialBuff.ReleaseAndGetAddressOf())
-	);
-	if (FAILED(result))
-	{
-		assert(SUCCEEDED(result));
-		return result;
-	}
-
-	char* mapMaterial = nullptr;
-
-	result = _materialBuff->Map(0, nullptr, (void**)&mapMaterial);
-	if (FAILED(result))
-	{
-		assert(SUCCEEDED(result));
-		return result;
-	}
-
-	for (auto& m : _materials)
-	{
-		*((MaterialForHlsl*)mapMaterial) = m.material;
-		mapMaterial += materialBufferSize;
-	}
-
-	_materialBuff->Unmap(0, nullptr);
-
-	return S_OK;
+	_transform.world = XMMatrixIdentity() * XMMatrixRotationY(-45.0f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+	LoadPMDFile(filepath, dx);
+	LoadVMDFile("Model/squat.vmd");
+	CreateTransformView(dx);
+	CreateMaterialData(dx);
+	CreateMaterialAndTextureView(dx);
 }
 
-HRESULT PMDActor::CreateMaterialAndTextureView()
+PMDActor::~PMDActor()
 {
-	D3D12_DESCRIPTOR_HEAP_DESC matDescHeapDesc = {};
-	matDescHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	matDescHeapDesc.NodeMask = 0;
-	matDescHeapDesc.NumDescriptors = _materials.size() * 5;
-	matDescHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+}
 
-	auto result = _dx12.Device()->CreateDescriptorHeap(&matDescHeapDesc, IID_PPV_ARGS(_materialHeap.ReleaseAndGetAddressOf()));
-	if (FAILED(result)) {
-		assert(SUCCEEDED(result));
-		return result;
-	}
+void PMDActor::Update()
+{
+	//_angle += 0.005f;
+	_mappedMatrices[0] = XMMatrixRotationY(_angle) * XMMatrixTranslation(_position.x, _position.y, _position.z);
 
-	auto materialBuffSize = sizeof(MaterialForHlsl);
-	materialBuffSize = (materialBuffSize + 0xff) & ~0xff;
+	//MotionUpdate();
+}
 
-	D3D12_CONSTANT_BUFFER_VIEW_DESC matCBVDesc = {};
-	matCBVDesc.BufferLocation = _materialBuff->GetGPUVirtualAddress();
-	matCBVDesc.SizeInBytes = materialBuffSize;
+void PMDActor::PlayAnimation()
+{
+	_startTime = timeGetTime();
+}
 
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MipLevels = 1;
+void PMDActor::Draw(Dx12Wrapper& dx, bool isShadow = false)
+{
+	dx.CommandList()->IASetVertexBuffers(0, 1, &_vbView);
+	dx.CommandList()->IASetIndexBuffer(&_ibView);
+	dx.CommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	auto matDescHeapH = _materialHeap->GetCPUDescriptorHandleForHeapStart();
-	auto incSize = _dx12.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	ID3D12DescriptorHeap* transheap[] = { _transformHeap.Get() };
+	dx.CommandList()->SetDescriptorHeaps(1, transheap);
+	dx.CommandList()->SetGraphicsRootDescriptorTable(1, _transformHeap->GetGPUDescriptorHandleForHeapStart());
 
-	for (int i = 0; i < _materials.size(); ++i)
+	ID3D12DescriptorHeap* mdh[] = { _materialHeap.Get() };
+
+	dx.CommandList()->SetDescriptorHeaps(1, mdh);
+
+	auto materialH = _materialHeap->GetGPUDescriptorHandleForHeapStart();
+	unsigned int idxOffset = 0;
+
+	auto cbvsrvIncSize = dx.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 5;
+
+	if (isShadow == true)
 	{
-		_dx12.Device()->CreateConstantBufferView(&matCBVDesc, matDescHeapH);
-
-		matDescHeapH.ptr += incSize;
-		matCBVDesc.BufferLocation += materialBuffSize;
-
-		if (_textureResources[i] == nullptr)
-		{
-			srvDesc.Format = _dx12.GetWhiteTexture()->GetDesc().Format;
-			_dx12.Device()->CreateShaderResourceView(_dx12.GetWhiteTexture().Get(), &srvDesc, matDescHeapH);
-		}
-		else
-		{
-			srvDesc.Format = _textureResources[i]->GetDesc().Format;
-			_dx12.Device()->CreateShaderResourceView(
-				_textureResources[i].Get(),
-				&srvDesc,
-				matDescHeapH);
-		}
-
-		matDescHeapH.ptr += incSize;
-
-		if (_sphResources[i] == nullptr)
-		{
-			srvDesc.Format = _dx12.GetWhiteTexture()->GetDesc().Format;
-			_dx12.Device()->CreateShaderResourceView(_dx12.GetWhiteTexture().Get(), &srvDesc, matDescHeapH);
-		}
-		else
-		{
-			srvDesc.Format = _sphResources[i]->GetDesc().Format;
-			_dx12.Device()->CreateShaderResourceView(
-				_sphResources[i].Get(),
-				&srvDesc,
-				matDescHeapH);
-		}
-
-		matDescHeapH.ptr += incSize;
-
-		if (_spaResources[i] == nullptr)
-		{
-			srvDesc.Format = _dx12.GetBlackTexture()->GetDesc().Format;
-			_dx12.Device()->CreateShaderResourceView(_dx12.GetBlackTexture().Get(), &srvDesc, matDescHeapH);
-		}
-		else
-		{
-			srvDesc.Format = _spaResources[i]->GetDesc().Format;
-			_dx12.Device()->CreateShaderResourceView(
-				_spaResources[i].Get(),
-				&srvDesc,
-				matDescHeapH);
-		}
-
-		matDescHeapH.ptr += incSize;
-
-		if (_toonResources[i] == nullptr)
-		{
-			srvDesc.Format = _dx12.GetGradTexture()->GetDesc().Format;
-			_dx12.Device()->CreateShaderResourceView(_dx12.GetGradTexture().Get(), &srvDesc, matDescHeapH);
-		}
-		else
-		{
-			srvDesc.Format = _toonResources[i]->GetDesc().Format;
-			_dx12.Device()->CreateShaderResourceView(_toonResources[i].Get(), &srvDesc, matDescHeapH);
-		}
-
-		matDescHeapH.ptr += incSize;
+		dx.CommandList()->DrawIndexedInstanced(_indexNum, 1, 0, 0, 0);
 	}
-
-	return result;
+	else
+	{
+		for (auto& m : _materials)
+		{
+			dx.CommandList()->SetGraphicsRootDescriptorTable(2, materialH);
+			dx.CommandList()->DrawIndexedInstanced(m.indicesNum, 1, idxOffset, 0, 0);
+			materialH.ptr += cbvsrvIncSize;
+			idxOffset += m.indicesNum;
+		}
+	}
 }
 
-HRESULT PMDActor::CreateTransformView()
+void PMDActor::SetPosition(float x, float y, float z)
 {
-	auto buffSize = sizeof(XMMATRIX) * (1 + _boneMatrices.size());
-	buffSize = (buffSize + 0xff) & ~0xff;
-
-	auto result = _dx12.Device()->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(buffSize),
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(_transformBuff.ReleaseAndGetAddressOf())
-	);
-
-	if (FAILED(result)) {
-		assert(SUCCEEDED(result));
-		return result;
-	}
-
-	result = _transformBuff->Map(0, nullptr, (void**)&_mappedMatrices);
-
-	if (FAILED(result)) {
-		assert(SUCCEEDED(result));
-		return result;
-	}
-
-	_mappedMatrices[0] = _transform.world;
-
-	D3D12_DESCRIPTOR_HEAP_DESC transformDescHeapDesc = {};
-
-	transformDescHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	transformDescHeapDesc.NodeMask = 0;
-	transformDescHeapDesc.NumDescriptors = 1;
-	transformDescHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-
-	result = _dx12.Device()->CreateDescriptorHeap(&transformDescHeapDesc, IID_PPV_ARGS(_transformHeap.ReleaseAndGetAddressOf()));
-	if (FAILED(result)) {
-		assert(SUCCEEDED(result));
-		return result;
-	}
-
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = _transformBuff->GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = buffSize;
-
-	_dx12.Device()->CreateConstantBufferView(&cbvDesc, _transformHeap->GetCPUDescriptorHandleForHeapStart());
-
-	copy(_boneMatrices.begin(), _boneMatrices.end(), _mappedMatrices + 1);
-
-	return S_OK;
+	_position.x = x;
+	_position.y = y;
+	_position.z = z;
 }
 
-HRESULT PMDActor::LoadPMDFile(const char* path)
+HRESULT PMDActor::LoadPMDFile(const char* path, Dx12Wrapper& dx)
 {
 	struct PMDHeader
 	{
@@ -350,7 +154,7 @@ HRESULT PMDActor::LoadPMDFile(const char* path)
 	resdesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 	resdesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-	auto result = _dx12.Device()->CreateCommittedResource(&heapprop, D3D12_HEAP_FLAG_NONE, &resdesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(_vb.ReleaseAndGetAddressOf()));
+	auto result = dx.Device()->CreateCommittedResource(&heapprop, D3D12_HEAP_FLAG_NONE, &resdesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(_vb.ReleaseAndGetAddressOf()));
 
 	unsigned char* vertMap = nullptr;
 
@@ -371,7 +175,7 @@ HRESULT PMDActor::LoadPMDFile(const char* path)
 
 	resdesc.Width = indices.size() * sizeof(indices[0]);
 
-	result = _dx12.Device()->CreateCommittedResource(&heapprop, D3D12_HEAP_FLAG_NONE, &resdesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(_ib.ReleaseAndGetAddressOf()));
+	result = dx.Device()->CreateCommittedResource(&heapprop, D3D12_HEAP_FLAG_NONE, &resdesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(_ib.ReleaseAndGetAddressOf()));
 
 	unsigned short* mappedIdx = nullptr;
 	_ib->Map(0, nullptr, (void**)&mappedIdx);
@@ -384,7 +188,7 @@ HRESULT PMDActor::LoadPMDFile(const char* path)
 
 	unsigned int materialNum;
 	fread(&materialNum, sizeof(materialNum), 1, fp);
-	
+
 	_materials.resize(materialNum);
 	_textureResources.resize(materialNum);
 	_sphResources.resize(materialNum);
@@ -416,7 +220,7 @@ HRESULT PMDActor::LoadPMDFile(const char* path)
 
 		toonFilePath += toonFileName;
 
-		_toonResources[i] = _dx12.GetTextureByPath(toonFilePath.c_str());
+		_toonResources[i] = dx.GetTextureByPath(toonFilePath.c_str());
 
 		if (strlen(pmdMaterials[i].texFilePath) == 0)
 		{
@@ -473,17 +277,17 @@ HRESULT PMDActor::LoadPMDFile(const char* path)
 		if (texFileName != "")
 		{
 			auto texFilePath = GetTexturePathFromModelAndTexPath(strModelPath, texFileName.c_str());
-			_textureResources[i] = _dx12.GetTextureByPath(texFilePath.c_str());
+			_textureResources[i] = dx.GetTextureByPath(texFilePath.c_str());
 		}
 		if (sphFileName != "")
 		{
 			auto sphFilePath = GetTexturePathFromModelAndTexPath(strModelPath, sphFileName.c_str());
-			_sphResources[i] = _dx12.GetTextureByPath(sphFilePath.c_str());
+			_sphResources[i] = dx.GetTextureByPath(sphFilePath.c_str());
 		}
 		if (spaFileName != "")
 		{
 			auto spaFilePath = GetTexturePathFromModelAndTexPath(strModelPath, spaFileName.c_str());
-			_spaResources[i] = _dx12.GetTextureByPath(spaFilePath.c_str());
+			_spaResources[i] = dx.GetTextureByPath(spaFilePath.c_str());
 		}
 	}
 
@@ -511,7 +315,7 @@ HRESULT PMDActor::LoadPMDFile(const char* path)
 	fread(&ikNum, sizeof(ikNum), 1, fp);
 
 	_ikData.resize(ikNum);
-	for (auto& ik : _ikData) 
+	for (auto& ik : _ikData)
 	{
 		fread(&ik.boneIdx, sizeof(ik.boneIdx), 1, fp);
 		fread(&ik.targetIdx, sizeof(ik.targetIdx), 1, fp);
@@ -547,7 +351,7 @@ HRESULT PMDActor::LoadPMDFile(const char* path)
 	{
 		std::ostringstream oss;
 		oss << "IK number =" << ik.boneIdx << ":" << getNameFromIdx(ik.boneIdx) << endl;
-		
+
 		for (auto& node : ik.nodeIdx)
 		{
 			oss << "Node bone =" << node << ":" << getNameFromIdx(node) << endl;
@@ -605,348 +409,6 @@ HRESULT PMDActor::LoadPMDFile(const char* path)
 	fclose(fp);
 
 	return S_OK;
-}
-
-void PMDActor::MotionUpdate()
-{
-	DWORD elapsedTime = timeGetTime() - _startTime;
-	unsigned int frameNo = 30 * (elapsedTime / 1000.0f);
-
-	if (frameNo > _duration)
-	{
-		_startTime = timeGetTime();
-		frameNo = 0;
-	}
-
-	std::fill(_boneMatrices.begin(), _boneMatrices.end(), XMMatrixIdentity());
-
-	for (auto& bonemotion : _motiondata)
-	{
-		auto itBoneNode = _boneNodeTable.find(bonemotion.first);
-		if (itBoneNode == _boneNodeTable.end())
-		{
-			continue;
-		}
-
-		auto& node = itBoneNode->second;
-
-		auto motions = bonemotion.second;
-		auto rit = std::find_if(
-			motions.rbegin(), motions.rend(),
-			[frameNo](const Motion& motion)
-			{
-				return motion.frameNo <= frameNo;
-			}
-		);
-
-		XMMATRIX rotation = XMMatrixIdentity();
-		XMVECTOR offset = XMLoadFloat3(&rit->offset);
-
-		auto it = rit.base();
-
-		if (it != motions.end())
-		{
-			auto t = static_cast<float>(frameNo - rit->frameNo) / static_cast<float>(it->frameNo - rit->frameNo);
-
-			t = GetYFromXOnBezier(t, it->p1, it->p2, 12);
-
-			rotation = XMMatrixRotationQuaternion(XMQuaternionSlerp(rit->quaternion, it->quaternion, t));
-			offset = XMVectorLerp(offset, XMLoadFloat3(&it->offset), t);
-		}
-		else
-		{
-			rotation = XMMatrixRotationQuaternion(rit->quaternion);
-		}
-
-		auto& pos = node.startPos;
-
-		auto mat =
-			XMMatrixTranslation(-pos.x, -pos.y, -pos.z)
-			* rotation
-			* XMMatrixTranslation(pos.x, pos.y, pos.z);
-		_boneMatrices[node.boneIdx] = mat * XMMatrixTranslationFromVector(offset);
-	}
-
-	auto centerNode = _boneNodeTableByIdx[0];
-	RecursiveMatrixMultiply(&centerNode, XMMatrixIdentity());
-
-	//IKSolve(frameNo);
-
-	copy(_boneMatrices.begin(), _boneMatrices.end(), _mappedMatrices + 1);
-}
-
-void PMDActor::RecursiveMatrixMultiply(BoneNode* node, const DirectX::XMMATRIX& mat)
-{
-	_boneMatrices[node->boneIdx] *= mat;
-
-	for (auto& cnode : node->children)
-	{
-		RecursiveMatrixMultiply(cnode, _boneMatrices[node->boneIdx]);
-	}
-}
-
-constexpr float epsilon = 0.0005f;
-
-float PMDActor::GetYFromXOnBezier(float x, const DirectX::XMFLOAT2& a, const DirectX::XMFLOAT2& b, uint8_t n)
-{
-	if (a.x == a.y && b.x == b.y)
-	{
-		return x;
-	}
-
-	float t = x;
-	const float k0 = 1 + 3 * a.x - 3 * b.x;
-	const float k1 = 3 * b.x - 6 * a.x;
-	const float k2 = 3 * a.x;
-
-	for (int i = 0; i < n; ++i)
-	{
-		auto ft = k0 * t * t * t + k1 * t * t + k2 * t - x;
-
-		if (ft <= epsilon && ft >= -epsilon)
-		{
-			break;
-		}
-
-		t -= ft / 2;
-	}
-
-	auto r = 1 - t;
-	return t * t * t + 3 * t * t * r * b.y + 3 * t * r * r * a.y;
-}
-
-void PMDActor::IKSolve(int frameNo)
-{
-	auto it = find_if(_ikEnableData.rbegin(), _ikEnableData.rend(),
-		[frameNo](const VMDIKEnable& ikenalbe)
-		{
-			return ikenalbe.frameNo <= frameNo;
-		});
-
-	for (auto& ik : _ikData)
-	{
-		if (it != _ikEnableData.rend())
-		{
-			auto ikEnableIt = it->ikEnableTable.find(_boneNameArray[ik.boneIdx]);
-			if (ikEnableIt != it->ikEnableTable.end())
-			{
-				if (!ikEnableIt->second)
-				{
-					continue;
-				}
-			}
-		}
-
-		auto childrenNodesCount = ik.nodeIdx.size();
-
-		switch (childrenNodesCount)
-		{
-		case 0:
-			assert(0);
-			continue;
-		case 1:
-			SolveLookAt(ik);
-			break;
-		case 2:
-			SolveCosineIK(ik);
-			break;
-		default:
-			SolveCCDIK(ik);
-		}
-	}
-}
-
-void PMDActor::SolveCCDIK(const PMDIK& ik)
-{
-	auto targetBoneNode = _boneNodeAddressArray[ik.boneIdx];
-	auto targetOriginPos = XMLoadFloat3(&targetBoneNode->startPos);
-
-	auto parentMat = _boneMatrices[_boneNodeAddressArray[ik.boneIdx]->ikParentBone];
-	XMVECTOR det;
-	auto invParentMat = XMMatrixInverse(&det, parentMat);
-	auto targetNextPos = XMVector3Transform(targetOriginPos, _boneMatrices[ik.boneIdx] * invParentMat);
-
-
-	std::vector<XMVECTOR> bonePositions;
-
-	auto endPos = XMLoadFloat3(&_boneNodeAddressArray[ik.targetIdx]->startPos);
-	for (auto& cidx : ik.nodeIdx) 
-	{
-		bonePositions.push_back(XMLoadFloat3(&_boneNodeAddressArray[cidx]->startPos));
-	}
-
-	vector<XMMATRIX> mats(bonePositions.size());
-	fill(mats.begin(), mats.end(), XMMatrixIdentity());
-
-	auto ikLimit = ik.limit * XM_PI;
-	for (int c = 0; c < ik.iterations; ++c) {
-		if (XMVector3Length(XMVectorSubtract(endPos, targetNextPos)).m128_f32[0] <= epsilon) {
-			break;
-		}
-		for (int bidx = 0; bidx < bonePositions.size(); ++bidx) {
-			const auto& pos = bonePositions[bidx];
-
-			auto vecToEnd = XMVectorSubtract(endPos, pos);
-			auto vecToTarget = XMVectorSubtract(targetNextPos, pos);
-			vecToEnd = XMVector3Normalize(vecToEnd);
-			vecToTarget = XMVector3Normalize(vecToTarget);
-
-			if (XMVector3Length(XMVectorSubtract(vecToEnd, vecToTarget)).m128_f32[0] <= epsilon) {
-				continue;
-			}
-			
-			auto cross = XMVector3Normalize(XMVector3Cross(vecToEnd, vecToTarget));
-			float angle = XMVector3AngleBetweenVectors(vecToEnd, vecToTarget).m128_f32[0];
-			angle = min(angle, ikLimit);
-			XMMATRIX rot = XMMatrixRotationAxis(cross, angle);
-
-			auto mat = XMMatrixTranslationFromVector(-pos) *
-				rot *
-				XMMatrixTranslationFromVector(pos);
-			mats[bidx] *= mat;
-		
-			for (auto idx = bidx - 1; idx >= 0; --idx) {
-				bonePositions[idx] = XMVector3Transform(bonePositions[idx], mat);
-			}
-			endPos = XMVector3Transform(endPos, mat);
-			if (XMVector3Length(XMVectorSubtract(endPos, targetNextPos)).m128_f32[0] <= epsilon) {
-				break;
-			}
-		}
-	}
-	int idx = 0;
-	for (auto& cidx : ik.nodeIdx) {
-		_boneMatrices[cidx] = mats[idx];
-		++idx;
-	}
-	auto node = _boneNodeAddressArray[ik.nodeIdx.back()];
-	RecursiveMatrixMultiply(node, parentMat);
-
-}
-
-void PMDActor::SolveCosineIK(const PMDIK& ik)
-{
-	vector<XMVECTOR> positions;//IK?맟?귩뺎뫔
-	std::array<float, 2> edgeLens;//IK궻궩귢궪귢궻??깛듩궻떁뿣귩뺎뫔
-
-	//??긒긞긣(뼎???깛궳궼궶궘갂뼎???깛궕뗟궱궘뽞뷭??깛궻띆뷭귩롦벦)
-	auto& targetNode = _boneNodeAddressArray[ik.boneIdx];
-	auto targetPos = XMVector3Transform(XMLoadFloat3(&targetNode->startPos), _boneMatrices[ik.boneIdx]);
-
-	//IK?긃?깛궕땤룈궶궻궳갂땤궸빥귆귝궎궸궢궲궋귡
-	//뼎???깛
-	auto endNode = _boneNodeAddressArray[ik.targetIdx];
-	positions.emplace_back(XMLoadFloat3(&endNode->startPos));
-	//뭷듩땩귂깑?긣??깛
-	for (auto& chainBoneIdx : ik.nodeIdx) {
-		auto boneNode = _boneNodeAddressArray[chainBoneIdx];
-		positions.emplace_back(XMLoadFloat3(&boneNode->startPos));
-	}
-	//궭귛궯궴빁궔귟궱귞궋궴럙궯궫궻궳땤궸궢궲궓궖귏궥갃궩궎궳귖궶궋릐궼궩궻귏귏
-	//똶럁궢궲귖귞궯궲?귦궶궋궳궥갃
-	reverse(positions.begin(), positions.end());
-
-	//뙰궻뮮궠귩뫇궯궲궓궘
-	edgeLens[0] = XMVector3Length(XMVectorSubtract(positions[1], positions[0])).m128_f32[0];
-	edgeLens[1] = XMVector3Length(XMVectorSubtract(positions[2], positions[1])).m128_f32[0];
-
-	//깑?긣??깛띆뷭빾듂(땤룈궸궶궯궲궋귡궫귕럊뾭궥귡귽깛긢긞긏긚궸뭾댰)
-	positions[0] = XMVector3Transform(positions[0], _boneMatrices[ik.nodeIdx[1]]);
-	//?귪뭷궼궵궎궧렔벍똶럁궠귢귡궻궳똶럁궢궶궋
-	//먩???깛
-	positions[2] = XMVector3Transform(positions[2], _boneMatrices[ik.boneIdx]);//긼깛?궼ik.targetIdx궬궕갷갏갎
-
-	//깑?긣궔귞먩?귉궻긹긏긣깑귩띿궯궲궓궘
-	auto linearVec = XMVectorSubtract(positions[2], positions[0]);
-	float A = XMVector3Length(linearVec).m128_f32[0];
-	float B = edgeLens[0];
-	float C = edgeLens[1];
-
-	linearVec = XMVector3Normalize(linearVec);
-
-	//깑?긣궔귞?귪뭷귉궻둷뱗똶럁
-	float theta1 = acosf((A * A + B * B - C * C) / (2 * A * B));
-
-	//?귪뭷궔귞??긒긞긣귉궻둷뱗똶럁
-	float theta2 = acosf((B * B + C * C - A * A) / (2 * B * C));
-
-	//걏렡걐귩땫귕귡
-	//귖궢?귪뭷궕걏궿궡걐궳궇궯궫뤾뜃궸궼떗맕밒궸X렡궴궥귡갃
-	XMVECTOR axis;
-	if (find(_kneeIdxes.begin(), _kneeIdxes.end(), ik.nodeIdx[0]) == _kneeIdxes.end()) {
-		auto vm = XMVector3Normalize(XMVectorSubtract(positions[2], positions[0]));
-		auto vt = XMVector3Normalize(XMVectorSubtract(targetPos, positions[0]));
-		axis = XMVector3Cross(vt, vm);
-	}
-	else
-	{
-		auto right = XMFLOAT3(1, 0, 0);
-		axis = XMLoadFloat3(&right);
-	}
-
-	//if (XMVector3Equal(axis, XMVectorZero()))
-	//{
-	//	auto right = XMFLOAT3(1, 0, 0);
-	//	axis = XMLoadFloat3(&right);
-	//}
-
-	//뭾댰?갷IK?긃?깛궼뜧궯궞궸뛀궔궯궲궔귞릶궑귞귢귡궫귕1궕뜧궯궞궸뗟궋
-	auto mat1 = XMMatrixTranslationFromVector(-positions[0]);
-	mat1 *= XMMatrixRotationAxis(axis, theta1);
-	mat1 *= XMMatrixTranslationFromVector(positions[0]);
-
-
-	auto mat2 = XMMatrixTranslationFromVector(-positions[1]);
-	mat2 *= XMMatrixRotationAxis(axis, theta2 - XM_PI);
-	mat2 *= XMMatrixTranslationFromVector(positions[1]);
-
-	_boneMatrices[ik.nodeIdx[1]] *= mat1;
-	_boneMatrices[ik.nodeIdx[0]] = mat2 * _boneMatrices[ik.nodeIdx[1]];
-	_boneMatrices[ik.targetIdx] = _boneMatrices[ik.nodeIdx[0]];//뮳멟궻뎓떯귩롷궚귡
-	//_boneMatrices[ik.nodeIdxes[1]] = _boneMatrices[ik.boneIdx];
-	//_boneMatrices[ik.nodeIdxes[0]] = _boneMatrices[ik.boneIdx];
-	//_boneMatrices[ik.targetIdx] *= _boneMatrices[ik.boneIdx];
-}
-
-void PMDActor::SolveLookAt(const PMDIK& ik)
-{
-	auto rootNode = _boneNodeAddressArray[ik.nodeIdx[0]];
-	auto targetNode = _boneNodeAddressArray[ik.targetIdx];
-
-	auto rpos1 = XMLoadFloat3(&rootNode->startPos);
-	auto tpos1 = XMLoadFloat3(&targetNode->startPos);
-
-	auto rpos2 = XMVector3TransformCoord(rpos1, _boneMatrices[ik.nodeIdx[0]]);
-	auto tpos2 = XMVector3TransformCoord(tpos1, _boneMatrices[ik.boneIdx]);
-
-	auto originVec = XMVectorSubtract(tpos1, rpos1);
-	auto targetVec = XMVectorSubtract(tpos2, rpos2);
-
-	originVec = XMVector3Normalize(originVec);
-	targetVec = XMVector3Normalize(targetVec);
-
-	XMMATRIX mat = XMMatrixTranslationFromVector(-rpos2) *
-		           LookAtMatrix(originVec, targetVec, XMFLOAT3(0, 1, 0), XMFLOAT3(1, 0, 0)) *
-		           XMMatrixTranslationFromVector(rpos2);
-
-	_boneMatrices[ik.nodeIdx[0]] = mat;
-}
-
-PMDActor::PMDActor(const char* filepath, PMDRenderer& renderer):
-	_renderer(renderer),
-	_dx12(renderer.GetDirect()),
-	_angle(0.0f)
-{
-	_transform.world = XMMatrixIdentity() * XMMatrixRotationY(-45.0f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
-	LoadPMDFile(filepath);
-	LoadVMDFile("Model/squat.vmd");
-	CreateTransformView();
-	CreateMaterialData();
-	CreateMaterialAndTextureView();
-}
-
-PMDActor::~PMDActor()
-{
 }
 
 void PMDActor::LoadVMDFile(const char* filepath)
@@ -1057,7 +519,7 @@ void PMDActor::LoadVMDFile(const char* filepath)
 
 	for (auto& vmdMotion : keyframes)
 	{
-		_motiondata[vmdMotion.boneName].
+		_motionData[vmdMotion.boneName].
 			emplace_back(Motion(vmdMotion.frameNo,
 				XMLoadFloat4(&vmdMotion.quaternion),
 				vmdMotion.location,
@@ -1065,7 +527,7 @@ void PMDActor::LoadVMDFile(const char* filepath)
 				XMFLOAT2((float)vmdMotion.bezier[11] / 127.0f, (float)vmdMotion.bezier[15] / 127.0f)));
 	}
 
-	for (auto& motions : _motiondata)
+	for (auto& motions : _motionData)
 	{
 		std::sort(
 			motions.second.begin(), motions.second.end(),
@@ -1195,58 +657,518 @@ void PMDActor::LoadVMDIKFile(const char* filepath)
 	fclose(fp);
 }
 
-void PMDActor::PlayAnimation()
+HRESULT PMDActor::CreateTransformView(Dx12Wrapper& dx)
 {
-	_startTime = timeGetTime();
-}
+	auto buffSize = sizeof(XMMATRIX) * (1 + _boneMatrices.size());
+	buffSize = (buffSize + 0xff) & ~0xff;
 
-void PMDActor::Update()
-{
-	//_angle += 0.005f;
-	_mappedMatrices[0] = XMMatrixRotationY(_angle) * XMMatrixTranslation(_position.x, _position.y, _position.z);
+	auto result = dx.Device()->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(buffSize),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(_transformBuff.ReleaseAndGetAddressOf())
+	);
 
-	//MotionUpdate();
-}
-
-
-void PMDActor::Draw(bool isShadow = false)
-{
-	_dx12.CommandList()->IASetVertexBuffers(0, 1, &_vbView);
-	_dx12.CommandList()->IASetIndexBuffer(&_ibView);
-	_dx12.CommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	ID3D12DescriptorHeap* transheap[] = { _transformHeap.Get() };
-	_dx12.CommandList()->SetDescriptorHeaps(1, transheap);
-	_dx12.CommandList()->SetGraphicsRootDescriptorTable(1, _transformHeap->GetGPUDescriptorHandleForHeapStart());
-
-	ID3D12DescriptorHeap* mdh[] = { _materialHeap.Get() };
-
-	_dx12.CommandList()->SetDescriptorHeaps(1, mdh);
-
-	auto materialH = _materialHeap->GetGPUDescriptorHandleForHeapStart();
-	unsigned int idxOffset = 0;
-
-	auto cbvsrvIncSize = _dx12.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 5;
-
-	if (isShadow == true)
-	{
-		_dx12.CommandList()->DrawIndexedInstanced(_indexNum, 1, 0, 0, 0);
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+		return result;
 	}
-	else
+
+	result = _transformBuff->Map(0, nullptr, (void**)&_mappedMatrices);
+
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+		return result;
+	}
+
+	_mappedMatrices[0] = _transform.world;
+
+	D3D12_DESCRIPTOR_HEAP_DESC transformDescHeapDesc = {};
+
+	transformDescHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	transformDescHeapDesc.NodeMask = 0;
+	transformDescHeapDesc.NumDescriptors = 1;
+	transformDescHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+
+	result = dx.Device()->CreateDescriptorHeap(&transformDescHeapDesc, IID_PPV_ARGS(_transformHeap.ReleaseAndGetAddressOf()));
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+		return result;
+	}
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+	cbvDesc.BufferLocation = _transformBuff->GetGPUVirtualAddress();
+	cbvDesc.SizeInBytes = buffSize;
+
+	dx.Device()->CreateConstantBufferView(&cbvDesc, _transformHeap->GetCPUDescriptorHandleForHeapStart());
+
+	copy(_boneMatrices.begin(), _boneMatrices.end(), _mappedMatrices + 1);
+
+	return S_OK;
+}
+
+HRESULT PMDActor::CreateMaterialData(Dx12Wrapper& dx)
+{
+	int materialBufferSize = sizeof(MaterialForHlsl);
+	materialBufferSize = (materialBufferSize + 0xff) & ~0xff;
+
+	auto result = dx.Device()->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(materialBufferSize * _materials.size()),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(_materialBuff.ReleaseAndGetAddressOf())
+	);
+	if (FAILED(result))
 	{
-		for (auto& m : _materials)
+		assert(SUCCEEDED(result));
+		return result;
+	}
+
+	char* mapMaterial = nullptr;
+
+	result = _materialBuff->Map(0, nullptr, (void**)&mapMaterial);
+	if (FAILED(result))
+	{
+		assert(SUCCEEDED(result));
+		return result;
+	}
+
+	for (auto& m : _materials)
+	{
+		*((MaterialForHlsl*)mapMaterial) = m.material;
+		mapMaterial += materialBufferSize;
+	}
+
+	_materialBuff->Unmap(0, nullptr);
+
+	return S_OK;
+}
+
+HRESULT PMDActor::CreateMaterialAndTextureView(Dx12Wrapper& dx)
+{
+	D3D12_DESCRIPTOR_HEAP_DESC matDescHeapDesc = {};
+	matDescHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	matDescHeapDesc.NodeMask = 0;
+	matDescHeapDesc.NumDescriptors = _materials.size() * 5;
+	matDescHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+
+	auto result = dx.Device()->CreateDescriptorHeap(&matDescHeapDesc, IID_PPV_ARGS(_materialHeap.ReleaseAndGetAddressOf()));
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+		return result;
+	}
+
+	auto materialBuffSize = sizeof(MaterialForHlsl);
+	materialBuffSize = (materialBuffSize + 0xff) & ~0xff;
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC matCBVDesc = {};
+	matCBVDesc.BufferLocation = _materialBuff->GetGPUVirtualAddress();
+	matCBVDesc.SizeInBytes = materialBuffSize;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	auto matDescHeapH = _materialHeap->GetCPUDescriptorHandleForHeapStart();
+	auto incSize = dx.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	for (int i = 0; i < _materials.size(); ++i)
+	{
+		dx.Device()->CreateConstantBufferView(&matCBVDesc, matDescHeapH);
+
+		matDescHeapH.ptr += incSize;
+		matCBVDesc.BufferLocation += materialBuffSize;
+
+		if (_textureResources[i] == nullptr)
 		{
-			_dx12.CommandList()->SetGraphicsRootDescriptorTable(2, materialH);
-			_dx12.CommandList()->DrawIndexedInstanced(m.indicesNum, 1, idxOffset, 0, 0);
-			materialH.ptr += cbvsrvIncSize;
-			idxOffset += m.indicesNum;
+			srvDesc.Format = dx.GetWhiteTexture()->GetDesc().Format;
+			dx.Device()->CreateShaderResourceView(dx.GetWhiteTexture().Get(), &srvDesc, matDescHeapH);
+		}
+		else
+		{
+			srvDesc.Format = _textureResources[i]->GetDesc().Format;
+			dx.Device()->CreateShaderResourceView(
+				_textureResources[i].Get(),
+				&srvDesc,
+				matDescHeapH);
+		}
+
+		matDescHeapH.ptr += incSize;
+
+		if (_sphResources[i] == nullptr)
+		{
+			srvDesc.Format = dx.GetWhiteTexture()->GetDesc().Format;
+			dx.Device()->CreateShaderResourceView(dx.GetWhiteTexture().Get(), &srvDesc, matDescHeapH);
+		}
+		else
+		{
+			srvDesc.Format = _sphResources[i]->GetDesc().Format;
+			dx.Device()->CreateShaderResourceView(
+				_sphResources[i].Get(),
+				&srvDesc,
+				matDescHeapH);
+		}
+
+		matDescHeapH.ptr += incSize;
+
+		if (_spaResources[i] == nullptr)
+		{
+			srvDesc.Format = dx.GetBlackTexture()->GetDesc().Format;
+			dx.Device()->CreateShaderResourceView(dx.GetBlackTexture().Get(), &srvDesc, matDescHeapH);
+		}
+		else
+		{
+			srvDesc.Format = _spaResources[i]->GetDesc().Format;
+			dx.Device()->CreateShaderResourceView(
+				_spaResources[i].Get(),
+				&srvDesc,
+				matDescHeapH);
+		}
+
+		matDescHeapH.ptr += incSize;
+
+		if (_toonResources[i] == nullptr)
+		{
+			srvDesc.Format = dx.GetGradTexture()->GetDesc().Format;
+			dx.Device()->CreateShaderResourceView(dx.GetGradTexture().Get(), &srvDesc, matDescHeapH);
+		}
+		else
+		{
+			srvDesc.Format = _toonResources[i]->GetDesc().Format;
+			dx.Device()->CreateShaderResourceView(_toonResources[i].Get(), &srvDesc, matDescHeapH);
+		}
+
+		matDescHeapH.ptr += incSize;
+	}
+
+	return result;
+}
+
+void PMDActor::MotionUpdate()
+{
+	DWORD elapsedTime = timeGetTime() - _startTime;
+	unsigned int frameNo = 30 * (elapsedTime / 1000.0f);
+
+	if (frameNo > _duration)
+	{
+		_startTime = timeGetTime();
+		frameNo = 0;
+	}
+
+	std::fill(_boneMatrices.begin(), _boneMatrices.end(), XMMatrixIdentity());
+
+	for (auto& bonemotion : _motionData)
+	{
+		auto itBoneNode = _boneNodeTable.find(bonemotion.first);
+		if (itBoneNode == _boneNodeTable.end())
+		{
+			continue;
+		}
+
+		auto& node = itBoneNode->second;
+
+		auto motions = bonemotion.second;
+		auto rit = std::find_if(
+			motions.rbegin(), motions.rend(),
+			[frameNo](const Motion& motion)
+			{
+				return motion.frameNo <= frameNo;
+			}
+		);
+
+		XMMATRIX rotation = XMMatrixIdentity();
+		XMVECTOR offset = XMLoadFloat3(&rit->offset);
+
+		auto it = rit.base();
+
+		if (it != motions.end())
+		{
+			auto t = static_cast<float>(frameNo - rit->frameNo) / static_cast<float>(it->frameNo - rit->frameNo);
+
+			t = GetYFromXOnBezier(t, it->p1, it->p2, 12);
+
+			rotation = XMMatrixRotationQuaternion(XMQuaternionSlerp(rit->quaternion, it->quaternion, t));
+			offset = XMVectorLerp(offset, XMLoadFloat3(&it->offset), t);
+		}
+		else
+		{
+			rotation = XMMatrixRotationQuaternion(rit->quaternion);
+		}
+
+		auto& pos = node.startPos;
+
+		auto mat =
+			XMMatrixTranslation(-pos.x, -pos.y, -pos.z)
+			* rotation
+			* XMMatrixTranslation(pos.x, pos.y, pos.z);
+		_boneMatrices[node.boneIdx] = mat * XMMatrixTranslationFromVector(offset);
+	}
+
+	auto centerNode = _boneNodeTableByIdx[0];
+	RecursiveMatrixMultiply(&centerNode, XMMatrixIdentity());
+
+	//IKSolve(frameNo);
+
+	copy(_boneMatrices.begin(), _boneMatrices.end(), _mappedMatrices + 1);
+}
+
+void PMDActor::IKSolve(int frameNo)
+{
+	auto it = find_if(_ikEnableData.rbegin(), _ikEnableData.rend(),
+		[frameNo](const VMDIKEnable& ikenalbe)
+		{
+			return ikenalbe.frameNo <= frameNo;
+		});
+
+	for (auto& ik : _ikData)
+	{
+		if (it != _ikEnableData.rend())
+		{
+			auto ikEnableIt = it->ikEnableTable.find(_boneNameArray[ik.boneIdx]);
+			if (ikEnableIt != it->ikEnableTable.end())
+			{
+				if (!ikEnableIt->second)
+				{
+					continue;
+				}
+			}
+		}
+
+		auto childrenNodesCount = ik.nodeIdx.size();
+
+		switch (childrenNodesCount)
+		{
+		case 0:
+			assert(0);
+			continue;
+		case 1:
+			SolveLookAt(ik);
+			break;
+		case 2:
+			SolveCosineIK(ik);
+			break;
+		default:
+			SolveCCDIK(ik);
 		}
 	}
 }
 
-void PMDActor::SetPosition(float x, float y, float z)
+void PMDActor::SolveCCDIK(const PMDIK& ik)
 {
-	_position.x = x;
-	_position.y = y;
-	_position.z = z;
+	auto targetBoneNode = _boneNodeAddressArray[ik.boneIdx];
+	auto targetOriginPos = XMLoadFloat3(&targetBoneNode->startPos);
+
+	auto parentMat = _boneMatrices[_boneNodeAddressArray[ik.boneIdx]->ikParentBone];
+	XMVECTOR det;
+	auto invParentMat = XMMatrixInverse(&det, parentMat);
+	auto targetNextPos = XMVector3Transform(targetOriginPos, _boneMatrices[ik.boneIdx] * invParentMat);
+
+
+	std::vector<XMVECTOR> bonePositions;
+
+	auto endPos = XMLoadFloat3(&_boneNodeAddressArray[ik.targetIdx]->startPos);
+	for (auto& cidx : ik.nodeIdx)
+	{
+		bonePositions.push_back(XMLoadFloat3(&_boneNodeAddressArray[cidx]->startPos));
+	}
+
+	vector<XMMATRIX> mats(bonePositions.size());
+	fill(mats.begin(), mats.end(), XMMatrixIdentity());
+
+	auto ikLimit = ik.limit * XM_PI;
+	for (int c = 0; c < ik.iterations; ++c) {
+		if (XMVector3Length(XMVectorSubtract(endPos, targetNextPos)).m128_f32[0] <= epsilon) {
+			break;
+		}
+		for (int bidx = 0; bidx < bonePositions.size(); ++bidx) {
+			const auto& pos = bonePositions[bidx];
+
+			auto vecToEnd = XMVectorSubtract(endPos, pos);
+			auto vecToTarget = XMVectorSubtract(targetNextPos, pos);
+			vecToEnd = XMVector3Normalize(vecToEnd);
+			vecToTarget = XMVector3Normalize(vecToTarget);
+
+			if (XMVector3Length(XMVectorSubtract(vecToEnd, vecToTarget)).m128_f32[0] <= epsilon) {
+				continue;
+			}
+
+			auto cross = XMVector3Normalize(XMVector3Cross(vecToEnd, vecToTarget));
+			float angle = XMVector3AngleBetweenVectors(vecToEnd, vecToTarget).m128_f32[0];
+			angle = min(angle, ikLimit);
+			XMMATRIX rot = XMMatrixRotationAxis(cross, angle);
+
+			auto mat = XMMatrixTranslationFromVector(-pos) *
+				rot *
+				XMMatrixTranslationFromVector(pos);
+			mats[bidx] *= mat;
+
+			for (auto idx = bidx - 1; idx >= 0; --idx) {
+				bonePositions[idx] = XMVector3Transform(bonePositions[idx], mat);
+			}
+			endPos = XMVector3Transform(endPos, mat);
+			if (XMVector3Length(XMVectorSubtract(endPos, targetNextPos)).m128_f32[0] <= epsilon) {
+				break;
+			}
+		}
+	}
+	int idx = 0;
+	for (auto& cidx : ik.nodeIdx) {
+		_boneMatrices[cidx] = mats[idx];
+		++idx;
+	}
+	auto node = _boneNodeAddressArray[ik.nodeIdx.back()];
+	RecursiveMatrixMultiply(node, parentMat);
+
 }
+
+void PMDActor::SolveCosineIK(const PMDIK& ik)
+{
+	vector<XMVECTOR> positions;//IK?맟?귩뺎뫔
+	std::array<float, 2> edgeLens;//IK궻궩귢궪귢궻??깛듩궻떁뿣귩뺎뫔
+
+	//??긒긞긣(뼎???깛궳궼궶궘갂뼎???깛궕뗟궱궘뽞뷭??깛궻띆뷭귩롦벦)
+	auto& targetNode = _boneNodeAddressArray[ik.boneIdx];
+	auto targetPos = XMVector3Transform(XMLoadFloat3(&targetNode->startPos), _boneMatrices[ik.boneIdx]);
+
+	//IK?긃?깛궕땤룈궶궻궳갂땤궸빥귆귝궎궸궢궲궋귡
+	//뼎???깛
+	auto endNode = _boneNodeAddressArray[ik.targetIdx];
+	positions.emplace_back(XMLoadFloat3(&endNode->startPos));
+	//뭷듩땩귂깑?긣??깛
+	for (auto& chainBoneIdx : ik.nodeIdx) {
+		auto boneNode = _boneNodeAddressArray[chainBoneIdx];
+		positions.emplace_back(XMLoadFloat3(&boneNode->startPos));
+	}
+	//궭귛궯궴빁궔귟궱귞궋궴럙궯궫궻궳땤궸궢궲궓궖귏궥갃궩궎궳귖궶궋릐궼궩궻귏귏
+	//똶럁궢궲귖귞궯궲?귦궶궋궳궥갃
+	reverse(positions.begin(), positions.end());
+
+	//뙰궻뮮궠귩뫇궯궲궓궘
+	edgeLens[0] = XMVector3Length(XMVectorSubtract(positions[1], positions[0])).m128_f32[0];
+	edgeLens[1] = XMVector3Length(XMVectorSubtract(positions[2], positions[1])).m128_f32[0];
+
+	//깑?긣??깛띆뷭빾듂(땤룈궸궶궯궲궋귡궫귕럊뾭궥귡귽깛긢긞긏긚궸뭾댰)
+	positions[0] = XMVector3Transform(positions[0], _boneMatrices[ik.nodeIdx[1]]);
+	//?귪뭷궼궵궎궧렔벍똶럁궠귢귡궻궳똶럁궢궶궋
+	//먩???깛
+	positions[2] = XMVector3Transform(positions[2], _boneMatrices[ik.boneIdx]);//긼깛?궼ik.targetIdx궬궕갷갏갎
+
+	//깑?긣궔귞먩?귉궻긹긏긣깑귩띿궯궲궓궘
+	auto linearVec = XMVectorSubtract(positions[2], positions[0]);
+	float A = XMVector3Length(linearVec).m128_f32[0];
+	float B = edgeLens[0];
+	float C = edgeLens[1];
+
+	linearVec = XMVector3Normalize(linearVec);
+
+	//깑?긣궔귞?귪뭷귉궻둷뱗똶럁
+	float theta1 = acosf((A * A + B * B - C * C) / (2 * A * B));
+
+	//?귪뭷궔귞??긒긞긣귉궻둷뱗똶럁
+	float theta2 = acosf((B * B + C * C - A * A) / (2 * B * C));
+
+	//걏렡걐귩땫귕귡
+	//귖궢?귪뭷궕걏궿궡걐궳궇궯궫뤾뜃궸궼떗맕밒궸X렡궴궥귡갃
+	XMVECTOR axis;
+	if (find(_kneeIdxes.begin(), _kneeIdxes.end(), ik.nodeIdx[0]) == _kneeIdxes.end()) {
+		auto vm = XMVector3Normalize(XMVectorSubtract(positions[2], positions[0]));
+		auto vt = XMVector3Normalize(XMVectorSubtract(targetPos, positions[0]));
+		axis = XMVector3Cross(vt, vm);
+	}
+	else
+	{
+		auto right = XMFLOAT3(1, 0, 0);
+		axis = XMLoadFloat3(&right);
+	}
+
+	//if (XMVector3Equal(axis, XMVectorZero()))
+	//{
+	//	auto right = XMFLOAT3(1, 0, 0);
+	//	axis = XMLoadFloat3(&right);
+	//}
+
+	//뭾댰?갷IK?긃?깛궼뜧궯궞궸뛀궔궯궲궔귞릶궑귞귢귡궫귕1궕뜧궯궞궸뗟궋
+	auto mat1 = XMMatrixTranslationFromVector(-positions[0]);
+	mat1 *= XMMatrixRotationAxis(axis, theta1);
+	mat1 *= XMMatrixTranslationFromVector(positions[0]);
+
+
+	auto mat2 = XMMatrixTranslationFromVector(-positions[1]);
+	mat2 *= XMMatrixRotationAxis(axis, theta2 - XM_PI);
+	mat2 *= XMMatrixTranslationFromVector(positions[1]);
+
+	_boneMatrices[ik.nodeIdx[1]] *= mat1;
+	_boneMatrices[ik.nodeIdx[0]] = mat2 * _boneMatrices[ik.nodeIdx[1]];
+	_boneMatrices[ik.targetIdx] = _boneMatrices[ik.nodeIdx[0]];//뮳멟궻뎓떯귩롷궚귡
+	//_boneMatrices[ik.nodeIdxes[1]] = _boneMatrices[ik.boneIdx];
+	//_boneMatrices[ik.nodeIdxes[0]] = _boneMatrices[ik.boneIdx];
+	//_boneMatrices[ik.targetIdx] *= _boneMatrices[ik.boneIdx];
+}
+
+void PMDActor::SolveLookAt(const PMDIK& ik)
+{
+	auto rootNode = _boneNodeAddressArray[ik.nodeIdx[0]];
+	auto targetNode = _boneNodeAddressArray[ik.targetIdx];
+
+	auto rpos1 = XMLoadFloat3(&rootNode->startPos);
+	auto tpos1 = XMLoadFloat3(&targetNode->startPos);
+
+	auto rpos2 = XMVector3TransformCoord(rpos1, _boneMatrices[ik.nodeIdx[0]]);
+	auto tpos2 = XMVector3TransformCoord(tpos1, _boneMatrices[ik.boneIdx]);
+
+	auto originVec = XMVectorSubtract(tpos1, rpos1);
+	auto targetVec = XMVectorSubtract(tpos2, rpos2);
+
+	originVec = XMVector3Normalize(originVec);
+	targetVec = XMVector3Normalize(targetVec);
+
+	XMMATRIX mat = XMMatrixTranslationFromVector(-rpos2) *
+		LookAtMatrix(originVec, targetVec, XMFLOAT3(0, 1, 0), XMFLOAT3(1, 0, 0)) *
+		XMMatrixTranslationFromVector(rpos2);
+
+	_boneMatrices[ik.nodeIdx[0]] = mat;
+}
+
+void PMDActor::RecursiveMatrixMultiply(BoneNode* node, const DirectX::XMMATRIX& mat)
+{
+	_boneMatrices[node->boneIdx] *= mat;
+
+	for (auto& cnode : node->children)
+	{
+		RecursiveMatrixMultiply(cnode, _boneMatrices[node->boneIdx]);
+	}
+}
+
+float PMDActor::GetYFromXOnBezier(float x, const DirectX::XMFLOAT2& a, const DirectX::XMFLOAT2& b, uint8_t n)
+{
+	if (a.x == a.y && b.x == b.y)
+	{
+		return x;
+	}
+
+	float t = x;
+	const float k0 = 1 + 3 * a.x - 3 * b.x;
+	const float k1 = 3 * b.x - 6 * a.x;
+	const float k2 = 3 * a.x;
+
+	for (int i = 0; i < n; ++i)
+	{
+		auto ft = k0 * t * t * t + k1 * t * t + k2 * t - x;
+
+		if (ft <= epsilon && ft >= -epsilon)
+		{
+			break;
+		}
+
+		t -= ft / 2;
+	}
+
+	auto r = 1 - t;
+	return t * t * t + 3 * t * t * r * b.y + 3 * t * r * r * a.y;
+}
+

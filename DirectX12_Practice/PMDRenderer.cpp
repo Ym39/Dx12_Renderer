@@ -334,7 +334,7 @@ void PMDRenderer::DrawFromLight()
 {
 	for (auto& actor : _actors)
 	{
-		actor->Draw(true);
+		actor->Draw(_dx12, true);
 	}
 }
 
@@ -349,7 +349,7 @@ void PMDRenderer::Draw()
 {
 	for (auto& actor : _actors)
 	{
-		actor->Draw(false);
+		actor->Draw(_dx12, false);
 	}
 }
 

@@ -17,6 +17,7 @@ class PMDRenderer;
 class PMDActor;
 class PMXRenderer;
 class PMXActor;
+class ImguiManager;
 
 class Application
 {
@@ -27,6 +28,8 @@ private:
 	std::shared_ptr<PMDRenderer> _pmdRenderer;
 	std::shared_ptr<PMXRenderer> _pmxRenderer;
 	std::shared_ptr<PMXActor> _pmxActor;
+
+	std::shared_ptr<ImguiManager> _imgui;
 
 	void CreateGameWindow(HWND& hwnd, WNDCLASSEX& windowClass);
 

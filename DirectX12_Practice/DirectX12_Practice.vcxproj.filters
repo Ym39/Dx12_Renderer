@@ -63,6 +63,9 @@
     <ClCompile Include="Imgui\imgui_widgets.cpp">
       <Filter>Imgui</Filter>
     </ClCompile>
+    <ClCompile Include="ImguiManager.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="peraPixel.hlsl">
@@ -146,6 +149,9 @@
     </ClInclude>
     <ClInclude Include="Imgui\imstb_truetype.h">
       <Filter>Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="ImguiManager.h">
+      <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
