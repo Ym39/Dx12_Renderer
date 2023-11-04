@@ -4,6 +4,7 @@
 #include"PMDActor.h"
 #include"PMXActor.h"
 #include "PMXRenderer.h"
+#include "ImguiManager.h"
 
 #include "Imgui/imgui.h"
 #include "Imgui/imgui_impl_dx12.h"
@@ -54,14 +55,6 @@ void Application::CreateGameWindow(HWND& hwnd, WNDCLASSEX& windowClass)
 		nullptr);
 }
 
-std::wstring s2ws(const std::string& str)
-{
-	int size_needed = MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0);
-	std::wstring wstrTo(size_needed, 0);
-	MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstrTo[0], size_needed);
-	return wstrTo;
-}
-
 bool Application::Init()
 {
 	auto result = CoInitializeEx(0, COINIT_MULTITHREADED);
@@ -70,12 +63,12 @@ bool Application::Init()
 	_dx12.reset(new Dx12Wrapper(_hwnd));
 	_pmdRenderer.reset(new PMDRenderer(*_dx12));
 
-	auto miku = std::make_shared<PMDActor>("Model/miku.pmd", *_pmdRenderer);
+	auto miku = std::make_shared<PMDActor>("Model/miku.pmd", *_dx12);
 	miku->PlayAnimation();
 	miku->SetPosition(0.f, 0.f, 0.f);
 	_pmdRenderer->AddActor(miku);
 
-	auto miku2 = std::make_shared<PMDActor>("Model/miku.pmd", *_pmdRenderer);
+	auto miku2 = std::make_shared<PMDActor>("Model/miku.pmd", *_dx12);
 	miku2->PlayAnimation();
 	miku2->SetPosition(20.f, 0.f, 50.f);
 	_pmdRenderer->AddActor(miku2);
@@ -83,25 +76,13 @@ bool Application::Init()
 	_pmxRenderer.reset(new PMXRenderer(*_dx12));
 	_pmxActor.reset(new PMXActor(L"PMXModel\\«ß«¯ªµªó.pmx", *_pmxRenderer));
 
-	if (ImGui::CreateContext() == nullptr)
+	_imgui.reset(new ImguiManager());
+
+	bool bResult = _imgui->Initialize(_hwnd, _dx12);
+	if (bResult == false)
 	{
-		assert(0);
 		return false;
 	}
-
-	bool blnResult = ImGui_ImplWin32_Init(_hwnd);
-	if (blnResult == false)
-	{
-		assert(0);
-		return false;
-	}
-
-	blnResult = ImGui_ImplDX12_Init(_dx12->Device().Get(),
-		3,
-		DXGI_FORMAT_R8G8B8A8_UNORM,
-		_dx12->GetHeapForImgui().Get(),
-		_dx12->GetHeapForImgui()->GetCPUDescriptorHandleForHeapStart(),
-		_dx12->GetHeapForImgui()->GetGPUDescriptorHandleForHeapStart());
 
 	return true;
 }
@@ -140,7 +121,7 @@ void Application::Run()
 
 		_pmdRenderer->BeforeDraw();
 
-		//_pmxActor->Update();
+		//_pmxActor->UpdateAndSetDrawData();
 
 		_dx12->DrawToPera1();
 
@@ -161,30 +142,11 @@ void Application::Run()
 
 		_dx12->Draw();
 
-		ImGui_ImplDX12_NewFrame();
-		ImGui_ImplWin32_NewFrame();
-		ImGui::NewFrame();
+		_dx12->Update();
 
-		ImGui::Begin("Rendering Test Menu");
-		ImGui::SetWindowSize(ImVec2(400, 500), ImGuiCond_::ImGuiCond_FirstUseEver);
-
-		constexpr float pi = 3.141592653589f;
-		static float fov = pi / 4.0f;
-		ImGui::SliderFloat("FOV", &fov, pi / 6.0f, pi * 5.0f / 6.0f);
-
-		static float lightVec[3] = { 1.0f, -1.0f, 1.0f };
-		ImGui::SliderFloat3("Light Vector", lightVec, -1.0f, 1.0f);
-
-		ImGui::End();
-
-		ImGui::Render();
-		_dx12->CommandList()->SetDescriptorHeaps(1, _dx12->GetHeapForImgui().GetAddressOf());
-		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), _dx12->CommandList().Get());
+		_imgui->UpdateAndSetDrawData(_dx12);
 
 		_dx12->EndDraw();
-
-		_dx12->SetFov(fov);
-		_dx12->SetLightVector(lightVec);
 	}
 }
 
