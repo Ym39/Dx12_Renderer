@@ -29,7 +29,7 @@
 /*
 
 Index of this file:
-// [SECTION] Header mess
+// [SECTION] header mess
 // [SECTION] Forward declarations and basic types
 // [SECTION] Dear ImGui end-user API functions
 // [SECTION] Flags & Enumerations
@@ -58,7 +58,7 @@ Index of this file:
 #ifndef IMGUI_DISABLE
 
 //-----------------------------------------------------------------------------
-// [SECTION] Header mess
+// [SECTION] header mess
 //-----------------------------------------------------------------------------
 
 // Includes
@@ -1576,7 +1576,7 @@ enum ImGuiCol_
     ImGuiCol_Button,
     ImGuiCol_ButtonHovered,
     ImGuiCol_ButtonActive,
-    ImGuiCol_Header,                // Header* colors are used for CollapsingHeader, TreeNode, Selectable, MenuItem
+    ImGuiCol_Header,                // header* colors are used for CollapsingHeader, TreeNode, Selectable, MenuItem
     ImGuiCol_HeaderHovered,
     ImGuiCol_HeaderActive,
     ImGuiCol_Separator,
