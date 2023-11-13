@@ -10,6 +10,8 @@
 #include "Imgui/imgui_impl_dx12.h"
 #include "Imgui/imgui_impl_win32.h"
 
+#include "PmxFileData.h"
+
 const unsigned int window_width = 1600;
 const unsigned int window_height = 800;
 
@@ -74,15 +76,29 @@ bool Application::Init()
 	_pmdRenderer->AddActor(miku2);
 
 	_pmxRenderer.reset(new PMXRenderer(*_dx12));
-	_pmxActor.reset(new PMXActor(L"PMXModel\\«ß«¯ªµªó.pmx", *_pmxRenderer));
 
-	_imgui.reset(new ImguiManager());
-
-	bool bResult = _imgui->Initialize(_hwnd, _dx12);
+	auto pmxMiku = std::make_shared<PMXActor>();
+	bool bResult = pmxMiku.get()->Initialize(L"PMXModel\\«ß«¯ªµªó.pmx", *_dx12);
 	if (bResult == false)
 	{
 		return false;
 	}
+
+	_pmxRenderer->AddActor(pmxMiku);
+
+	_imgui.reset(new ImguiManager());
+
+	bResult = _imgui->Initialize(_hwnd, _dx12);
+	if (bResult == false)
+	{
+		return false;
+	}
+
+	//bResult = LoadPMXFile(L"PMXModel\\«ß«¯ªµªó.pmx");
+	//	if (bResult == false)
+	//{
+	//	return false;
+	//}
 
 	return true;
 }
@@ -109,26 +125,34 @@ void Application::Run()
 
 		_dx12->SetCameraSetting();
 
-		_pmdRenderer->Update();
+		//_pmdRenderer->Update();
 
-		_pmdRenderer->BeforeDrawFromLight();
+		//_pmdRenderer->BeforeDrawFromLight();
+
+		_pmxRenderer->Update();
+		_pmxRenderer->BeforeDrawFromLight();
 
 		_dx12->PreDrawShadow();
 
-		_pmdRenderer->DrawFromLight();
+		//_pmdRenderer->DrawFromLight();
+
+		_pmxRenderer->DrawFromLight();
 
 		_dx12->PreDrawToPera1();
 
-		_pmdRenderer->BeforeDraw();
+		//_pmdRenderer->BeforeDraw();
 
 		//_pmxActor->UpdateAndSetDrawData();
+		_pmxRenderer->BeforeDraw();
 
 		_dx12->DrawToPera1();
 
-		_pmdRenderer->Draw();
+		//_pmdRenderer->Draw();
 
 		//_pmxActor->BeforeDraw();
 		//_pmxActor->Draw();
+
+		_pmxRenderer->Draw();
 
 		_dx12->PostDrawToPera1();
 

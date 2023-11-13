@@ -3,93 +3,10 @@
 #include<cassert>
 #include<d3dcompiler.h>
 #include"Dx12Wrapper.h"
+#include "PMXActor.h"
+#include<string>
+#include<algorithm>
 
-
-ID3D12Resource* PMXRenderer::CreateDefaultTexture(size_t width, size_t height)
-{
-	auto resDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, width, height);
-	auto texHeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_CPU_PAGE_PROPERTY_WRITE_BACK, D3D12_MEMORY_POOL_L0);
-	ID3D12Resource* buff = nullptr;
-	auto result = _dx12.Device()->CreateCommittedResource(
-		&texHeapProp,
-		D3D12_HEAP_FLAG_NONE,//벫궸럚믦궶궢
-		&resDesc,
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-		nullptr,
-		IID_PPV_ARGS(&buff)
-	);
-	if (FAILED(result)) {
-		assert(SUCCEEDED(result));
-		return nullptr;
-	}
-	return buff;
-}
-
-ID3D12Resource* PMXRenderer::CreateWhiteTexture()
-{
-	ID3D12Resource* whiteBuff = CreateDefaultTexture(4, 4);
-
-	std::vector<unsigned char> data(4 * 4 * 4);
-	std::fill(data.begin(), data.end(), 0xff);
-
-	auto result = whiteBuff->WriteToSubresource(
-		0,
-		nullptr,
-		data.data(),
-		4 * 4,
-		data.size()
-	);
-
-	assert(SUCCEEDED(result));
-
-	return whiteBuff;
-}
-
-ID3D12Resource* PMXRenderer::CreateBlackTexture()
-{
-	ID3D12Resource* blackBuff = CreateDefaultTexture(4, 4);
-
-	std::vector<unsigned char> data(4 * 4 * 4);
-	std::fill(data.begin(), data.end(), 0x00);
-
-	auto result = blackBuff->WriteToSubresource(
-		0,
-		nullptr,
-		data.data(),
-		4 * 4,
-		data.size()
-	);
-	assert(SUCCEEDED(result));
-
-	return blackBuff;
-}
-
-ID3D12Resource* PMXRenderer::CreateGrayGradiationTexture()
-{
-	ID3D12Resource* gradBuff = CreateDefaultTexture(4, 4);
-
-	std::vector<unsigned char> data(4 * 256);
-	auto it = data.begin();
-	unsigned int c = 0xff;
-	for (; it != data.end(); it += 4)
-	{
-		auto col = (0xff << 24) | RGB(c, c, c);
-		std::fill(it, it + 4, col);
-		--c;
-	}
-
-	auto result = gradBuff->WriteToSubresource(
-		0,
-		nullptr,
-		data.data(),
-		4 * sizeof(unsigned int),
-		sizeof(unsigned int) * data.size()
-	);
-
-	assert(SUCCEEDED(result));
-
-	return gradBuff;
-}
 
 HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 {
@@ -105,14 +22,14 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 	auto result = D3DCompileFromFile(L"PMXVertexShader.hlsl",
 		nullptr,
 		D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		"BasicVS",
+		"VS",
 		"vs_5_0",
 		flags,
 		0,
 		&vsBlob,
 		&errorBlob);
 
-	if (!CheckShaderComplieResult(result, errorBlob.Get()))
+	if (!CheckShaderCompileResult(result, errorBlob.Get()))
 	{
 		assert(0);
 		return result;
@@ -121,14 +38,14 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 	result = D3DCompileFromFile(L"PMXPixelShader.hlsl",
 		nullptr,
 		D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		"BasicPS",
+		"DeferrdPS",
 		"ps_5_0",
 		flags,
 		0,
 		&psBlob,
 		&errorBlob);
 
-	if (!CheckShaderComplieResult(result, errorBlob.Get()))
+	if (!CheckShaderCompileResult(result, errorBlob.Get()))
 	{
 		assert(0);
 		return result;
@@ -152,6 +69,41 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
 		},
+		{
+			"ADDUV", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+		},
+        {
+			"WEIGHTTYPE", 0, DXGI_FORMAT_R8_UINT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+		},
+        {
+			"BONENO", 0, DXGI_FORMAT_R32G32B32A32_UINT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+		},
+        {
+			"BONEWEIGHT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+		},
+        {
+			"SDEFC", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+		},
+		{
+			"SDEFR", 1, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+		},
+		{
+			"SDEFR", 2, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+		},
 	};
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpipeline = {};
@@ -171,8 +123,6 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 	gpipeline.BlendState.AlphaToCoverageEnable = false;
 	gpipeline.BlendState.IndependentBlendEnable = false;
 
-	gpipeline.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-
 	D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc;
 	transparencyBlendDesc.BlendEnable = true;
 	transparencyBlendDesc.LogicOpEnable = false;
@@ -185,15 +135,17 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 	transparencyBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
 	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
-	gpipeline.BlendState.RenderTarget[0] = transparencyBlendDesc;
+	gpipeline.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 
 	gpipeline.InputLayout.pInputElementDescs = inputLayout;
 	gpipeline.InputLayout.NumElements = _countof(inputLayout);
 	gpipeline.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
 	gpipeline.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
-	gpipeline.NumRenderTargets = 1;
+	gpipeline.NumRenderTargets = 3;
 	gpipeline.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
+	gpipeline.RTVFormats[1] = DXGI_FORMAT_B8G8R8A8_UNORM;
+	gpipeline.RTVFormats[2] = DXGI_FORMAT_B8G8R8A8_UNORM;
 
 	gpipeline.SampleDesc.Count = 1;
 	gpipeline.SampleDesc.Quality = 0;
@@ -208,13 +160,39 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 	if (FAILED(result)) {
 		assert(SUCCEEDED(result));
 	}
+
+	result = D3DCompileFromFile(L"PMXVertexShader.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"ShadowVS",
+		"vs_5_0",
+		flags,
+		0,
+		&vsBlob,
+		&errorBlob);
+
+	if (!CheckShaderCompileResult(result, errorBlob.Get()))
+	{
+		assert(0);
+		return result;
+	}
+
+	gpipeline.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
+	gpipeline.PS.BytecodeLength = 0;
+	gpipeline.PS.pShaderBytecode = nullptr;
+	gpipeline.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
+	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(_shadowPipeline.ReleaseAndGetAddressOf()));
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+	}
+
 	return result;
 }
 
 HRESULT PMXRenderer::CreateRootSignature()
 {
 	//디스크립터 레인지 
-	D3D12_DESCRIPTOR_RANGE descTblRange[4] = {};
+	D3D12_DESCRIPTOR_RANGE descTblRange[5] = {};
 	descTblRange[0].NumDescriptors = 1;
 	descTblRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	descTblRange[0].BaseShaderRegister = 0;
@@ -230,13 +208,15 @@ HRESULT PMXRenderer::CreateRootSignature()
 	descTblRange[2].BaseShaderRegister = 2;
 	descTblRange[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	descTblRange[3].NumDescriptors = 2;
+	descTblRange[3].NumDescriptors = 3;
 	descTblRange[3].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	descTblRange[3].BaseShaderRegister = 0;
 	descTblRange[3].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
+	descTblRange[4] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4);
+
 	//루트 파라미터
-	D3D12_ROOT_PARAMETER rootparam[3] = {};
+	D3D12_ROOT_PARAMETER rootparam[4] = {};
 	rootparam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootparam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	rootparam[0].DescriptorTable.pDescriptorRanges = &descTblRange[0];
@@ -252,14 +232,19 @@ HRESULT PMXRenderer::CreateRootSignature()
 	rootparam[2].DescriptorTable.pDescriptorRanges = &descTblRange[2];
 	rootparam[2].DescriptorTable.NumDescriptorRanges = 2;
 
+	rootparam[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootparam[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootparam[3].DescriptorTable.pDescriptorRanges = &descTblRange[4];
+	rootparam[3].DescriptorTable.NumDescriptorRanges = 1;
+
 	//루트 시그니쳐
 	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
 
 	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 	rootSignatureDesc.pParameters = rootparam;
-	rootSignatureDesc.NumParameters = 3;
+	rootSignatureDesc.NumParameters = 4;
 
-	D3D12_STATIC_SAMPLER_DESC samplerDesc[2] = {};
+	D3D12_STATIC_SAMPLER_DESC samplerDesc[3] = {};
 
 	samplerDesc[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	samplerDesc[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -279,8 +264,17 @@ HRESULT PMXRenderer::CreateRootSignature()
 	samplerDesc[1].Filter = D3D12_FILTER_ANISOTROPIC;
 	samplerDesc[1].ShaderRegister = 1;
 
+	samplerDesc[2] = samplerDesc[0];
+	samplerDesc[2].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc[2].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc[2].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc[2].ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	samplerDesc[2].MaxAnisotropy = 1;
+	samplerDesc[2].Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+	samplerDesc[2].ShaderRegister = 2;
+
 	rootSignatureDesc.pStaticSamplers = samplerDesc;
-	rootSignatureDesc.NumStaticSamplers = 2;
+	rootSignatureDesc.NumStaticSamplers = 3;
 
 	ComPtr<ID3DBlob> rootSigBlob = nullptr;
 	ComPtr<ID3DBlob> errorBlob = nullptr;
@@ -303,7 +297,7 @@ HRESULT PMXRenderer::CreateRootSignature()
 	return result;
 }
 
-bool PMXRenderer::CheckShaderComplieResult(HRESULT result, ID3DBlob* error)
+bool PMXRenderer::CheckShaderCompileResult(HRESULT result, ID3DBlob* error)
 {
 	if (FAILED(result)) {
 		if (result == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) {
@@ -328,9 +322,6 @@ PMXRenderer::PMXRenderer(Dx12Wrapper& dx12):
 {
 	assert(SUCCEEDED(CreateRootSignature()));
 	assert(SUCCEEDED(CreateGraphicsPipelineForPMX()));
-	_whiteTex = CreateWhiteTexture();
-	_blackTex = CreateBlackTexture();
-	_gradTex = CreateGrayGradiationTexture();
 }
 
 PMXRenderer::~PMXRenderer()
@@ -339,10 +330,45 @@ PMXRenderer::~PMXRenderer()
 
 void PMXRenderer::Update()
 {
+	for (auto& actor : _actors)
+	{
+		actor -> Update();
+	}
+}
+
+void PMXRenderer::BeforeDrawFromLight()
+{
+	auto cmdList = _dx12.CommandList();
+	cmdList->SetPipelineState(_shadowPipeline.Get());
+	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+}
+
+void PMXRenderer::BeforeDraw()
+{
+	auto cmdList = _dx12.CommandList();
+	cmdList->SetPipelineState(_pipeline.Get());
+	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+}
+
+void PMXRenderer::DrawFromLight()
+{
+	for (auto& actor : _actors)
+	{
+		actor->Draw(_dx12, true);
+	}
 }
 
 void PMXRenderer::Draw()
 {
+	for (auto& actor : _actors)
+	{
+		actor->Draw(_dx12, false);
+	}
+}
+
+void PMXRenderer::AddActor(std::shared_ptr<PMXActor> actor)
+{
+	_actors.push_back(actor);
 }
 
 ID3D12PipelineState* PMXRenderer::GetPipelineState()
@@ -353,4 +379,9 @@ ID3D12PipelineState* PMXRenderer::GetPipelineState()
 ID3D12RootSignature* PMXRenderer::GetRootSignature()
 {
     return _rootSignature.Get();
+}
+
+Dx12Wrapper& PMXRenderer::GetDirect() const
+{
+	return _dx12;
 }
