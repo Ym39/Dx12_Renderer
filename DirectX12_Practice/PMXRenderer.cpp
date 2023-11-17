@@ -120,8 +120,15 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 	gpipeline.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	gpipeline.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
+	gpipeline.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+
 	gpipeline.BlendState.AlphaToCoverageEnable = false;
-	gpipeline.BlendState.IndependentBlendEnable = false;
+	gpipeline.BlendState.IndependentBlendEnable = true;
+
+	D3D12_RENDER_TARGET_BLEND_DESC defaultBlendDesc;
+	defaultBlendDesc.BlendEnable = false;
+	defaultBlendDesc.LogicOpEnable = false;
+	defaultBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
 	D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc;
 	transparencyBlendDesc.BlendEnable = true;
@@ -135,7 +142,9 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 	transparencyBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
 	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
-	gpipeline.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	gpipeline.BlendState.RenderTarget[0] = transparencyBlendDesc;
+	gpipeline.BlendState.RenderTarget[1] = defaultBlendDesc;
+	gpipeline.BlendState.RenderTarget[2] = defaultBlendDesc;
 
 	gpipeline.InputLayout.pInputElementDescs = inputLayout;
 	gpipeline.InputLayout.NumElements = _countof(inputLayout);

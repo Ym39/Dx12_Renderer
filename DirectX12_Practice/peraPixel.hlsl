@@ -133,6 +133,13 @@ float4 DeferrdPera1PS(Output input) : SV_TARGET
 	return resultColor;
 }
 
+float4 ForwardPera1PS(Output input) : SV_TARGET
+{
+	float4 col = tex.Sample(smp, input.uv);
+
+	return col;
+}
+
 float4 VerticalBokehPS(Output input) : SV_TARGET
 {
 	float w, h, levels;

@@ -50,5 +50,5 @@ float SsaoPs(Output input) : SV_Target
 		ao /= div;
 	}
 
-	return 1.0f - ao;
+	return 1.0f;
 }

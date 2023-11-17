@@ -34,6 +34,7 @@ PixelOutput DeferrdPS(Output input)
 	float specularB = pow(saturate(dot(refLight, -input.ray)), specular.a);
 
 	float4 color = tex.Sample(smp, input.uv);
+	float alpha = color.w;
 	float2 sphereMapUV = (input.vnormal.xy + float2(1, -1)) * float2(0.5, -0.5);
 
 	float4 result = max(saturate(
@@ -54,6 +55,7 @@ PixelOutput DeferrdPS(Output input)
 
 	//output.color = float4(spaColor + sphColor * texColor * diffuse);
 	output.color = result;
+	output.color.w = alpha;
 	output.normal.rgb = float3((input.normal.xyz + 1.0f) / 2.0f);
 	output.normal.a = depthFromLight;
 
