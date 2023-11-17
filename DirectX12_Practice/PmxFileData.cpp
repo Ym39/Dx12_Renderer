@@ -690,5 +690,7 @@ bool LoadPMXFile(const std::wstring& filePath, PMXFileData& fileData)
 		return false;
 	}
 
+	pmxFile.close();
+
 	return true;
 }
