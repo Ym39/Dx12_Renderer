@@ -69,6 +69,12 @@
     <ClCompile Include="PmxFileData.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="VMDFileData.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="UnicodeUtil.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="peraPixel.hlsl">
@@ -105,15 +111,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Dx12Wrapper.h">
-      <Filter>소스 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="PMDActor.h">
-      <Filter>소스 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="PMDRenderer.h">
-      <Filter>소스 파일</Filter>
-    </ClInclude>
     <ClInclude Include="Application.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
@@ -160,6 +157,18 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="UnicodeUtil.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="VMDFileData.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="PMDRenderer.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Dx12Wrapper.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="PMDActor.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

@@ -4,6 +4,7 @@
 #include <DirectXMath.h>
 #include <fstream>
 #include <vector>
+#include "UnicodeUtil.h"
 
 constexpr std::array<unsigned char, 4> PMX_MAGIC_NUMBER{ 0x50, 0x4d, 0x58, 0x20 };
 

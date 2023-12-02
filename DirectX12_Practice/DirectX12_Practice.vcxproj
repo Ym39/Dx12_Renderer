@@ -157,6 +157,8 @@
     <ClCompile Include="PMXActor.cpp" />
     <ClCompile Include="PmxFileData.cpp" />
     <ClCompile Include="PMXRenderer.cpp" />
+    <ClCompile Include="UnicodeUtil.cpp" />
+    <ClCompile Include="VMDFileData.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="BasicPixelShader.hlsl">
@@ -245,6 +247,7 @@
     <ClInclude Include="srtconv.h" />
     <ClInclude Include="UnicodeUtil.h" />
     <ClInclude Include="Utill.h" />
+    <ClInclude Include="VMDFileData.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

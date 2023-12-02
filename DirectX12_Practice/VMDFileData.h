@@ -1,6 +1,8 @@
 #pragma once
 #include <vector>
 #include <DirectXMath.h>
+#include "UnicodeUtil.h"
+
 
 struct VMDHeader
 {
@@ -10,7 +12,8 @@ struct VMDHeader
 
 struct VMDMotion
 {
-	char boneName[15];
+	//char boneName[15];
+	std::wstring boneName;
 	unsigned int frame;
 	DirectX::XMFLOAT3 translate;
 	DirectX::XMFLOAT4 quaternion;
@@ -19,7 +22,8 @@ struct VMDMotion
 
 struct VMDMorph
 {
-	char blendShapeName[15];
+	//char blendShapeName[15];
+	std::wstring blendShapeName;
 	unsigned int frame;
 	float weight;
 };
@@ -51,7 +55,8 @@ struct VMDShadow
 
 struct VMDIKInfo
 {
-	char name[20];
+	//char name[20];
+	std::wstring name;
 	unsigned char enable;
 };
 
@@ -72,3 +77,5 @@ struct VMDFileData
 	std::vector<VMDShadow> shadows;
 	std::vector<VMDIK> iks;
 };
+
+bool LoadVMDFile(const std::wstring& filePath, VMDFileData& fileData);

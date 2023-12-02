@@ -1,14 +1,15 @@
 #include <string>
 #include <fstream>
 #include "VMDFileData.h"
-#include "UnicodeUtil.h"
 
 bool ReadHeader(VMDFileData& data, std::ifstream& file)
 {
 	file.read(reinterpret_cast<char*>(&data.header.header), 30);
 
-	if (data.header.header != "Vocaloid Motion Data 0002" &&
-		data.header.header != "Vocaloid Motion Data")
+	std::string headerStr = data.header.header;
+
+	if (headerStr != "Vocaloid Motion Data 0002" &&
+		headerStr != "Vocaloid Motion Data")
 	{
 		return false;
 	}
@@ -26,7 +27,8 @@ bool ReadMotion(VMDFileData& data, std::ifstream& file)
 	data.motions.resize(count);
 	for (auto& motion : data.motions)
 	{
-		file.read(reinterpret_cast<char*>(&motion.boneName), 15);
+		UnicodeUtil::ReadJISToWString(file, motion.boneName, 15);
+		//file.read(reinterpret_cast<char*>(&motion.boneName), 15);
 		file.read(reinterpret_cast<char*>(&motion.frame), 4);
 		file.read(reinterpret_cast<char*>(&motion.translate), 12);
 		file.read(reinterpret_cast<char*>(&motion.quaternion), 16);
@@ -44,7 +46,8 @@ bool ReadMorph(VMDFileData& data, std::ifstream& file)
 	data.morphs.resize(count);
 	for (auto& morph : data.morphs)
 	{
-		file.read(reinterpret_cast<char*>(&morph.blendShapeName), 15);
+		//file.read(reinterpret_cast<char*>(&morph.blendShapeName), 15);
+		UnicodeUtil::ReadJISToWString(file, morph.blendShapeName, 15);
 		file.read(reinterpret_cast<char*>(&morph.frame), 4);
 		file.read(reinterpret_cast<char*>(&morph.weight), 4);
 	}
@@ -65,8 +68,8 @@ bool ReadCamera(VMDFileData& data, std::ifstream& file)
 		file.read(reinterpret_cast<char*>(&camera.interest), 12);
 		file.read(reinterpret_cast<char*>(&camera.rotate), 12);
 		file.read(reinterpret_cast<char*>(camera.interpolation), 24);
-		file.read(reinterpret_cast<char*>(camera.fov), 4);
-		file.read(reinterpret_cast<char*>(camera.isPerspective), 1);
+		file.read(reinterpret_cast<char*>(&camera.fov), 4);
+		file.read(reinterpret_cast<char*>(&camera.isPerspective), 1);
 	}
 
 	return true;
@@ -121,10 +124,13 @@ bool ReadIK(VMDFileData& data, std::ifstream& file)
 		ik.ikInfos.resize(ikInfoCount);
 		for (auto& ikInfo : ik.ikInfos)
 		{
-			file.read(ikInfo.name, 20);
+			//file.read(ikInfo.name, 20);
+			UnicodeUtil::ReadJISToWString(file, ikInfo.name, 20);
 			file.read(reinterpret_cast<char*>(&ikInfo.enable), 1);
 		}
 	}
+
+	return true;
 }
 
 bool LoadVMDFile(const std::wstring& filePath, VMDFileData& fileData)
@@ -149,6 +155,12 @@ bool LoadVMDFile(const std::wstring& filePath, VMDFileData& fileData)
 	}
 
 	result = ReadMotion(fileData, vmdFile);
+	if (result == false)
+	{
+		return false;
+	}
+
+	result = ReadMorph(fileData, vmdFile);
 	if (result == false)
 	{
 		return false;
