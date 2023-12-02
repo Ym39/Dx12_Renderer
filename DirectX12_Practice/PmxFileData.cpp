@@ -1,5 +1,4 @@
 #include "PmxFileData.h"
-#include "UnicodeUtil.h"
 
 bool ReadHeader(PMXFileData& data, std::ifstream& file)
 {
@@ -20,33 +19,6 @@ bool ReadHeader(PMXFileData& data, std::ifstream& file)
 	file.read(reinterpret_cast<char*>(&data.header.boneIndexSize), sizeof(data.header.boneIndexSize));
 	file.read(reinterpret_cast<char*>(&data.header.morphIndexSize), sizeof(data.header.morphIndexSize));
 	file.read(reinterpret_cast<char*>(&data.header.rigidBodyIndexSize), sizeof(data.header.rigidBodyIndexSize));
-
-	return true;
-}
-
-bool ReadString(int encoding, std::string& string, std::ifstream& file)
-{
-	unsigned int bufSize;
-	file.read(reinterpret_cast<char*>(&bufSize), sizeof(bufSize));
-
-	if (bufSize > 0)
-	{
-		if (encoding == 0) // utf-16
-		{
-			std::u16string utf16Str(bufSize, u'\0');
-			file.read(reinterpret_cast<char*>(&utf16Str[0]), utf16Str.size());
-			if (UnicodeUtil::ConvU16ToU8(utf16Str, string) == false)
-			{
-				return false;
-			}
-		}
-		else if (encoding == 1) //utf-8
-		{
-			std::string utf8Str(bufSize, u'\0');
-			file.read(reinterpret_cast<char*>(&utf8Str[0]), utf8Str.size());
-			string = utf8Str;
-		}
-	}
 
 	return true;
 }

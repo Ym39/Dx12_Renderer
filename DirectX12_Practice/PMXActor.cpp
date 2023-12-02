@@ -28,6 +28,12 @@ bool PMXActor::Initialize(const std::wstring& filePath, Dx12Wrapper& dx)
 		return false;
 	}
 
+	result = LoadVMDFile(L"VMD\\ラビットホール.vmd", _vmdFileData);
+	if (result == false)
+	{
+		return false;
+	}
+
 	_transform.world = XMMatrixIdentity() * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 
 	auto hResult = CreateVbAndIb(dx);

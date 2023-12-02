@@ -7,6 +7,7 @@
 #include<wrl.h>
 #include<algorithm>
 #include "PmxFileData.h"
+#include "VMDFileData.h"
 
 using namespace DirectX;
 
@@ -32,6 +33,7 @@ private:
 	using ComPtr = Microsoft::WRL::ComPtr<T>;
 
 	PMXFileData _pmxFileData;
+	VMDFileData _vmdFileData;
 
 	ComPtr<ID3D12Resource> _vb = nullptr;
 	ComPtr<ID3D12Resource> _ib = nullptr;
