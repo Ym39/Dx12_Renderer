@@ -68,10 +68,10 @@ enum class PMXToonMode : uint8_t
 
 struct PMXVertex
 {
-	DirectX::XMFLOAT3 position;
-	DirectX::XMFLOAT3 normal;
-	DirectX::XMFLOAT2 uv;
-	DirectX::XMFLOAT4 additionalUV[4];
+	DirectX::XMFLOAT3 position;        
+	DirectX::XMFLOAT3 normal;          
+	DirectX::XMFLOAT2 uv;              
+	DirectX::XMFLOAT4 additionalUV[4]; 
 
 	PMXVertexWeight weightType;
 	int boneIndices[4];
