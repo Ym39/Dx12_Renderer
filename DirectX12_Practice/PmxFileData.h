@@ -171,7 +171,7 @@ struct PMXBone
 
 	unsigned int ikTargetBoneIndex;
 	unsigned int ikIterationCount;
-	unsigned int ikLimit;
+	float ikLimit;
 
 	std::vector<PMXIKLink> ikLinks;
 };

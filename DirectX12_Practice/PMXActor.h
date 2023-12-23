@@ -10,59 +10,21 @@
 #include<thread>
 #include<future>
 
-#include "PmxFileData.h"
+#include "IKSolver.h"
 #include "VMDFileData.h"
+#include "NodeManager.h"
 
 using namespace DirectX;
 
-struct VMDKey
+struct VMDIKkey
 {
 	unsigned int frameNo;
-	XMVECTOR quaternion;
-	XMFLOAT3 offset;
-	XMFLOAT2 p1;
-	XMFLOAT2 p2;
+	bool enable;
 
-	VMDKey(unsigned int frameNo, XMVECTOR& quaternion, XMFLOAT3& offset, XMFLOAT2& p1, XMFLOAT2& p2):
+	VMDIKkey(unsigned int frameNo, bool enable):
 	frameNo(frameNo),
-	quaternion(quaternion),
-	offset(offset),
-	p1(p1),
-	p2(p2)
+	enable(enable)
 	{}
-};
-
-struct BoneNode
-{
-	unsigned int boneIndex;
-
-	std::wstring name;
-	std::string englishName;
-
-	DirectX::XMFLOAT3 position;
-	unsigned int parentBoneIndex;
-	unsigned int deformDepth;
-
-	PMXBoneFlags boneFlag;
-
-	DirectX::XMFLOAT3 positionOffset;
-	unsigned int linkBoneIndex;
-
-	unsigned int appendBoneIndex;
-	float appendWeight;
-
-	DirectX::XMFLOAT3 fixedAxis;
-	DirectX::XMFLOAT3 localXAxis;
-	DirectX::XMFLOAT3 localZAxis;
-
-	unsigned int keyValue;
-
-	unsigned int ikTargetBoneIndex;
-	unsigned int ikIterationCount;
-	unsigned int ikLimit;
-
-	BoneNode* parentNode;
-	std::vector<BoneNode*> childrenNode;
 };
 
 struct UploadVertex
@@ -99,11 +61,14 @@ private:
 	void LoadVertexData(const std::vector<PMXVertex>& vertices);
 
 	void InitAnimation(VMDFileData& vmdFileData);
-	void InitBoneNode(std::vector<PMXBone>& bones);
+	void InitBoneNode(const std::vector<PMXBone>& bones);
+	void InitIK(const std::vector<PMXBone>& bones);
 	float GetYFromXOnBezier(float x, const DirectX::XMFLOAT2& a, const DirectX::XMFLOAT2& b, uint8_t n);
-	void RecursiveMatrixMultiply(BoneNode* node, const DirectX::XMMATRIX& mat);
+	void RecursiveMatrixMultiply(BoneNodeLegacy* node, const DirectX::XMMATRIX& mat);
 
 	void InitParallelVertexSkinningSetting();
+
+	void UpdateAnimationIK(unsigned int frameNo);
 
 	void VertexSkinning();
 	void VertexSkinningByRange(const SkinningRange& range);
@@ -114,6 +79,8 @@ private:
 
 	PMXFileData _pmxFileData;
 	VMDFileData _vmdFileData;
+
+	NodeManager _nodeManager;
 
 	ComPtr<ID3D12Resource> _vb = nullptr;
 	ComPtr<ID3D12Resource> _ib = nullptr;
@@ -156,10 +123,13 @@ private:
 
 	std::unordered_map<std::wstring, std::vector<VMDKey>> _animationKeyMap;
 	unsigned int _duration;
+	std::unordered_map<std::wstring, std::vector<VMDIKkey>> _ikKeyMap;
 
 	std::vector<std::wstring> _boneNodeNames;
-	std::vector<BoneNode*> _boneNodeByIdx;
-	std::unordered_map<std::wstring, BoneNode> _boneNodeByName;
+	std::vector<BoneNodeLegacy*> _boneNodeByIdx;
+	std::unordered_map<std::wstring, BoneNodeLegacy> _boneNodeByName;
+
+	std::vector<IKSolver> _ikSolvers;
 
 	DWORD _startTime = 0;
 

@@ -1,6 +1,7 @@
 ﻿#include "PMXActor.h"
 #include <array>
 #include <bitset>
+#include <algorithm>
 #include "Dx12Wrapper.h"
 #include "PMXRenderer.h"
 #include "srtconv.h"
@@ -42,8 +43,12 @@ bool PMXActor::Initialize(const std::wstring& filePath, Dx12Wrapper& dx)
 
 	InitParallelVertexSkinningSetting();
 
-	InitAnimation(_vmdFileData);
 	InitBoneNode(_pmxFileData.bones);
+	InitIK(_pmxFileData.bones);
+
+	_nodeManager.Init(_pmxFileData.bones);
+
+	InitAnimation(_vmdFileData);
 
 	auto hResult = CreateVbAndIb(dx);
 	if (FAILED(hResult))
@@ -92,6 +97,8 @@ void PMXActor::UpdateAnimation()
 		frameNo = 0;
 	}
 
+	_nodeManager.UpdateAnimation(frameNo);
+
 	//std::fill(_boneMatrices.begin(), _boneMatrices.end(), XMMatrixIdentity());
 	for (auto& bone : _boneNodeByIdx)
 	{
@@ -110,7 +117,7 @@ void PMXActor::UpdateAnimation()
 			continue;
 		}
 
-		BoneNode& node = itBondNode->second;
+		BoneNodeLegacy& node = itBondNode->second;
 
 		auto rit = std::find_if(keyList.rbegin(), keyList.rend(),
 			[frameNo](const VMDKey& key)
@@ -148,8 +155,42 @@ void PMXActor::UpdateAnimation()
 		//_boneLocalMatrices[node.boneIndex] = XMMatrixTranslation(-startPosition.x, -startPosition.y, -startPosition.z);
 	}
 
-	BoneNode* centerNode = _boneNodeByIdx[0];
+	//UpdateAnimationIK(frameNo);
+
+	BoneNodeLegacy* centerNode = _boneNodeByIdx[0];
 	RecursiveMatrixMultiply(centerNode, XMMatrixIdentity());
+
+	for (int i = 0; i < _boneNodeByIdx.size(); i++)
+	{
+		XMFLOAT4X4 left;
+		XMStoreFloat4x4(&left, _boneMatrices[i]);
+		XMFLOAT4X4 right;
+		XMStoreFloat4x4(&right, _nodeManager.GetBoneNodeByIndex(i)->GetGlobalTransform());
+
+		std::ostringstream oss;
+
+		if (left._11 != right._11 ||
+			left._12 != right._12 ||
+			left._13 != right._13 || 
+			left._14 != right._14 ||
+			left._21 != right._21 || 
+			left._22 != right._22 || 
+			left._23 != right._23 || 
+			left._24 != right._24 ||
+			left._31 != right._31 ||
+			left._32 != right._32 ||
+			left._33 != right._33 || 
+			left._34 != right._34 ||
+			left._41 != right._41 ||
+			left._42 != right._42 ||
+			left._43 != right._43 ||
+			left._44 != right._44)
+		{
+			oss << "not equals bone : " << i << endl;
+		}
+
+		OutputDebugStringA(oss.str().c_str());
+	}
 
 	VertexSkinning();
 
@@ -507,7 +548,21 @@ void PMXActor::InitAnimation(VMDFileData& vmdFileData)
 			motion.translate,
 			XMFLOAT2(static_cast<float>(motion.interpolation[3]) / 127.0f, static_cast<float>(motion.interpolation[7]) / 127.0f),
 			XMFLOAT2(static_cast<float>(motion.interpolation[11]) / 127.0f, static_cast<float>(motion.interpolation[15]) / 127.0f));
+
+		auto boneNode = _nodeManager.GetBoneNodeByName(motion.boneName);
+		if (boneNode == nullptr)
+		{
+			continue;
+		}
+
+		boneNode->AddMotionKey(motion.frame,
+			motion.quaternion,
+			motion.translate,
+			XMFLOAT2(static_cast<float>(motion.interpolation[3]) / 127.0f, static_cast<float>(motion.interpolation[7]) / 127.0f),
+			XMFLOAT2(static_cast<float>(motion.interpolation[11]) / 127.0f, static_cast<float>(motion.interpolation[15]) / 127.0f));
 	}
+
+	_nodeManager.SortMotionKey();
 
 	for (auto& keys : _animationKeyMap)
 	{
@@ -522,9 +577,35 @@ void PMXActor::InitAnimation(VMDFileData& vmdFileData)
 			_duration = std::max<unsigned int>(_duration, key.frameNo);
 		}
 	}
+
+	for (VMDIK& ik : vmdFileData.iks)
+	{
+		for (VMDIKInfo& ikInfo : ik.ikInfos)
+		{
+			auto findIterator = std::find_if(_ikSolvers.begin(), _ikSolvers.end(), [&ikInfo](const IKSolver& solver)
+			{
+					return ikInfo.name == solver.GetIKNodeName();
+			});
+
+			if (findIterator == _ikSolvers.end())
+			{
+				continue;
+			}
+
+			_ikKeyMap[findIterator->GetIKNodeName()].emplace_back(ik.frame, ikInfo.enable);
+		}
+	}
+
+	for (auto& keys : _ikKeyMap)
+	{
+		std::sort(keys.second.begin(), keys.second.end(), [](const VMDIKkey& a, const VMDIKkey& b)
+			{
+				return a.frameNo < b.frameNo;
+			});
+	}
 }
 
-void PMXActor::InitBoneNode(std::vector<PMXBone>& bones)
+void PMXActor::InitBoneNode(const std::vector<PMXBone>& bones)
 {
 	_boneNodeNames.resize(bones.size());
 	_boneNodeByIdx.resize(bones.size());
@@ -532,8 +613,8 @@ void PMXActor::InitBoneNode(std::vector<PMXBone>& bones)
 
 	for (int index = 0; index < bones.size(); index++)
 	{
-		PMXBone& currentBoneData = bones[index];
-		BoneNode& currentBoneNode = _boneNodeByName[currentBoneData.name];
+		const PMXBone& currentBoneData = bones[index];
+		BoneNodeLegacy& currentBoneNode = _boneNodeByName[currentBoneData.name];
 
 		currentBoneNode.boneIndex = index;
 
@@ -573,10 +654,10 @@ void PMXActor::InitBoneNode(std::vector<PMXBone>& bones)
 			continue;
 		}
 
-		BoneNode& curNode = _boneNodeByName[bone.name];
+		BoneNodeLegacy& curNode = _boneNodeByName[bone.name];
 
 		std::wstring parentBoneName = _boneNodeNames[bone.parentBoneIndex];
-		BoneNode& parentNode = _boneNodeByName[parentBoneName];
+		BoneNodeLegacy& parentNode = _boneNodeByName[parentBoneName];
 
 		_boneNodeByName[parentBoneName].childrenNode.push_back(&curNode);
 		curNode.parentNode = &parentNode;
@@ -589,6 +670,55 @@ void PMXActor::InitBoneNode(std::vector<PMXBone>& bones)
 		XMStoreFloat3(&curNode.position, pos - parentPos);
 
 		_boneLocalMatrices[curNode.boneIndex] = XMMatrixTranslation(-curBonePosition.x, -curBonePosition.y, -curBonePosition.z);
+	}
+}
+
+void PMXActor::InitIK(const std::vector<PMXBone>& bones)
+{
+	for (int index = 0; index < bones.size(); index++)
+	{
+		const PMXBone& currentPmxBone = bones[index];
+
+		if (((uint16_t)currentPmxBone.boneFlag & (uint16_t)PMXBoneFlags::IK) == false)
+		{
+			continue;
+		}
+
+		if (currentPmxBone.ikTargetBoneIndex < 0 || currentPmxBone.ikTargetBoneIndex >= _boneNodeByIdx.size())
+		{
+			continue;
+		}
+
+		BoneNodeLegacy* ikNode = _boneNodeByIdx[index];
+		BoneNodeLegacy* targetNode = _boneNodeByIdx[currentPmxBone.ikTargetBoneIndex];
+		unsigned int iterationCount = currentPmxBone.ikIterationCount;
+		float limitAngle = currentPmxBone.ikLimit;
+
+		_ikSolvers.emplace_back(ikNode, targetNode, iterationCount, limitAngle);
+
+		IKSolver& solver = _ikSolvers[_ikSolvers.size() - 1];
+
+		for (const PMXIKLink& ikLink : currentPmxBone.ikLinks)
+		{
+			if (ikLink.ikBoneIndex < 0 || ikLink.ikBoneIndex >= _boneNodeByIdx.size())
+			{
+				continue;
+			}
+
+			BoneNodeLegacy* linkNode = _boneNodeByIdx[ikLink.ikBoneIndex];
+
+			if (ikLink.enableLimit == true)
+			{
+				solver.AddIKChain(linkNode, ikLink.enableLimit, ikLink.limitMin, ikLink.limitMax);
+			}
+			else
+			{
+				solver.AddIKChain(linkNode, false, XMFLOAT3(0.5f, 0.f, 0.f), XMFLOAT3(180.f, 0.f, 0.f));
+			}
+			linkNode->enableIK = true;
+		}
+
+		ikNode->ikSolver = &solver;
 	}
 }
 
@@ -620,8 +750,13 @@ float PMXActor::GetYFromXOnBezier(float x, const DirectX::XMFLOAT2& a, const Dir
 	return t * t * t + 3 * t * t * r * b.y + 3 * t * r * r * a.y;
 }
 
-void PMXActor::RecursiveMatrixMultiply(BoneNode* node, const DirectX::XMMATRIX& mat)
+void PMXActor::RecursiveMatrixMultiply(BoneNodeLegacy* node, const DirectX::XMMATRIX& mat)
 {
+	if (node->boneIndex == 5)
+	{
+		int f = 0;
+	}
+
 	_boneMatrices[node->boneIndex] *= mat;
 
 	for (auto& childNode : node->childrenNode)
@@ -654,6 +789,42 @@ void PMXActor::InitParallelVertexSkinningSetting()
 	_skinningRanges[_skinningRanges.size() - 1].vertexCount = remainder;
 }
 
+void PMXActor::UpdateAnimationIK(unsigned int frameNo)
+{
+	//for (auto& keyByBoneName : _ikKeyMap)
+	//{
+	//	const std::wstring& name = keyByBoneName.first;
+	//	std::vector<VMDIKkey>& keyList = keyByBoneName.second;
+
+	//	auto itBondNode = _boneNodeByName.find(name);
+	//	if (itBondNode == _boneNodeByName.end())
+	//	{
+	//		continue;
+	//	}
+
+	//	BoneNodeLegacy& node = itBondNode->second;
+
+	//	auto rit = std::find_if(keyList.rbegin(), keyList.rend(),
+	//		[frameNo](const VMDKey& key)
+	//		{
+	//			return key.frameNo <= frameNo;
+	//		});
+
+
+	//	if (rit == keyList.rend())
+	//	{
+	//		continue;
+	//	}
+
+	//	if (node.ikSolver == nullptr)
+	//	{
+	//		continue;
+	//	}
+
+	//	node.ikSolver->SetEnable(rit->enable);
+	//}
+}
+
 void PMXActor::VertexSkinning()
 {
 	const int futureCount = _parallelUpdateFutures.size();
@@ -684,7 +855,8 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 		{
 		case PMXVertexWeight::BDEF1:
 		{
-			XMMATRIX m0 = XMMatrixMultiply(_boneLocalMatrices[currentVertexData.boneIndices[0]], _boneMatrices[currentVertexData.boneIndices[0]]);
+			BoneNode* bone0 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[0]);
+			XMMATRIX m0 = XMMatrixMultiply(bone0->GetInitInverseTransform(), bone0->GetGlobalTransform());
 			position = XMVector3Transform(position, m0);
 			break;
 		}
@@ -692,8 +864,15 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 		{
 			float weight0 = currentVertexData.boneWeights[0];
 			float weight1 = 1.0f - weight0;
-			XMMATRIX m0 = XMMatrixMultiply(_boneLocalMatrices[currentVertexData.boneIndices[0]], _boneMatrices[currentVertexData.boneIndices[0]]);
-			XMMATRIX m1 = XMMatrixMultiply(_boneLocalMatrices[currentVertexData.boneIndices[1]], _boneMatrices[currentVertexData.boneIndices[1]]);
+
+			BoneNode* bone0 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[0]);
+			BoneNode* bone1 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[1]);
+
+			//XMMATRIX m0 = XMMatrixMultiply(_boneLocalMatrices[currentVertexData.boneIndices[0]], _boneMatrices[currentVertexData.boneIndices[0]]);
+			//XMMATRIX m1 = XMMatrixMultiply(_boneLocalMatrices[currentVertexData.boneIndices[1]], _boneMatrices[currentVertexData.boneIndices[1]]);
+			XMMATRIX m0 = XMMatrixMultiply(bone0->GetInitInverseTransform(), bone0->GetGlobalTransform());
+			XMMATRIX m1 = XMMatrixMultiply(bone1->GetInitInverseTransform(), bone1->GetGlobalTransform());
+
 			XMMATRIX mat = m0 * weight0 + m1 * weight1;
 			position = XMVector3Transform(position, mat);
 			break;
@@ -704,10 +883,22 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 			float weight1 = currentVertexData.boneWeights[1];
 			float weight2 = currentVertexData.boneWeights[2];
 			float weight3 = currentVertexData.boneWeights[3];
-			XMMATRIX m0 = XMMatrixMultiply(_boneLocalMatrices[currentVertexData.boneIndices[0]], _boneMatrices[currentVertexData.boneIndices[0]]);
-			XMMATRIX m1 = XMMatrixMultiply(_boneLocalMatrices[currentVertexData.boneIndices[1]], _boneMatrices[currentVertexData.boneIndices[1]]);
-			XMMATRIX m2 = XMMatrixMultiply(_boneLocalMatrices[currentVertexData.boneIndices[2]], _boneMatrices[currentVertexData.boneIndices[2]]);
-			XMMATRIX m3 = XMMatrixMultiply(_boneLocalMatrices[currentVertexData.boneIndices[3]], _boneMatrices[currentVertexData.boneIndices[3]]);
+
+			BoneNode* bone0 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[0]);
+			BoneNode* bone1 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[1]);
+			BoneNode* bone2 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[2]);
+			BoneNode* bone3 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[3]);
+
+			//XMMATRIX m0 = XMMatrixMultiply(_boneLocalMatrices[currentVertexData.boneIndices[0]], _boneMatrices[currentVertexData.boneIndices[0]]);
+			//XMMATRIX m1 = XMMatrixMultiply(_boneLocalMatrices[currentVertexData.boneIndices[1]], _boneMatrices[currentVertexData.boneIndices[1]]);
+			//XMMATRIX m2 = XMMatrixMultiply(_boneLocalMatrices[currentVertexData.boneIndices[2]], _boneMatrices[currentVertexData.boneIndices[2]]);
+			//XMMATRIX m3 = XMMatrixMultiply(_boneLocalMatrices[currentVertexData.boneIndices[3]], _boneMatrices[currentVertexData.boneIndices[3]]);
+
+			XMMATRIX m0 = XMMatrixMultiply(bone0->GetInitInverseTransform(), bone0->GetGlobalTransform());
+			XMMATRIX m1 = XMMatrixMultiply(bone1->GetInitInverseTransform(), bone1->GetGlobalTransform());
+			XMMATRIX m2 = XMMatrixMultiply(bone2->GetInitInverseTransform(), bone2->GetGlobalTransform());
+			XMMATRIX m3 = XMMatrixMultiply(bone3->GetInitInverseTransform(), bone3->GetGlobalTransform());
+
 			XMMATRIX mat = m0 * weight0 + m1 * weight1 + m2 * weight2 + m3 * weight3;
 			position = XMVector3Transform(position, mat);
 			break;
@@ -728,11 +919,20 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 			XMVECTOR cr0 = (sdefc + r0) * 0.5f;
 			XMVECTOR cr1 = (sdefc + r1) * 0.5f;
 
-			XMVECTOR q0 = XMQuaternionRotationMatrix(_boneMatrices[currentVertexData.boneIndices[0]]);
-			XMVECTOR q1 = XMQuaternionRotationMatrix(_boneMatrices[currentVertexData.boneIndices[1]]);
+			BoneNode* bone0 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[0]);
+			BoneNode* bone1 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[1]);
 
-			XMMATRIX m0 = XMMatrixMultiply(_boneLocalMatrices[currentVertexData.boneIndices[0]], _boneMatrices[currentVertexData.boneIndices[0]]);
-			XMMATRIX m1 = XMMatrixMultiply(_boneLocalMatrices[currentVertexData.boneIndices[1]], _boneMatrices[currentVertexData.boneIndices[1]]);
+			//XMVECTOR q0 = XMQuaternionRotationMatrix(_boneMatrices[currentVertexData.boneIndices[0]]);
+			//XMVECTOR q1 = XMQuaternionRotationMatrix(_boneMatrices[currentVertexData.boneIndices[1]]);
+
+			XMVECTOR q0 = XMQuaternionRotationMatrix(bone0->GetGlobalTransform());
+			XMVECTOR q1 = XMQuaternionRotationMatrix(bone1->GetGlobalTransform());
+
+			//XMMATRIX m0 = XMMatrixMultiply(_boneLocalMatrices[currentVertexData.boneIndices[0]], _boneMatrices[currentVertexData.boneIndices[0]]);
+			//XMMATRIX m1 = XMMatrixMultiply(_boneLocalMatrices[currentVertexData.boneIndices[1]], _boneMatrices[currentVertexData.boneIndices[1]]);
+
+			XMMATRIX m0 = XMMatrixMultiply(bone0->GetInitInverseTransform(), bone0->GetGlobalTransform());
+			XMMATRIX m1 = XMMatrixMultiply(bone1->GetInitInverseTransform(), bone1->GetGlobalTransform());
 
 			XMMATRIX rotation = XMMatrixRotationQuaternion(XMQuaternionSlerp(q0, q1, w1));
 
@@ -744,8 +944,12 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 		}
 		case PMXVertexWeight::QDEF:
 		{
-			XMMATRIX bone0 = _boneMatrices[currentVertexData.boneIndices[0]];
-			position = XMVector3Transform(position, bone0);
+			BoneNode* bone0 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[0]);
+			XMMATRIX m0 = XMMatrixMultiply(bone0->GetInitInverseTransform(), bone0->GetGlobalTransform());
+			position = XMVector3Transform(position, m0);
+
+			//XMMATRIX bone0 = _boneMatrices[currentVertexData.boneIndices[0]];
+			//position = XMVector3Transform(position, bone0);
 			break;
 		}
 		default:
