@@ -25,6 +25,18 @@ void IKSolver::Solve()
 	}
 }
 
+const std::wstring& IKSolver::GetIKNodeName() const
+{
+	if (_ikNode == nullptr)
+	{
+		return L"";
+	}
+	else
+	{
+		return _ikNode->GetName();
+	}
+}
+
 void IKSolver::SolveCore(unsigned iteration)
 {
 }

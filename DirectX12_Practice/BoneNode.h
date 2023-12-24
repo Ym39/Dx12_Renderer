@@ -6,6 +6,8 @@
 
 using namespace DirectX;
 
+class IKSolver;
+
 struct VMDKey
 {
 	unsigned int frameNo;
@@ -23,6 +25,17 @@ struct VMDKey
 	{}
 };
 
+struct VMDIKkey
+{
+	unsigned int frameNo;
+	bool enable;
+
+	VMDIKkey(unsigned int frameNo, bool enable) :
+		frameNo(frameNo),
+		enable(enable)
+	{}
+};
+
 class BoneNode
 {
 public:
@@ -35,6 +48,12 @@ public:
 	unsigned int GetAppendBoneIndex() const { return _appendBoneIndex; }
 	float GetAppendWeight() const { return _appendWeight; }
 	unsigned int GetIKTargetBoneIndex() const { return _ikTargetBoneIndex; }
+
+	bool GetIKEnable() const { return _enableIK; }
+	void SetIKEnable(bool enable) { _enableIK = enable; }
+
+	IKSolver* GetIKSolver() const { return _ikSolver; }
+	void SetIKSolver(IKSolver* ikSolver) { _ikSolver = ikSolver; }
 
 	void SetParentBoneNode(BoneNode* parentNode)
 	{
@@ -54,6 +73,7 @@ public:
 	const XMFLOAT3& GetPosition() const { return _position; }
 
 	void AddMotionKey(unsigned int& frameNo, XMFLOAT4& quaternion, XMFLOAT3& offset, XMFLOAT2& p1, XMFLOAT2& p2);
+	void AddIKkey(unsigned int& frameNo, bool& enable);
 	void SortAllKeys();
 
 	unsigned int GetMaxFrameNo() const;
@@ -78,7 +98,7 @@ private:
 	unsigned int _ikTargetBoneIndex;
 	unsigned int _ikIterationCount;
 	float _ikLimit;
-	bool _enableIK;
+	bool _enableIK = false;
 
 	XMFLOAT3 _animatePosition;
 	XMMATRIX _animateRotation;
@@ -91,5 +111,8 @@ private:
 	std::vector<BoneNode*> _childrenNodes;
 
 	std::vector<VMDKey> _motionKeys;
+	std::vector<VMDIKkey> _ikKeys;
+
+	IKSolver* _ikSolver = nullptr;
 };
 

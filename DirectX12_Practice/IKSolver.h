@@ -2,57 +2,13 @@
 #include<DirectXMath.h>
 #include<vector>
 
+#include "BoneNode.h"
 #include "PmxFileData.h"
 
 class IKSolver;
-struct BoneNodeLegacy
-{
-	unsigned int boneIndex;
-
-	std::wstring name;
-	std::string englishName;
-
-	DirectX::XMFLOAT3 position;
-	unsigned int parentBoneIndex;
-	unsigned int deformDepth;
-
-	PMXBoneFlags boneFlag;
-
-	DirectX::XMFLOAT3 positionOffset;
-	unsigned int linkBoneIndex;
-
-	unsigned int appendBoneIndex;
-	float appendWeight;
-
-	DirectX::XMFLOAT3 fixedAxis;
-	DirectX::XMFLOAT3 localXAxis;
-	DirectX::XMFLOAT3 localZAxis;
-
-	unsigned int keyValue;
-
-	unsigned int ikTargetBoneIndex;
-	unsigned int ikIterationCount;
-	unsigned int ikLimit;
-
-	BoneNodeLegacy* parentNode;
-	std::vector<BoneNodeLegacy*> childrenNode;
-
-	DirectX::XMFLOAT3 animatePosition;
-	DirectX::XMMATRIX animateRotation;
-
-	IKSolver* ikSolver;
-	bool enableIK;
-
-	const DirectX::XMMATRIX& GetLocalTransform()
-	{
-
-		return animateRotation * DirectX::XMMatrixTranslationFromVector(DirectX::XMVectorAdd(XMLoadFloat3(&position), XMLoadFloat3(&animatePosition)));
-	}
-};
-
 struct IKChain
 {
-	BoneNodeLegacy* boneNode;
+	BoneNode* boneNode;
 	bool enableAxisLimit;
 	DirectX::XMFLOAT3 limitMin;
 	DirectX::XMFLOAT3 limitMax;
@@ -60,7 +16,7 @@ struct IKChain
 	DirectX::XMFLOAT4 saveIKRotation;
 	float planeModeAngle;
 
-	IKChain(BoneNodeLegacy* linkNode, bool axisLimit, const DirectX::XMFLOAT3& limitMinimum, const DirectX::XMFLOAT3 limitMaximum)
+	IKChain(BoneNode* linkNode, bool axisLimit, const DirectX::XMFLOAT3& limitMinimum, const DirectX::XMFLOAT3 limitMaximum)
 	{
 		boneNode = linkNode;
 		enableAxisLimit = axisLimit;
@@ -73,7 +29,7 @@ struct IKChain
 class IKSolver
 {
 public:
-	IKSolver(BoneNodeLegacy* node, BoneNodeLegacy* targetNode, unsigned int iterationCount, float limitAngle):
+	IKSolver(BoneNode* node, BoneNode* targetNode, unsigned int iterationCount, float limitAngle):
 	_ikNode(node),
 	_targetNode(targetNode),
 	_ikIterationCount(iterationCount),
@@ -84,28 +40,18 @@ public:
 
 	void Solve();
 
-	void AddIKChain(BoneNodeLegacy* linkNode, bool enableAxisLimit, const DirectX::XMFLOAT3& limitMin, const DirectX::XMFLOAT3 limitMax)
+	void AddIKChain(BoneNode* linkNode, bool enableAxisLimit, const DirectX::XMFLOAT3& limitMin, const DirectX::XMFLOAT3 limitMax)
 	{
 		_ikChains.emplace_back(linkNode, enableAxisLimit, limitMin, limitMax);
 	}
 
-	const std::wstring& GetIKNodeName() const
-	{
-		if (_ikNode == nullptr)
-		{
-			return L"";
-		}
-		else
-		{
-			_ikNode->name;
-		}
-	}
+	const std::wstring& GetIKNodeName() const;
 
 	bool GetEnable() const { return _enable; }
 	void SetEnable(bool enable) { _enable = enable; }
 
-	BoneNodeLegacy* GetIKNode() const { return _ikNode; }
-	BoneNodeLegacy* GetTargetNode() const { return _targetNode; }
+	BoneNode* GetIKNode() const { return _ikNode; }
+	BoneNode* GetTargetNode() const { return _targetNode; }
 
 	const std::vector<IKChain>& GetIKChains() const { return _ikChains; }
 
@@ -118,8 +64,8 @@ private:
 private:
 	bool _enable;
 
-	BoneNodeLegacy* _ikNode;
-	BoneNodeLegacy* _targetNode;
+	BoneNode* _ikNode;
+	BoneNode* _targetNode;
 
 	std::vector<IKChain> _ikChains;
 
