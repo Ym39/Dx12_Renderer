@@ -21,7 +21,7 @@ private:
 	std::vector<BoneNode*> _boneNodeByIdx;
 	std::vector<BoneNode*> _sortedNodes;
 
-	std::vector<IKSolver> _ikSolvers;
+	std::vector<IKSolver*> _ikSolvers;
 
 	unsigned int _duration = 0;
 };

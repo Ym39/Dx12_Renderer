@@ -53,7 +53,7 @@ public:
 	void SetIKEnable(bool enable) { _enableIK = enable; }
 
 	IKSolver* GetIKSolver() const { return _ikSolver; }
-	void SetIKSolver(IKSolver* ikSolver) { _ikSolver = ikSolver; }
+	void SetIKSolver(IKSolver* ikSolver);
 
 	void SetParentBoneNode(BoneNode* parentNode)
 	{
@@ -69,8 +69,13 @@ public:
 	const XMMATRIX& GetLocalTransform() const { return _localTransform; }
 	const XMMATRIX& GetGlobalTransform() const { return _globalTransform; }
 
+	const XMMATRIX& GetAnimateRotation() const { return _animateRotation; }
+
 	void SetPosition(const XMFLOAT3& position) { _position = position; }
 	const XMFLOAT3& GetPosition() const { return _position; }
+
+	void SetIKRotation(const XMMATRIX& rotation) { _ikRotation = rotation; }
+	const XMMATRIX& GetIKRotation() const { return _ikRotation; }
 
 	void AddMotionKey(unsigned int& frameNo, XMFLOAT4& quaternion, XMFLOAT3& offset, XMFLOAT2& p1, XMFLOAT2& p2);
 	void AddIKkey(unsigned int& frameNo, bool& enable);
@@ -82,6 +87,7 @@ public:
 	void UpdateGlobalTransform();
 
 	void AnimateMotion(unsigned int frameNo);
+	void AnimateIK(unsigned int frameNo);
 
 private:
 	float GetYFromXOnBezier(float x, const DirectX::XMFLOAT2& a, const DirectX::XMFLOAT2& b, uint8_t n);
@@ -102,6 +108,8 @@ private:
 
 	XMFLOAT3 _animatePosition;
 	XMMATRIX _animateRotation;
+
+	XMMATRIX _ikRotation;
 
 	XMMATRIX _inverseInitTransform;
 	XMMATRIX _localTransform;

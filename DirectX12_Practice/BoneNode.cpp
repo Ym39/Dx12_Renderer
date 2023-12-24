@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "IKSolver.h"
+
 constexpr float epsilon = 0.0005f;
 
 BoneNode::BoneNode(unsigned int index, const PMXBone& pmxBone) :
@@ -19,8 +21,14 @@ _animatePosition(XMFLOAT3(0.f, 0.f, 0.f)),
 _animateRotation(XMMatrixIdentity()),
 _inverseInitTransform(XMMatrixTranslation(-pmxBone.position.x, -pmxBone.position.y, -pmxBone.position.z)),
 _localTransform(XMMatrixIdentity()),
-_globalTransform(XMMatrixIdentity())
+_globalTransform(XMMatrixIdentity()),
+_ikSolver(nullptr)
 {
+}
+
+void BoneNode::SetIKSolver(IKSolver* ikSolver)
+{
+	_ikSolver = ikSolver;
 }
 
 
@@ -61,7 +69,16 @@ unsigned int BoneNode::GetMaxFrameNo() const
 
 void BoneNode::UpdateLocalTransform()
 {
-	_localTransform = _animateRotation * XMMatrixTranslationFromVector(XMLoadFloat3(&_animatePosition) + XMLoadFloat3(&_position));
+	XMMATRIX scale = XMMatrixIdentity();
+	XMMATRIX rotation = _animateRotation;
+	XMMATRIX translate = XMMatrixTranslationFromVector(XMLoadFloat3(&_animatePosition) + XMLoadFloat3(&_position));
+
+	if (_enableIK == true)
+	{
+		rotation = rotation * _ikRotation;
+	}
+
+	_localTransform = scale * rotation * translate;
 }
 
 void BoneNode::UpdateGlobalTransform()
@@ -119,6 +136,27 @@ void BoneNode::AnimateMotion(unsigned frameNo)
 	{
 		_animateRotation = XMMatrixRotationQuaternion(rit->quaternion);
 	}
+}
+
+void BoneNode::AnimateIK(unsigned frameNo)
+{
+	if (_motionKeys.size() <= 0 || _ikSolver == nullptr)
+	{
+		return;
+	}
+
+	auto rit = std::find_if(_ikKeys.rbegin(), _ikKeys.rend(),
+		[frameNo](const VMDIKkey& key)
+		{
+			return key.frameNo <= frameNo;
+		});
+
+	if (rit == _ikKeys.rend())
+	{
+		return;
+	}
+
+	_ikSolver->SetEnable(rit->enable);
 }
 
 float BoneNode::GetYFromXOnBezier(float x, const DirectX::XMFLOAT2& a, const DirectX::XMFLOAT2& b, uint8_t n)
