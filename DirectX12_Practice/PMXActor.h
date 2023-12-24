@@ -16,17 +16,6 @@
 
 using namespace DirectX;
 
-struct VMDIKkey
-{
-	unsigned int frameNo;
-	bool enable;
-
-	VMDIKkey(unsigned int frameNo, bool enable):
-	frameNo(frameNo),
-	enable(enable)
-	{}
-};
-
 struct UploadVertex
 {
 	XMFLOAT3 position;
@@ -61,10 +50,6 @@ private:
 	void LoadVertexData(const std::vector<PMXVertex>& vertices);
 
 	void InitAnimation(VMDFileData& vmdFileData);
-	void InitBoneNode(const std::vector<PMXBone>& bones);
-	void InitIK(const std::vector<PMXBone>& bones);
-	float GetYFromXOnBezier(float x, const DirectX::XMFLOAT2& a, const DirectX::XMFLOAT2& b, uint8_t n);
-	void RecursiveMatrixMultiply(BoneNodeLegacy* node, const DirectX::XMMATRIX& mat);
 
 	void InitParallelVertexSkinningSetting();
 
@@ -121,15 +106,7 @@ private:
 		XMFLOAT3 ambient;
 	};
 
-	std::unordered_map<std::wstring, std::vector<VMDKey>> _animationKeyMap;
 	unsigned int _duration;
-	std::unordered_map<std::wstring, std::vector<VMDIKkey>> _ikKeyMap;
-
-	std::vector<std::wstring> _boneNodeNames;
-	std::vector<BoneNodeLegacy*> _boneNodeByIdx;
-	std::unordered_map<std::wstring, BoneNodeLegacy> _boneNodeByName;
-
-	std::vector<IKSolver> _ikSolvers;
 
 	DWORD _startTime = 0;
 

@@ -12,8 +12,6 @@ void NodeManager::Init(const std::vector<PMXBone>& bones)
 		_boneNodeByIdx[index] = new BoneNode(index, currentBoneData);
 		_boneNodeByName[_boneNodeByIdx[index]->GetName()] = _boneNodeByIdx[index];
 		_sortedNodes[index] = _boneNodeByIdx[index];
-
-		_duration = std::max(_duration, _boneNodeByIdx[index]->GetMaxFrameNo());
 	}
 
 	for (int index = 0; index < _boneNodeByIdx.size(); index++)
@@ -29,6 +27,50 @@ void NodeManager::Init(const std::vector<PMXBone>& bones)
 		}
 
 		currentBoneNode->SetParentBoneNode(_boneNodeByIdx[currentBoneNode->GetParentBoneIndex()]);
+
+		//IK Solver Setting
+		const PMXBone& currentPmxBone = bones[index];
+		if (((uint16_t)currentPmxBone.boneFlag & (uint16_t)PMXBoneFlags::IK) == false)
+		{
+			continue;
+		}
+
+		if (currentPmxBone.ikTargetBoneIndex < 0 || currentPmxBone.ikTargetBoneIndex >= _boneNodeByIdx.size())
+		{
+			continue;
+		}
+
+		BoneNode* targetNode = _boneNodeByIdx[currentPmxBone.ikTargetBoneIndex];
+		unsigned int iterationCount = currentPmxBone.ikIterationCount;
+		float limitAngle = currentPmxBone.ikLimit;
+
+		_ikSolvers.emplace_back(currentBoneNode, targetNode, iterationCount, limitAngle);
+
+		IKSolver& solver = _ikSolvers[_ikSolvers.size() - 1];
+
+		for (const PMXIKLink& ikLink : currentPmxBone.ikLinks)
+		{
+			if (ikLink.ikBoneIndex < 0 || ikLink.ikBoneIndex >= _boneNodeByIdx.size())
+			{
+				continue;
+			}
+
+			BoneNode* linkNode = _boneNodeByIdx[ikLink.ikBoneIndex];
+			if (ikLink.enableLimit == true)
+			{
+				solver.AddIKChain(linkNode, ikLink.enableLimit, ikLink.limitMin, ikLink.limitMax);
+			}
+			else
+			{
+				solver.AddIKChain(
+					linkNode, 
+					ikLink.enableLimit,
+					XMFLOAT3(0.5f, 0.f, 0.f),
+					XMFLOAT3(180.f, 0.f, 0.f));
+			}
+			linkNode->SetIKEnable(true);
+		}
+		currentBoneNode->SetIKSolver(&solver);
 	}
 
 	for (int index = 0; index < _boneNodeByIdx.size(); index++)
@@ -56,12 +98,13 @@ void NodeManager::Init(const std::vector<PMXBone>& bones)
 	});
 }
 
-void NodeManager::SortMotionKey()
+void NodeManager::SortKey()
 {
 	for (int index = 0; index < _boneNodeByIdx.size(); index++)
 	{
 		BoneNode* currentBoneNode = _boneNodeByIdx[index];
 		currentBoneNode->SortAllKeys();
+		_duration = std::max(_duration, currentBoneNode->GetMaxFrameNo());
 	}
 }
 
@@ -94,9 +137,9 @@ void NodeManager::UpdateAnimation(unsigned int frameNo)
 		curNode->UpdateLocalTransform();
 	}
 
-	for (BoneNode* curNode : _boneNodeByIdx)
+	if (_boneNodeByIdx.size() > 0)
 	{
-		curNode->UpdateGlobalTransform();
+		_boneNodeByIdx[0]->UpdateGlobalTransform();
 	}
 }
 
