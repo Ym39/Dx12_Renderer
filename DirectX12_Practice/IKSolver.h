@@ -5,6 +5,13 @@
 #include "BoneNode.h"
 #include "PmxFileData.h"
 
+enum class SolveAxis
+{
+	X,
+	Y,
+	Z
+};
+
 class IKSolver;
 struct IKChain
 {
@@ -29,14 +36,7 @@ struct IKChain
 class IKSolver
 {
 public:
-	IKSolver(BoneNode* node, BoneNode* targetNode, unsigned int iterationCount, float limitAngle):
-	_ikNode(node),
-	_targetNode(targetNode),
-	_ikIterationCount(iterationCount),
-	_ikLimitAngle(limitAngle),
-	_enable(true)
-	{
-	}
+	IKSolver(BoneNode* node, BoneNode* targetNode, unsigned int iterationCount, float limitAngle);
 
 	void Solve();
 
@@ -60,6 +60,10 @@ public:
 
 private:
 	void SolveCore(unsigned int iteration);
+	void SolvePlane(unsigned int iteration, unsigned int chainIndex, SolveAxis solveAxis);
+	XMFLOAT3 Decompose(const XMMATRIX& m, const XMFLOAT3& before);
+	float NormalizeAngle(float angle);
+	float DiffAngle(float a, float b);
 
 private:
 	bool _enable;

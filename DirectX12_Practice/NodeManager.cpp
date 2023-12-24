@@ -44,9 +44,9 @@ void NodeManager::Init(const std::vector<PMXBone>& bones)
 		unsigned int iterationCount = currentPmxBone.ikIterationCount;
 		float limitAngle = currentPmxBone.ikLimit;
 
-		_ikSolvers.emplace_back(currentBoneNode, targetNode, iterationCount, limitAngle);
+		_ikSolvers.push_back(new IKSolver(currentBoneNode, targetNode, iterationCount, limitAngle));
 
-		IKSolver& solver = _ikSolvers[_ikSolvers.size() - 1];
+		IKSolver* solver = _ikSolvers[_ikSolvers.size() - 1];
 
 		for (const PMXIKLink& ikLink : currentPmxBone.ikLinks)
 		{
@@ -58,11 +58,11 @@ void NodeManager::Init(const std::vector<PMXBone>& bones)
 			BoneNode* linkNode = _boneNodeByIdx[ikLink.ikBoneIndex];
 			if (ikLink.enableLimit == true)
 			{
-				solver.AddIKChain(linkNode, ikLink.enableLimit, ikLink.limitMin, ikLink.limitMax);
+				solver->AddIKChain(linkNode, ikLink.enableLimit, ikLink.limitMin, ikLink.limitMax);
 			}
 			else
 			{
-				solver.AddIKChain(
+				solver->AddIKChain(
 					linkNode, 
 					ikLink.enableLimit,
 					XMFLOAT3(0.5f, 0.f, 0.f),
@@ -70,7 +70,7 @@ void NodeManager::Init(const std::vector<PMXBone>& bones)
 			}
 			linkNode->SetIKEnable(true);
 		}
-		currentBoneNode->SetIKSolver(&solver);
+		currentBoneNode->SetIKSolver(solver);
 	}
 
 	for (int index = 0; index < _boneNodeByIdx.size(); index++)
@@ -134,12 +134,23 @@ void NodeManager::UpdateAnimation(unsigned int frameNo)
 	for (BoneNode* curNode : _boneNodeByIdx)
 	{
 		curNode->AnimateMotion(frameNo);
+		curNode->AnimateIK(frameNo);
 		curNode->UpdateLocalTransform();
 	}
 
 	if (_boneNodeByIdx.size() > 0)
 	{
 		_boneNodeByIdx[0]->UpdateGlobalTransform();
+	}
+
+	for (BoneNode* curNode : _sortedNodes)
+	{
+		IKSolver* curSolver = curNode->GetIKSolver();
+		if (curSolver != nullptr)
+		{
+			curSolver->Solve();
+			curNode->UpdateGlobalTransform();
+		}
 	}
 }
 
