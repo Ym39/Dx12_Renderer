@@ -46,7 +46,6 @@ public:
 	unsigned int GetParentBoneIndex() const { return _parentBoneIndex; }
 	unsigned int GetDeformDepth() const { return _deformDepth; }
 	unsigned int GetAppendBoneIndex() const { return _appendBoneIndex; }
-	float GetAppendWeight() const { return _appendWeight; }
 	unsigned int GetIKTargetBoneIndex() const { return _ikTargetBoneIndex; }
 
 	bool GetIKEnable() const { return _enableIK; }
@@ -70,6 +69,7 @@ public:
 	const XMMATRIX& GetGlobalTransform() const { return _globalTransform; }
 
 	const XMMATRIX& GetAnimateRotation() const { return _animateRotation; }
+	const XMFLOAT3& GetAnimatePosition() const { return _animatePosition; }
 
 	void SetPosition(const XMFLOAT3& position) { _position = position; }
 	const XMFLOAT3& GetPosition() const { return _position; }
@@ -81,7 +81,19 @@ public:
 	void AddIKkey(unsigned int& frameNo, bool& enable);
 	void SortAllKeys();
 
+	void SetEnableAppendRotate(bool enable) { _isAppendRotate = enable; }
+	void SetEnableAppendTranslate(bool enable) { _isAppendTranslate = enable; }
+	void SetEnableAppendLocal(bool enable) { _isAppendLocal = enable; }
+	void SetAppendWeight(float weight) { _appendWeight = weight; }
+	float GetAppendWeight() const { return _appendWeight; }
+	void SetAppendBoneNode(BoneNode* node) { _appendBoneNode = node; }
+	BoneNode* GetAppendBoneNode() const { return _appendBoneNode; }
+	const XMMATRIX& GetAppendRotation() const { return _appendRotation; }
+	const XMFLOAT3& GetAppendTranslate() const { return _appendTranslate; }
+
 	unsigned int GetMaxFrameNo() const;
+
+	void UpdateAppendTransform();
 
 	void UpdateLocalTransform();
 	void UpdateGlobalTransform();
@@ -96,11 +108,10 @@ private:
 	unsigned int _boneIndex;
 	std::wstring _name;
 	XMFLOAT3 _position;
-	unsigned int _parentBoneIndex;
+	unsigned int _parentBoneIndex = -1;
 	unsigned int _deformDepth;
 	PMXBoneFlags _boneFlag;
 	unsigned int _appendBoneIndex;
-	float _appendWeight;
 	unsigned int _ikTargetBoneIndex;
 	unsigned int _ikIterationCount;
 	float _ikLimit;
@@ -111,12 +122,21 @@ private:
 
 	XMMATRIX _ikRotation;
 
+	XMFLOAT3 _appendTranslate;
+	XMMATRIX _appendRotation;
+
 	XMMATRIX _inverseInitTransform;
 	XMMATRIX _localTransform;
 	XMMATRIX _globalTransform;
 
 	BoneNode* _parentBoneNode = nullptr;
 	std::vector<BoneNode*> _childrenNodes;
+
+	bool _isAppendRotate = false;
+	bool _isAppendTranslate = false;
+	bool _isAppendLocal = false;
+	float _appendWeight = 0.f;
+	BoneNode* _appendBoneNode = nullptr;
 
 	std::vector<VMDKey> _motionKeys;
 	std::vector<VMDIKkey> _ikKeys;

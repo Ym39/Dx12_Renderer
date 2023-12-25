@@ -75,6 +75,18 @@
     <ClCompile Include="UnicodeUtil.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="IKSolver.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="BoneNode.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="NodeManager.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="MathUtil.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="peraPixel.hlsl">
@@ -169,6 +181,18 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="PMDActor.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="IKSolver.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="BoneNode.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="NodeManager.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="MathUtil.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

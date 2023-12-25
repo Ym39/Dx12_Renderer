@@ -22,7 +22,9 @@ _animateRotation(XMMatrixIdentity()),
 _inverseInitTransform(XMMatrixTranslation(-pmxBone.position.x, -pmxBone.position.y, -pmxBone.position.z)),
 _localTransform(XMMatrixIdentity()),
 _globalTransform(XMMatrixIdentity()),
-_ikSolver(nullptr)
+_ikSolver(nullptr),
+_appendTranslate(XMFLOAT3(0.f, 0.f, 0.f)),
+_appendRotation(XMMatrixIdentity())
 {
 }
 
@@ -67,16 +69,90 @@ unsigned int BoneNode::GetMaxFrameNo() const
 	return _motionKeys[_motionKeys.size() - 1].frameNo;
 }
 
+void BoneNode::UpdateAppendTransform()
+{
+	if (_appendBoneNode == nullptr)
+	{
+		return;
+	}
+
+	XMMATRIX appendRotation;
+	if (_isAppendRotate == true)
+	{
+		if (_isAppendLocal == true)
+		{
+			appendRotation = _appendBoneNode->GetAnimateRotation();
+		}
+		else
+		{
+			if (_appendBoneNode->GetAppendBoneNode() == nullptr)
+			{
+				appendRotation = _appendBoneNode->GetAnimateRotation();
+			}
+			else
+			{
+				appendRotation = _appendBoneNode->GetAppendRotation();
+			}
+		}
+
+		if (_appendBoneNode->GetIKEnable() == true)
+		{
+			appendRotation = appendRotation * _appendBoneNode->GetIKRotation();
+		}
+
+		XMVECTOR appendRotationQuaternion = XMQuaternionRotationMatrix(appendRotation);
+		appendRotationQuaternion = XMQuaternionSlerp(XMQuaternionIdentity(), appendRotationQuaternion, _appendWeight);
+
+		_appendRotation = XMMatrixRotationQuaternion(appendRotationQuaternion);
+	}
+
+	XMVECTOR appendTranslate = XMVectorZero();
+	if (_isAppendTranslate == true)
+	{
+		if (_isAppendLocal == true)
+		{
+			appendTranslate = XMLoadFloat3(&_appendBoneNode->GetAnimatePosition());
+		}
+		else
+		{
+			if (_appendBoneNode->GetAppendBoneNode() == nullptr)
+			{
+				appendTranslate = XMLoadFloat3(&_appendBoneNode->GetAnimatePosition());
+			}
+			else
+			{
+				appendTranslate = XMLoadFloat3(&_appendBoneNode->GetAppendTranslate());
+			}
+		}
+
+		XMStoreFloat3(&_appendTranslate, appendTranslate);
+	}
+
+	UpdateLocalTransform();
+}
+
 void BoneNode::UpdateLocalTransform()
 {
 	XMMATRIX scale = XMMatrixIdentity();
-	XMMATRIX rotation = _animateRotation;
-	XMMATRIX translate = XMMatrixTranslationFromVector(XMLoadFloat3(&_animatePosition) + XMLoadFloat3(&_position));
 
+	XMMATRIX rotation = _animateRotation;
 	if (_enableIK == true)
 	{
 		rotation = rotation * _ikRotation;
 	}
+
+	if (_isAppendRotate == true)
+	{
+		rotation = rotation * _appendRotation;
+	}
+
+	XMVECTOR t = XMLoadFloat3(&_animatePosition) + XMLoadFloat3(&_position);
+	if (_isAppendTranslate == true)
+	{
+		t += XMLoadFloat3(&_appendTranslate);
+	}
+
+	XMMATRIX translate = XMMatrixTranslationFromVector(t);
 
 	_localTransform = scale * rotation * translate;
 }

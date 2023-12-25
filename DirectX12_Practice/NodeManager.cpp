@@ -16,61 +16,69 @@ void NodeManager::Init(const std::vector<PMXBone>& bones)
 
 	for (int index = 0; index < _boneNodeByIdx.size(); index++)
 	{
+		//Parent Bone Set
 		BoneNode* currentBoneNode = _boneNodeByIdx[index];
 
 		unsigned int parentBoneIndex = currentBoneNode->GetParentBoneIndex();
-		if (parentBoneIndex == 65535 ||
-			_boneNodeByIdx.size() <= parentBoneIndex || 
-			parentBoneIndex < 0)
+		if (parentBoneIndex != 65535 && _boneNodeByIdx.size() > parentBoneIndex)
 		{
-			continue;
+			currentBoneNode->SetParentBoneNode(_boneNodeByIdx[currentBoneNode->GetParentBoneIndex()]);
 		}
 
-		currentBoneNode->SetParentBoneNode(_boneNodeByIdx[currentBoneNode->GetParentBoneIndex()]);
+		const PMXBone& currentPmxBone = bones[index];
+
+		//Append Bone Setting
+		bool appendRotate = (uint16_t)currentPmxBone.boneFlag & (uint16_t)PMXBoneFlags::AppendRotate;
+		bool appendTranslate = (uint16_t)currentPmxBone.boneFlag & (uint16_t)PMXBoneFlags::AppendTranslate;
+		currentBoneNode->SetEnableAppendRotate(appendRotate);
+		currentBoneNode->SetEnableAppendTranslate(appendTranslate);
+		if ((appendRotate || appendTranslate) && currentPmxBone.appendBoneIndex < _boneNodeByIdx.size())
+		{
+			if (index > currentPmxBone.appendBoneIndex)
+			{
+				bool appendLocal = (uint16_t)currentPmxBone.boneFlag & (uint16_t)PMXBoneFlags::AppendLocal;
+				BoneNode* appendBoneNode = _boneNodeByIdx[currentPmxBone.appendBoneIndex];
+				currentBoneNode->SetEnableAppendLocal(appendLocal);
+				currentBoneNode->SetAppendBoneNode(appendBoneNode);
+				currentBoneNode->SetAppendWeight(currentPmxBone.appendWeight);
+			}
+		}
 
 		//IK Solver Setting
-		const PMXBone& currentPmxBone = bones[index];
-		if (((uint16_t)currentPmxBone.boneFlag & (uint16_t)PMXBoneFlags::IK) == false)
+		if (((uint16_t)currentPmxBone.boneFlag & (uint16_t)PMXBoneFlags::IK) && currentPmxBone.ikTargetBoneIndex < _boneNodeByIdx.size())
 		{
-			continue;
-		}
+			BoneNode* targetNode = _boneNodeByIdx[currentPmxBone.ikTargetBoneIndex];
+			unsigned int iterationCount = currentPmxBone.ikIterationCount;
+			float limitAngle = currentPmxBone.ikLimit;
 
-		if (currentPmxBone.ikTargetBoneIndex < 0 || currentPmxBone.ikTargetBoneIndex >= _boneNodeByIdx.size())
-		{
-			continue;
-		}
+			_ikSolvers.push_back(new IKSolver(currentBoneNode, targetNode, iterationCount, limitAngle));
 
-		BoneNode* targetNode = _boneNodeByIdx[currentPmxBone.ikTargetBoneIndex];
-		unsigned int iterationCount = currentPmxBone.ikIterationCount;
-		float limitAngle = currentPmxBone.ikLimit;
+			IKSolver* solver = _ikSolvers[_ikSolvers.size() - 1];
 
-		_ikSolvers.push_back(new IKSolver(currentBoneNode, targetNode, iterationCount, limitAngle));
-
-		IKSolver* solver = _ikSolvers[_ikSolvers.size() - 1];
-
-		for (const PMXIKLink& ikLink : currentPmxBone.ikLinks)
-		{
-			if (ikLink.ikBoneIndex < 0 || ikLink.ikBoneIndex >= _boneNodeByIdx.size())
+			for (const PMXIKLink& ikLink : currentPmxBone.ikLinks)
 			{
-				continue;
-			}
+				if (ikLink.ikBoneIndex < 0 || ikLink.ikBoneIndex >= _boneNodeByIdx.size())
+				{
+					continue;
+				}
 
-			BoneNode* linkNode = _boneNodeByIdx[ikLink.ikBoneIndex];
-			if (ikLink.enableLimit == true)
-			{
-				solver->AddIKChain(linkNode, ikLink.enableLimit, ikLink.limitMin, ikLink.limitMax);
+				BoneNode* linkNode = _boneNodeByIdx[ikLink.ikBoneIndex];
+				if (ikLink.enableLimit == true)
+				{
+					solver->AddIKChain(linkNode, ikLink.enableLimit, ikLink.limitMin, ikLink.limitMax);
+				}
+				else
+				{
+					solver->AddIKChain(
+						linkNode,
+						ikLink.enableLimit,
+						XMFLOAT3(0.5f, 0.f, 0.f),
+						XMFLOAT3(180.f, 0.f, 0.f));
+				}
+				linkNode->SetIKEnable(true);
 			}
-			else
-			{
-				solver->AddIKChain(
-					linkNode, 
-					ikLink.enableLimit,
-					XMFLOAT3(0.5f, 0.f, 0.f),
-					XMFLOAT3(180.f, 0.f, 0.f));
-			}
-			linkNode->SetIKEnable(true);
+			currentBoneNode->SetIKSolver(solver);
 		}
-		currentBoneNode->SetIKSolver(solver);
 	}
 
 	for (int index = 0; index < _boneNodeByIdx.size(); index++)
@@ -145,6 +153,12 @@ void NodeManager::UpdateAnimation(unsigned int frameNo)
 
 	for (BoneNode* curNode : _sortedNodes)
 	{
+		if (curNode->GetAppendBoneNode() != nullptr)
+		{
+			curNode->UpdateAppendTransform();
+			curNode->UpdateGlobalTransform();
+		}
+
 		IKSolver* curSolver = curNode->GetIKSolver();
 		if (curSolver != nullptr)
 		{
