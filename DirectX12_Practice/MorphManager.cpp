@@ -202,8 +202,9 @@ void MorphManager::AnimateUVMorph(Morph& morph)
 		}
 
 		XMVECTOR morphUV = XMLoadFloat4(&data.uv);
+		XMVECTOR originUV = XMLoadFloat4(&_morphUV[data.vertexIndex]);
 
-		XMStoreFloat4(&_morphUV[data.vertexIndex], morphUV * morph.GetWeight());
+		XMStoreFloat4(&_morphUV[data.vertexIndex], originUV + morphUV * morph.GetWeight());
 	}
 }
 
