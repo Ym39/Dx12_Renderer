@@ -13,8 +13,10 @@
 #include "IKSolver.h"
 #include "VMDFileData.h"
 #include "NodeManager.h"
+#include "MorphManager.h"
 
 using namespace DirectX;
+
 
 struct UploadVertex
 {
@@ -28,6 +30,9 @@ struct SkinningRange
 	unsigned int startIndex;
 	unsigned int vertexCount;
 };
+
+class NodeManager;
+class MorphManager;
 
 class Dx12Wrapper;
 class PMXActor
@@ -53,8 +58,6 @@ private:
 
 	void InitParallelVertexSkinningSetting();
 
-	void UpdateAnimationIK(unsigned int frameNo);
-
 	void VertexSkinning();
 	void VertexSkinningByRange(const SkinningRange& range);
 
@@ -66,6 +69,7 @@ private:
 	VMDFileData _vmdFileData;
 
 	NodeManager _nodeManager;
+	MorphManager _morphManager;
 
 	ComPtr<ID3D12Resource> _vb = nullptr;
 	ComPtr<ID3D12Resource> _ib = nullptr;

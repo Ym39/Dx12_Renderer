@@ -1,6 +1,10 @@
 #include "NodeManager.h"
 #include <algorithm>
 
+NodeManager::NodeManager()
+{
+}
+
 void NodeManager::Init(const std::vector<PMXBone>& bones)
 {
 	_boneNodeByIdx.resize(bones.size());
@@ -165,6 +169,21 @@ void NodeManager::UpdateAnimation(unsigned int frameNo)
 			curSolver->Solve();
 			curNode->UpdateGlobalTransform();
 		}
+	}
+}
+
+void NodeManager::Dispose()
+{
+	for (BoneNode* boneNode : _sortedNodes)
+	{
+		delete boneNode;
+		boneNode = nullptr;
+	}
+
+	for (IKSolver* ikSolver : _ikSolvers)
+	{
+		delete ikSolver;
+		ikSolver = nullptr;
 	}
 }
 
