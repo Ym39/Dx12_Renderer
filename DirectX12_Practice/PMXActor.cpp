@@ -1,10 +1,11 @@
 ﻿#include "PMXActor.h"
-#include <array>
-#include <bitset>
-#include <algorithm>
 #include "Dx12Wrapper.h"
 #include "PMXRenderer.h"
 #include "srtconv.h"
+
+#include <array>
+#include <bitset>
+#include <algorithm>
 #include <d3dx12.h>
 
 using namespace std;
@@ -17,6 +18,7 @@ PMXActor::PMXActor()
 
 PMXActor::~PMXActor()
 {
+	_nodeManager.Dispose();
 }
 
 void* PMXActor::Transform::operator new(size_t size) {
@@ -44,6 +46,7 @@ bool PMXActor::Initialize(const std::wstring& filePath, Dx12Wrapper& dx)
 	InitParallelVertexSkinningSetting();
 
 	_nodeManager.Init(_pmxFileData.bones);
+	_morphManager.Init(_pmxFileData.morphs, _vmdFileData.morphs, _pmxFileData.vertices.size());
 
 	InitAnimation(_vmdFileData);
 
@@ -94,9 +97,8 @@ void PMXActor::UpdateAnimation()
 		frameNo = 0;
 	}
 
+	_morphManager.Animate(frameNo);
 	_nodeManager.UpdateAnimation(frameNo);
-
-	//UpdateAnimationIK(frameNo);
 
 	VertexSkinning();
 
@@ -528,6 +530,7 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 	{
 		const PMXVertex& currentVertexData = _pmxFileData.vertices[i];
 		XMVECTOR position = XMLoadFloat3(&currentVertexData.position);
+		XMVECTOR morphPosition = XMLoadFloat3(&_morphManager.GetMorphVertexPosition(i));
 
 		switch (currentVertexData.weightType)
 		{
@@ -535,6 +538,7 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 		{
 			BoneNode* bone0 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[0]);
 			XMMATRIX m0 = XMMatrixMultiply(bone0->GetInitInverseTransform(), bone0->GetGlobalTransform());
+			position += morphPosition;
 			position = XMVector3Transform(position, m0);
 			break;
 		}
@@ -550,6 +554,7 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 			XMMATRIX m1 = XMMatrixMultiply(bone1->GetInitInverseTransform(), bone1->GetGlobalTransform());
 
 			XMMATRIX mat = m0 * weight0 + m1 * weight1;
+			position += morphPosition;
 			position = XMVector3Transform(position, mat);
 			break;
 		}
@@ -571,6 +576,7 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 			XMMATRIX m3 = XMMatrixMultiply(bone3->GetInitInverseTransform(), bone3->GetGlobalTransform());
 
 			XMMATRIX mat = m0 * weight0 + m1 * weight1 + m2 * weight2 + m3 * weight3;
+			position += morphPosition;
 			position = XMVector3Transform(position, mat);
 			break;
 		}
@@ -601,6 +607,8 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 
 			XMMATRIX rotation = XMMatrixRotationQuaternion(XMQuaternionSlerp(q0, q1, w1));
 
+			position += morphPosition;
+
 			position = XMVector3Transform(position - sdefc, rotation) + XMVector3Transform(cr0, m0) * w0 + XMVector3Transform(cr1, m1) * w1;
 			XMVECTOR normal = XMLoadFloat3(&currentVertexData.normal);
 			normal = XMVector3Transform(normal, rotation);
@@ -611,6 +619,8 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 		{
 			BoneNode* bone0 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[0]);
 			XMMATRIX m0 = XMMatrixMultiply(bone0->GetInitInverseTransform(), bone0->GetGlobalTransform());
+			position += morphPosition;
+
 			position = XMVector3Transform(position, m0);
 
 			break;
@@ -620,6 +630,10 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 		}
 
 		XMStoreFloat3(&_uploadVertices[i].position, position);
+
+		const XMFLOAT4& morphUV = _morphManager.GetMorphUV(i);
+		const XMFLOAT2& originalUV = _uploadVertices[i].uv;
+		_uploadVertices[i].uv = XMFLOAT2(originalUV.x + morphUV.x, originalUV.y + morphUV.y);
 	}
 }
 

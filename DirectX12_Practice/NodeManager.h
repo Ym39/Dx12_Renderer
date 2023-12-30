@@ -6,7 +6,7 @@
 class NodeManager
 {
 public:
-	NodeManager() = default;
+	NodeManager();
 
 	void Init(const std::vector<PMXBone>& bones);
 	void SortKey();
@@ -15,6 +15,8 @@ public:
 	BoneNode* GetBoneNodeByName(std::wstring& name) const;
 
 	void UpdateAnimation(unsigned int frameNo);
+
+	void Dispose();
 
 private:
 	std::unordered_map<std::wstring, BoneNode*> _boneNodeByName;
