@@ -61,6 +61,9 @@ private:
 	void VertexSkinning();
 	void VertexSkinningByRange(const SkinningRange& range);
 
+	void MorphMaterial();
+	void MorphBone();
+
 private:
 	template<typename T>
 	using ComPtr = Microsoft::WRL::ComPtr<T>;
@@ -96,11 +99,11 @@ private:
 
 	Transform _transform;
 	DirectX::XMMATRIX* _mappedMatrices;
-	DirectX::XMMATRIX* _mappedLocalMatrices;
 	ComPtr<ID3D12Resource> _transformBuff = nullptr;
 
 	ComPtr<ID3D12Resource> _materialBuff = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _materialHeap = nullptr;
+	char* _mappedMaterial = nullptr;
 
 	struct MaterialForShader
 	{

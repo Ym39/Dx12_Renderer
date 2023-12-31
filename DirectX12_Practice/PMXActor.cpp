@@ -2,6 +2,7 @@
 #include "Dx12Wrapper.h"
 #include "PMXRenderer.h"
 #include "srtconv.h"
+#include "MathUtil.h"
 
 #include <array>
 #include <bitset>
@@ -46,7 +47,7 @@ bool PMXActor::Initialize(const std::wstring& filePath, Dx12Wrapper& dx)
 	InitParallelVertexSkinningSetting();
 
 	_nodeManager.Init(_pmxFileData.bones);
-	_morphManager.Init(_pmxFileData.morphs, _vmdFileData.morphs, _pmxFileData.vertices.size());
+	_morphManager.Init(_pmxFileData.morphs, _vmdFileData.morphs, _pmxFileData.vertices.size(), _pmxFileData.materials.size(), _pmxFileData.bones.size());
 
 	InitAnimation(_vmdFileData);
 
@@ -97,8 +98,13 @@ void PMXActor::UpdateAnimation()
 		frameNo = 0;
 	}
 
+	_nodeManager.BeforeUpdateAnimation();
+
 	_morphManager.Animate(frameNo);
 	_nodeManager.UpdateAnimation(frameNo);
+
+	MorphMaterial();
+	MorphBone();
 
 	VertexSkinning();
 
@@ -324,27 +330,27 @@ HRESULT PMXActor::CreateMaterialData(Dx12Wrapper& dx)
 		return result;
 	}
 
-	char* mapMaterial = nullptr;
-
-	result = _materialBuff->Map(0, nullptr, (void**)&mapMaterial);
+	result = _materialBuff->Map(0, nullptr, (void**)&_mappedMaterial);
 	if (FAILED(result))
 	{
 		assert(SUCCEEDED(result));
 		return result;
 	}
 
+	char* mappedMaterialPtr = _mappedMaterial;
+
 	for (const auto& material : _pmxFileData.materials)
 	{
-		MaterialForShader* uploadMat = reinterpret_cast<MaterialForShader*>(mapMaterial);
+		MaterialForShader* uploadMat = reinterpret_cast<MaterialForShader*>(mappedMaterialPtr);
 		uploadMat->diffuse = material.diffuse;
 		uploadMat->specular = material.specular;
 		uploadMat->specularPower = material.specularPower;
 		uploadMat->ambient = material.ambient;
 
-		mapMaterial += materialBufferSize;
+		mappedMaterialPtr += materialBufferSize;
 	}
 
-	_materialBuff->Unmap(0, nullptr);
+	//_materialBuff->Unmap(0, nullptr);
 
 	return S_OK;
 }
@@ -634,6 +640,74 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 		const XMFLOAT4& morphUV = _morphManager.GetMorphUV(i);
 		const XMFLOAT2& originalUV = _uploadVertices[i].uv;
 		_uploadVertices[i].uv = XMFLOAT2(originalUV.x + morphUV.x, originalUV.y + morphUV.y);
+	}
+}
+
+void PMXActor::MorphMaterial()
+{
+	size_t bufferSize = sizeof(MaterialForShader);
+	bufferSize = (bufferSize + 0xff) & ~0xff;
+
+	char* mappedMaterialPtr = _mappedMaterial;
+
+	for (int i = 0; i < _pmxFileData.materials.size(); i++)
+	{
+		PMXMaterial& material = _pmxFileData.materials[i];
+
+		MaterialForShader* uploadMat = reinterpret_cast<MaterialForShader*>(mappedMaterialPtr);
+
+		XMVECTOR diffuse = XMLoadFloat4(&material.diffuse);
+		XMVECTOR specular = XMLoadFloat3(&material.specular);
+		XMVECTOR ambient = XMLoadFloat3(&material.ambient);
+
+		const MaterialMorphData& morphMaterial = _morphManager.GetMorphMaterial(i);
+		float weight = morphMaterial.weight;
+
+		XMFLOAT4 resultDiffuse;
+		XMFLOAT3 resultSpecular;
+		XMFLOAT3 resultAmbient;
+
+		if (morphMaterial.opType == PMXMorph::MaterialMorph::OpType::Add)
+		{
+			XMStoreFloat4(&resultDiffuse, diffuse + XMLoadFloat4(&morphMaterial.diffuse) * weight);
+			XMStoreFloat3(&resultSpecular, specular + XMLoadFloat3(&morphMaterial.specular) * weight);
+			XMStoreFloat3(&resultAmbient, ambient + XMLoadFloat3(&morphMaterial.ambient) * weight);
+			uploadMat->specularPower += morphMaterial.specularPower * weight;
+		}
+		else
+		{
+			XMVECTOR morphDiffuse = diffuse * XMLoadFloat4(&morphMaterial.diffuse);
+			XMVECTOR morphSpecular = specular * XMLoadFloat3(&morphMaterial.specular);
+			XMVECTOR morphAmbient = ambient * XMLoadFloat3(&morphMaterial.ambient);
+
+			XMStoreFloat4(&resultDiffuse, XMVectorLerp(diffuse, morphDiffuse, weight));
+			XMStoreFloat3(&resultSpecular, XMVectorLerp(specular, morphSpecular, weight));
+			XMStoreFloat3(&resultAmbient, XMVectorLerp(ambient, morphAmbient, weight));
+			uploadMat->specularPower = MathUtil::Lerp(material.specularPower, material.specularPower * morphMaterial.specularPower, weight);
+		}
+
+		uploadMat->diffuse = resultDiffuse;
+		uploadMat->specular = resultSpecular;
+		uploadMat->ambient = resultAmbient;
+
+		mappedMaterialPtr += bufferSize;
+	}
+}
+
+void PMXActor::MorphBone()
+{
+	const std::vector<BoneNode*>& allNodes = _nodeManager.GetAllNodes();
+
+	for (BoneNode* boneNode : allNodes)
+	{
+		BoneMorphData morph = _morphManager.GetMorphBone(boneNode->GetBoneIndex());
+		boneNode->SetMorphPosition(MathUtil::Lerp(XMFLOAT3(0.f, 0.f, 0.f), morph.position, morph.weight));
+
+		XMVECTOR animateRotation = XMQuaternionRotationMatrix(boneNode->GetAnimateRotation());
+		XMVECTOR morphRotation = XMLoadFloat4(&morph.quaternion);
+
+		animateRotation = XMQuaternionSlerp(animateRotation, morphRotation, morph.weight);
+		boneNode->SetAnimateRotation(XMMatrixRotationQuaternion(animateRotation));
 	}
 }
 

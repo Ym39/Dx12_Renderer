@@ -1,12 +1,12 @@
 #include "MorphManager.h"
+#include "MathUtil.h"
 #include <algorithm>
-#include <cmath>
 
 MorphManager::MorphManager()
 {
 }
 
-void MorphManager::Init(const std::vector<PMXMorph>& pmxMorphs, const std::vector<VMDMorph>& vmdMorphs, unsigned int vertexCount)
+void MorphManager::Init(const std::vector<PMXMorph>& pmxMorphs, const std::vector<VMDMorph>& vmdMorphs, unsigned int vertexCount, unsigned int materialCount, unsigned int boneCount)
 {
 	_morphs.resize(pmxMorphs.size());
 
@@ -102,6 +102,8 @@ void MorphManager::Init(const std::vector<PMXMorph>& pmxMorphs, const std::vecto
 
 	_morphVertexPosition.resize(vertexCount);
 	_morphUV.resize(vertexCount);
+	_morphMaterial.resize(materialCount);
+	_morphBone.resize(boneCount);
 }
 
 void MorphManager::Animate(unsigned frame)
@@ -131,7 +133,7 @@ void MorphManager::Animate(unsigned frame)
 		else
 		{
 			float t = static_cast<float>(frame - (*rit)->frame) / static_cast<float>((*iterator)->frame - (*rit)->frame);
-			morphIt->second->SetWeight(Lerp((*rit)->weight, (*iterator)->weight, t));
+			morphIt->second->SetWeight(MathUtil::Lerp((*rit)->weight, (*iterator)->weight, t));
 		}
 	}
 
@@ -151,18 +153,43 @@ const XMFLOAT4& MorphManager::GetMorphUV(unsigned index) const
 	return _morphUV[index];
 }
 
-void MorphManager::AnimateMorph(Morph& morph)
+const MaterialMorphData& MorphManager::GetMorphMaterial(unsigned index) const
+{
+	return _morphMaterial[index];
+}
+
+const BoneMorphData& MorphManager::GetMorphBone(unsigned index) const
+{
+	return _morphBone[index];
+}
+
+void MorphManager::AnimateMorph(Morph& morph, float weight)
 {
 	switch (morph.GetMorphType())
 	{
 		case MorphType::Position:
 		{
-				AnimatePositionMorph(morph);
+				AnimatePositionMorph(morph, weight);
 		}
 		break;
 		case MorphType::UV:
 		{
-			AnimateUVMorph(morph);
+			AnimateUVMorph(morph, weight);
+		}
+		break;
+		case MorphType::Material:
+		{
+			AnimateMaterialMorph(morph, weight);
+		}
+		break;
+		case MorphType::Bone:
+		{
+			AnimateBoneMorph(morph, weight);
+		}
+		break;
+		case MorphType::Group:
+		{
+			AnimateGroupMorph(morph, weight);
 		}
 		break;
 		default:
@@ -170,7 +197,7 @@ void MorphManager::AnimateMorph(Morph& morph)
 	}
 }
 
-void MorphManager::AnimatePositionMorph(Morph& morph)
+void MorphManager::AnimatePositionMorph(Morph& morph, float weight)
 {
 	const auto& vertexPositionMorph = morph.GetPositionMorphData();
 
@@ -182,7 +209,7 @@ void MorphManager::AnimatePositionMorph(Morph& morph)
 		}
 
 		XMVECTOR originPosition = XMLoadFloat3(&_morphVertexPosition[data.vertexIndex]);
-		XMVECTOR morphPosition = XMLoadFloat3(&data.position) * morph.GetWeight();
+		XMVECTOR morphPosition = XMLoadFloat3(&data.position) * morph.GetWeight() * weight;
 		XMFLOAT3 storePosition;
 		XMStoreFloat3(&storePosition, originPosition + morphPosition);
 
@@ -190,7 +217,7 @@ void MorphManager::AnimatePositionMorph(Morph& morph)
 	}
 }
 
-void MorphManager::AnimateUVMorph(Morph& morph)
+void MorphManager::AnimateUVMorph(Morph& morph, float weight)
 {
 	const auto& uvMorph = morph.GetUVMorphData();
 
@@ -204,7 +231,65 @@ void MorphManager::AnimateUVMorph(Morph& morph)
 		XMVECTOR morphUV = XMLoadFloat4(&data.uv);
 		XMVECTOR originUV = XMLoadFloat4(&_morphUV[data.vertexIndex]);
 
-		XMStoreFloat4(&_morphUV[data.vertexIndex], originUV + morphUV * morph.GetWeight());
+		XMStoreFloat4(&_morphUV[data.vertexIndex], originUV + morphUV * morph.GetWeight() * weight);
+	}
+}
+
+void MorphManager::AnimateMaterialMorph(Morph& morph, float weight)
+{
+	const auto& materialMorph = morph.GetMaterialMorphData();
+
+	for (const PMXMorph::MaterialMorph& data : materialMorph)
+	{
+		if (data.materialIndex >= _morphMaterial.size())
+		{
+			continue;
+		}
+
+		MaterialMorphData& cur = _morphMaterial[data.materialIndex];
+		cur.weight = morph.GetWeight() * weight;
+		cur.opType = data.opType;
+		cur.diffuse = data.diffuse;
+		cur.specular = data.specular;
+		cur.specularPower = data.specularPower;
+		cur.ambient = data.ambient;
+		cur.edgeColor = data.edgeColor;
+		cur.edgeSize = data.edgeSize;
+		cur.textureFactor = data.textureFactor;
+		cur.sphereTextureFactor = data.sphereTextureFactor;
+		cur.toonTextureFactor = data.toonTextureFactor;
+	}
+}
+
+void MorphManager::AnimateBoneMorph(Morph& morph, float weight)
+{
+	const auto& bornMorph = morph.GetBoneMorphData();
+
+	for (const PMXMorph::BoneMorph& data : bornMorph)
+	{
+		if (data.boneIndex >= _morphBone.size())
+		{
+			continue;
+		}
+
+		_morphBone[data.boneIndex].weight = morph.GetWeight() * weight;
+		_morphBone[data.boneIndex].position = data.position;
+		_morphBone[data.boneIndex].quaternion = data.quaternion;
+	}
+}
+
+void MorphManager::AnimateGroupMorph(Morph& morph, float weight)
+{
+	const auto& groupMorph = morph.GetGroupMorphData();
+
+	for (const PMXMorph::GroupMorph& data : groupMorph)
+	{
+		if (data.morphIndex >= _morphs.size())
+		{
+			continue;
+		}
+
+		AnimateMorph(_morphs[data.morphIndex], morph.GetWeight() * weight);
 	}
 }
 
@@ -219,9 +304,25 @@ void MorphManager::ResetMorphData()
 	{
 		uv = XMFLOAT4(0.f, 0.f, 0.f, 0.f);
 	}
-}
 
-float MorphManager::Lerp(float a, float b, float t)
-{
-	return a * (1 - t) + b * t;
+	for (MaterialMorphData material : _morphMaterial)
+	{
+		material.weight = 0.f;
+		material.diffuse = XMFLOAT4(0.f, 0.f, 0.f, 0.f);
+		material.specular = XMFLOAT3(0.f, 0.f, 0.f);
+		material.specularPower = 0.f;
+		material.ambient = XMFLOAT3(0.f, 0.f, 0.f);
+		material.edgeColor = XMFLOAT4(0.f, 0.f, 0.f, 0.f);
+		material.edgeSize = 0.f;
+		material.textureFactor = XMFLOAT4(0.f, 0.f, 0.f, 0.f);
+		material.sphereTextureFactor = XMFLOAT4(0.f, 0.f, 0.f, 0.f);
+		material.toonTextureFactor = XMFLOAT4(0.f, 0.f, 0.f, 0.f);
+	}
+
+	for (BoneMorphData bone : _morphBone)
+	{
+		bone.weight = 0.f;
+		bone.position = XMFLOAT3(0.f, 0.f, 0.f);
+		bone.quaternion = XMFLOAT4(0.f, 0.f, 0.f, 0.f);
+	}
 }

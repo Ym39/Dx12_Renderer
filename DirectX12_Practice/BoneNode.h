@@ -68,6 +68,7 @@ public:
 	const XMMATRIX& GetLocalTransform() const { return _localTransform; }
 	const XMMATRIX& GetGlobalTransform() const { return _globalTransform; }
 
+	void SetAnimateRotation(const XMMATRIX& rotation) { _animateRotation = rotation; }
 	const XMMATRIX& GetAnimateRotation() const { return _animateRotation; }
 	const XMFLOAT3& GetAnimatePosition() const { return _animatePosition; }
 
@@ -76,6 +77,9 @@ public:
 
 	void SetIKRotation(const XMMATRIX& rotation) { _ikRotation = rotation; }
 	const XMMATRIX& GetIKRotation() const { return _ikRotation; }
+
+	void SetMorphPosition(const XMFLOAT3& position) { _morphPosition = position; }
+	void SetMorphRotation(const XMMATRIX& rotation) { _morphRotation = rotation; }
 
 	void AddMotionKey(unsigned int& frameNo, XMFLOAT4& quaternion, XMFLOAT3& offset, XMFLOAT2& p1, XMFLOAT2& p2);
 	void AddIKkey(unsigned int& frameNo, bool& enable);
@@ -119,6 +123,9 @@ private:
 
 	XMFLOAT3 _animatePosition;
 	XMMATRIX _animateRotation;
+
+	XMFLOAT3 _morphPosition;
+	XMMATRIX _morphRotation;
 
 	XMMATRIX _ikRotation;
 

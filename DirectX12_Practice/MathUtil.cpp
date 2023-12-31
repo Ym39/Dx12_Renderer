@@ -42,4 +42,14 @@ namespace MathUtil
 	{
 		return XMFLOAT3(a.x + b.x, a.y + b.y, a.z + b.z);
 	}
+
+	float Lerp(float a, float b, float t)
+	{
+		return a * (1 - t) + b * t;
+	}
+
+	XMFLOAT3 Lerp(XMFLOAT3 a, XMFLOAT3 b, float t)
+	{
+		return {Lerp(a.x, b.x, t), Lerp(a.y, b.y, t), Lerp(a.z, b.z, t)};
+	}
 }
