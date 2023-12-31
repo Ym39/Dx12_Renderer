@@ -141,6 +141,15 @@ BoneNode* NodeManager::GetBoneNodeByName(std::wstring& name) const
 	return it->second;
 }
 
+void NodeManager::BeforeUpdateAnimation()
+{
+	for (BoneNode* curNode : _boneNodeByIdx)
+	{
+		curNode->SetMorphPosition(XMFLOAT3(0.f, 0.f, 0.f));
+		curNode->SetMorphRotation(XMMatrixIdentity());
+	}
+}
+
 void NodeManager::UpdateAnimation(unsigned int frameNo)
 {
 	for (BoneNode* curNode : _boneNodeByIdx)

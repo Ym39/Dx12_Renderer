@@ -14,4 +14,8 @@ namespace MathUtil
 	XMFLOAT3 Sub(XMFLOAT3& a, XMFLOAT3& b);
 
 	XMFLOAT3 Add(XMFLOAT3& a, XMFLOAT3& b);
+
+	float Lerp(float a, float b, float t);
+
+	XMFLOAT3 Lerp(XMFLOAT3 a, XMFLOAT3 b, float t);
 }

@@ -146,7 +146,7 @@ void BoneNode::UpdateLocalTransform()
 		rotation = rotation * _appendRotation;
 	}
 
-	XMVECTOR t = XMLoadFloat3(&_animatePosition) + XMLoadFloat3(&_position);
+	XMVECTOR t = XMLoadFloat3(&_animatePosition) + XMLoadFloat3(&_position) + XMLoadFloat3(&_morphPosition);
 	if (_isAppendTranslate == true)
 	{
 		t += XMLoadFloat3(&_appendTranslate);

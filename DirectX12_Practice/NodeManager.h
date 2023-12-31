@@ -14,6 +14,10 @@ public:
 	BoneNode* GetBoneNodeByIndex(int index) const;
 	BoneNode* GetBoneNodeByName(std::wstring& name) const;
 
+	const std::vector<BoneNode*>& GetAllNodes() const { return _boneNodeByIdx; }
+
+	void BeforeUpdateAnimation();
+
 	void UpdateAnimation(unsigned int frameNo);
 
 	void Dispose();
