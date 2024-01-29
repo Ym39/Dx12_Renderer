@@ -307,7 +307,7 @@ void PMXRenderer::Update()
 	for (auto& actor : _actors)
 	{
 		actor -> Update();
-		actor->UpdateAnimation();
+		actor-> UpdateAnimation();
 	}
 }
 
@@ -344,6 +344,11 @@ void PMXRenderer::Draw()
 void PMXRenderer::AddActor(std::shared_ptr<PMXActor> actor)
 {
 	_actors.push_back(actor);
+}
+
+const PMXActor* PMXRenderer::GetActor()
+{
+	return _actors[0].get();
 }
 
 ID3D12PipelineState* PMXRenderer::GetPipelineState()

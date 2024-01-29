@@ -37,6 +37,7 @@ public:
 	void Draw();
 
 	void AddActor(std::shared_ptr<PMXActor> actor);
+	const PMXActor* GetActor();
 
 	ID3D12PipelineState* GetPipelineState();
 	ID3D12RootSignature* GetRootSignature();

@@ -4,10 +4,16 @@
 #include "srtconv.h"
 #include "MathUtil.h"
 
+#include "RigidBody.h"
+#include "Joint.h"
+
 #include <array>
 #include <bitset>
 #include <algorithm>
 #include <d3dx12.h>
+#include <BulletDynamics/Dynamics/btRigidBody.h>
+
+#include "Time.h"
 
 using namespace std;
 
@@ -51,6 +57,8 @@ bool PMXActor::Initialize(const std::wstring& filePath, Dx12Wrapper& dx)
 
 	InitAnimation(_vmdFileData);
 
+	InitPhysics(_pmxFileData);
+
 	auto hResult = CreateVbAndIb(dx);
 	if (FAILED(hResult))
 	{
@@ -75,6 +83,8 @@ bool PMXActor::Initialize(const std::wstring& filePath, Dx12Wrapper& dx)
 		return false;
 	}
 
+	ResetPhysics();
+
 	return true;
 }
 
@@ -86,29 +96,43 @@ void PMXActor::UpdateAnimation()
 {
 	if (_startTime <= 0)
 	{
-		_startTime = timeGetTime();
+		_startTime = Time::GetTime();
 	}
 
-	DWORD elapsedTime = timeGetTime() - _startTime;
+	unsigned int elapsedTime = Time::GetTime() - _startTime;
 	unsigned int frameNo = 30 * (elapsedTime / 1000.0f);
 
 	if (frameNo > _duration)
 	{
-		_startTime = timeGetTime();
+		_startTime = Time::GetTime();
 		frameNo = 0;
 	}
+
+	Time::RecordStartAnimationUpdateTime();
 
 	_nodeManager.BeforeUpdateAnimation();
 
 	_morphManager.Animate(frameNo);
-	_nodeManager.UpdateAnimation(frameNo);
+	_nodeManager.EvaluateAnimation(frameNo);
 
+	_nodeManager.UpdateAnimation();
+
+	UpdatePhysicsAnimation(elapsedTime);
+
+	_nodeManager.UpdateAnimationAfterPhysics();
+
+	Time::EndAnimationUpdate();
+
+
+	Time::RecordStartMorphUpdateTime();
 	MorphMaterial();
 	MorphBone();
+	Time::EndMorphUpdate();
 
+	Time::RecordStartSkinningUpdateTime();
 	VertexSkinning();
-
 	std::copy(_uploadVertices.begin(), _uploadVertices.end(), _mappedVertex);
+	Time::EndSkinningUpdate();
 }
 
 void PMXActor::Draw(Dx12Wrapper& dx, bool isShadow = false)
@@ -485,6 +509,77 @@ void PMXActor::InitAnimation(VMDFileData& vmdFileData)
 	}
 
 	_nodeManager.SortKey();
+
+	_nodeManager.InitAnimation();
+}
+
+void PMXActor::InitPhysics(const PMXFileData& pmxFileData)
+{
+	PhysicsManager::ActivePhysics(false);
+
+	for (const PMXRigidBody& pmxRigidBody : pmxFileData.rigidBodies)
+	{
+		RigidBody* rigidBody = new RigidBody();
+		_rigidBodies.emplace_back(std::move(rigidBody));
+
+		BoneNode* boneNode = nullptr;
+		if (pmxRigidBody.boneIndex != -1)
+		{
+			boneNode = _nodeManager.GetBoneNodeByIndex(pmxRigidBody.boneIndex);
+		}
+
+		if (rigidBody->Init(pmxRigidBody, &_nodeManager, boneNode) == false)
+		{
+			OutputDebugStringA("Create Rigid Body Fail");
+			continue;
+		}
+		PhysicsManager::AddRigidBody(rigidBody);
+	}
+
+	for (const PMXJoint& pmxJoint : pmxFileData.joints)
+	{
+		if (pmxJoint.rigidBodyAIndex != -1 &&
+			pmxJoint.rigidBodyBIndex != -1 &&
+			pmxJoint.rigidBodyAIndex != pmxJoint.rigidBodyBIndex)
+		{
+			Joint* joint = new Joint();
+			_joints.emplace_back(std::move(joint));
+
+			RigidBody* rigidBodyA = nullptr;
+			if (_rigidBodies.size() <= pmxJoint.rigidBodyAIndex)
+			{
+				OutputDebugStringA("Create Joint Fail");
+				continue;
+			}
+
+			rigidBodyA = _rigidBodies[pmxJoint.rigidBodyAIndex].get();
+
+			RigidBody* rigidBodyB = nullptr;
+			if (_rigidBodies.size() <= pmxJoint.rigidBodyBIndex)
+			{
+				OutputDebugStringA("Create Joint Fail");
+				continue;
+			}
+
+			rigidBodyB = _rigidBodies[pmxJoint.rigidBodyBIndex].get();
+
+			if (rigidBodyA->GetRigidBody()->isStaticOrKinematicObject() == true &&
+				rigidBodyB->GetRigidBody()->isStaticOrKinematicObject() == true)
+			{
+				int d = 0;
+			}
+
+			if (joint->CreateJoint(pmxJoint, rigidBodyA, rigidBodyB) == false)
+			{
+				OutputDebugStringA("Create Joint Fail");
+				continue;
+			}
+
+			PhysicsManager::AddJoint(joint);
+		}
+	}
+
+	PhysicsManager::ActivePhysics(true);
 }
 
 void PMXActor::InitParallelVertexSkinningSetting()
@@ -595,12 +690,19 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 			XMVECTOR sdefr0 = XMLoadFloat3(&currentVertexData.sdefR0);
 			XMVECTOR sdefr1 = XMLoadFloat3(&currentVertexData.sdefR1);
 
-			XMVECTOR rw = sdefr0 * w0 + sdefr1 * w1;
-			XMVECTOR r0 = sdefc + sdefr0 - rw;
-			XMVECTOR r1 = sdefc + sdefr1 - rw;
+				//rw = sdefr0 * w0 + sdefr1 * w1
+				//r0 = sdefc + sdefr0 - rw
+				//r1 = sdefc + sdefr1 - rw
 
-			XMVECTOR cr0 = (sdefc + r0) * 0.5f;
-			XMVECTOR cr1 = (sdefc + r1) * 0.5f;
+			XMVECTOR rw = XMVectorAdd(sdefr0 * w0, sdefr1 * w1);
+			XMVECTOR r0 = XMVectorSubtract(XMVectorAdd(sdefc, sdefr0), rw);
+			XMVECTOR r1 = XMVectorSubtract(XMVectorAdd(sdefc, sdefr1), rw);
+
+				// cr0 = (sdefc + r0) * 0.5f
+				// cr1 = (sdefc + r1) * 0.5f
+
+			XMVECTOR cr0 = XMVectorAdd(sdefc, r0) * 0.5f;
+			XMVECTOR cr1 = XMVectorAdd(sdefc, r1) * 0.5f;
 
 			BoneNode* bone0 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[0]);
 			BoneNode* bone1 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[1]);
@@ -615,7 +717,13 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 
 			position += morphPosition;
 
-			position = XMVector3Transform(position - sdefc, rotation) + XMVector3Transform(cr0, m0) * w0 + XMVector3Transform(cr1, m1) * w1;
+				// XMVector3Transform(position - sdefc, rotation) + XMVector3Transform(cr0, m0) * w0 + XMVector3Transform(cr1, m1) * w1
+
+			XMVECTOR a = XMVector3Transform(XMVectorSubtract(position, sdefc), rotation);
+			XMVECTOR b = XMVector3Transform(cr0, m0) * w0;
+			XMVECTOR c = XMVector3Transform(cr1, m1) * w1;
+
+			position = XMVectorAdd(XMVectorAdd(a, b), c);
 			XMVECTOR normal = XMLoadFloat3(&currentVertexData.normal);
 			normal = XMVector3Transform(normal, rotation);
 			XMStoreFloat3(&_uploadVertices[i].normal, normal);
@@ -663,22 +771,26 @@ void PMXActor::MorphMaterial()
 		const MaterialMorphData& morphMaterial = _morphManager.GetMorphMaterial(i);
 		float weight = morphMaterial.weight;
 
+		XMVECTOR morphDiffuse = XMLoadFloat4(&morphMaterial.diffuse);
+		XMVECTOR morphSpecular = XMLoadFloat3(&morphMaterial.specular);
+		XMVECTOR morphAmbient = XMLoadFloat3(&morphMaterial.ambient);
+
 		XMFLOAT4 resultDiffuse;
 		XMFLOAT3 resultSpecular;
 		XMFLOAT3 resultAmbient;
 
 		if (morphMaterial.opType == PMXMorph::MaterialMorph::OpType::Add)
 		{
-			XMStoreFloat4(&resultDiffuse, diffuse + XMLoadFloat4(&morphMaterial.diffuse) * weight);
-			XMStoreFloat3(&resultSpecular, specular + XMLoadFloat3(&morphMaterial.specular) * weight);
-			XMStoreFloat3(&resultAmbient, ambient + XMLoadFloat3(&morphMaterial.ambient) * weight);
+			XMStoreFloat4(&resultDiffuse, XMVectorAdd(diffuse, morphDiffuse * weight));
+			XMStoreFloat3(&resultSpecular, XMVectorAdd(specular, morphSpecular * weight));
+			XMStoreFloat3(&resultAmbient, XMVectorAdd(ambient, morphAmbient * weight));
 			uploadMat->specularPower += morphMaterial.specularPower * weight;
 		}
 		else
 		{
-			XMVECTOR morphDiffuse = diffuse * XMLoadFloat4(&morphMaterial.diffuse);
-			XMVECTOR morphSpecular = specular * XMLoadFloat3(&morphMaterial.specular);
-			XMVECTOR morphAmbient = ambient * XMLoadFloat3(&morphMaterial.ambient);
+			morphDiffuse = XMVectorMultiply(diffuse, morphDiffuse);
+			morphSpecular = XMVectorMultiply(specular, morphSpecular);
+			morphAmbient = XMVectorMultiply(ambient, morphAmbient);
 
 			XMStoreFloat4(&resultDiffuse, XMVectorLerp(diffuse, morphDiffuse, weight));
 			XMStoreFloat3(&resultSpecular, XMVectorLerp(specular, morphSpecular, weight));
@@ -708,6 +820,69 @@ void PMXActor::MorphBone()
 
 		animateRotation = XMQuaternionSlerp(animateRotation, morphRotation, morph.weight);
 		boneNode->SetAnimateRotation(XMMatrixRotationQuaternion(animateRotation));
+	}
+}
+
+void PMXActor::ResetPhysics()
+{
+	for (auto& rigidBody : _rigidBodies)
+	{
+		rigidBody->SetActive(false);
+		rigidBody->ResetTransform();
+	}
+
+	for (auto& rigidBody : _rigidBodies)
+	{
+		rigidBody->ReflectGlobalTransform();
+	}
+
+	for (auto& rigidBody : _rigidBodies)
+	{
+		rigidBody->CalcLocalTransform();
+	}
+
+	const auto& nodes = _nodeManager.GetAllNodes();
+	for (const auto& node : nodes)
+	{
+		if (node->GetParentBoneNode() == nullptr)
+		{
+			node->UpdateGlobalTransform();
+		}
+	}
+
+	btDiscreteDynamicsWorld* world = PhysicsManager::GetDynamicsWorld();
+	for (auto& rigidBody : _rigidBodies)
+	{
+		rigidBody->Reset(world);
+	}
+}
+
+void PMXActor::UpdatePhysicsAnimation(DWORD elapse)
+{
+	for (auto& rigidBody : _rigidBodies)
+	{
+		rigidBody->SetActive(true);
+	}
+
+	//_physicsManager.Update(elapse);
+
+	for (auto& rigidBody : _rigidBodies)
+	{
+		rigidBody->ReflectGlobalTransform();
+	}
+
+	for (auto& rigidBody : _rigidBodies)
+	{
+		rigidBody->CalcLocalTransform();
+	}
+
+	const auto& nodes = _nodeManager.GetAllNodes();
+	for (const auto& node : nodes)
+	{
+		if (node->GetParentBoneNode() == nullptr)
+		{
+			node->UpdateGlobalTransform();
+		}
 	}
 }
 

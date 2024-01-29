@@ -211,7 +211,7 @@ void MorphManager::AnimatePositionMorph(Morph& morph, float weight)
 		XMVECTOR originPosition = XMLoadFloat3(&_morphVertexPosition[data.vertexIndex]);
 		XMVECTOR morphPosition = XMLoadFloat3(&data.position) * morph.GetWeight() * weight;
 		XMFLOAT3 storePosition;
-		XMStoreFloat3(&storePosition, originPosition + morphPosition);
+		XMStoreFloat3(&storePosition, XMVectorAdd(originPosition, morphPosition));
 
 		_morphVertexPosition[data.vertexIndex] = storePosition;
 	}
@@ -231,7 +231,7 @@ void MorphManager::AnimateUVMorph(Morph& morph, float weight)
 		XMVECTOR morphUV = XMLoadFloat4(&data.uv);
 		XMVECTOR originUV = XMLoadFloat4(&_morphUV[data.vertexIndex]);
 
-		XMStoreFloat4(&_morphUV[data.vertexIndex], originUV + morphUV * morph.GetWeight() * weight);
+		XMStoreFloat4(&_morphUV[data.vertexIndex], XMVectorAdd(originUV, morphUV) * morph.GetWeight() * weight);
 	}
 }
 

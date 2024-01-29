@@ -66,7 +66,9 @@ public:
 
 	const XMMATRIX& GetInitInverseTransform() const { return _inverseInitTransform; }
 	const XMMATRIX& GetLocalTransform() const { return _localTransform; }
+	void SetLocalTransform(const XMMATRIX& local) { _localTransform = local; }
 	const XMMATRIX& GetGlobalTransform() const { return _globalTransform; }
+	void SetGlobalTransform(const XMMATRIX& global) { _globalTransform = global; }
 
 	void SetAnimateRotation(const XMMATRIX& rotation) { _animateRotation = rotation; }
 	const XMMATRIX& GetAnimateRotation() const { return _animateRotation; }
@@ -85,6 +87,9 @@ public:
 	void AddIKkey(unsigned int& frameNo, bool& enable);
 	void SortAllKeys();
 
+	void SetDeformAfterPhysics(bool deformAfterPhysics) { _deformAfterPhysics = deformAfterPhysics; }
+	bool GetDeformAfterPhysics() const { return _deformAfterPhysics; }
+
 	void SetEnableAppendRotate(bool enable) { _isAppendRotate = enable; }
 	void SetEnableAppendTranslate(bool enable) { _isAppendTranslate = enable; }
 	void SetEnableAppendLocal(bool enable) { _isAppendLocal = enable; }
@@ -101,6 +106,7 @@ public:
 
 	void UpdateLocalTransform();
 	void UpdateGlobalTransform();
+	void UpdateChildTransform();
 
 	void AnimateMotion(unsigned int frameNo);
 	void AnimateIK(unsigned int frameNo);
@@ -114,6 +120,7 @@ private:
 	XMFLOAT3 _position;
 	unsigned int _parentBoneIndex = -1;
 	unsigned int _deformDepth;
+	bool _deformAfterPhysics;
 	PMXBoneFlags _boneFlag;
 	unsigned int _appendBoneIndex;
 	unsigned int _ikTargetBoneIndex;

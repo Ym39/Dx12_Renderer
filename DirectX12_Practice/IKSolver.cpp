@@ -41,7 +41,7 @@ void IKSolver::Solve()
 
 		XMVECTOR targetPosition = _targetNode->GetGlobalTransform().r[3];
 		XMVECTOR ikPosition = _ikNode->GetGlobalTransform().r[3];
-		float dist = XMVector3Length(targetPosition - ikPosition).m128_f32[0];
+		float dist = XMVector3Length(XMVectorSubtract(targetPosition, ikPosition)).m128_f32[0];
 
 		if (dist < maxDistance)
 		{
