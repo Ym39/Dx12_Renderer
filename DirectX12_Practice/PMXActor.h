@@ -14,6 +14,7 @@
 #include "VMDFileData.h"
 #include "NodeManager.h"
 #include "MorphManager.h"
+#include "PhysicsManager.h"
 
 using namespace DirectX;
 
@@ -56,6 +57,8 @@ private:
 
 	void InitAnimation(VMDFileData& vmdFileData);
 
+	void InitPhysics(const PMXFileData& pmxFileData);
+
 	void InitParallelVertexSkinningSetting();
 
 	void VertexSkinning();
@@ -63,6 +66,9 @@ private:
 
 	void MorphMaterial();
 	void MorphBone();
+
+	void ResetPhysics();
+	void UpdatePhysicsAnimation(DWORD elapse);
 
 private:
 	template<typename T>
@@ -114,10 +120,12 @@ private:
 	};
 
 	unsigned int _duration;
-
-	DWORD _startTime = 0;
+	unsigned int _startTime = 0;
 
 	std::vector<SkinningRange> _skinningRanges;
 	std::vector<std::future<void>> _parallelUpdateFutures;
+
+	std::vector<std::unique_ptr<RigidBody>> _rigidBodies;
+	std::vector<std::unique_ptr<Joint>> _joints;
 };
 

@@ -18,7 +18,10 @@ public:
 
 	void BeforeUpdateAnimation();
 
-	void UpdateAnimation(unsigned int frameNo);
+	void EvaluateAnimation(unsigned int frameNo);
+	void InitAnimation();
+	void UpdateAnimation();
+	void UpdateAnimationAfterPhysics();
 
 	void Dispose();
 

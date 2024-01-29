@@ -3,6 +3,7 @@
 #include "Imgui/imgui_impl_dx12.h"
 #include "Imgui/imgui_impl_win32.h"
 #include "Dx12Wrapper.h"
+#include "Time.h"
 
 bool ImguiManager::Initialize(HWND hwnd, std::shared_ptr<Dx12Wrapper> dx)
 {
@@ -47,6 +48,15 @@ void ImguiManager::UpdateAndSetDrawData(std::shared_ptr<Dx12Wrapper> dx)
 	ImGui::SliderFloat("FOV", &mFov, pi / 6.0f, pi * 5.0f / 6.0f);
 
 	ImGui::SliderFloat3("Light Vector", mLightVector, -1.0f, 1.0f);
+
+	int fps = static_cast<int>(1 / (Time::GetDeltaTime() * 0.001f));
+
+	ImGui::LabelText("FPS", std::to_string(fps).c_str());
+	ImGui::LabelText("MS", std::to_string(Time::GetDeltaTime()).c_str());
+
+	ImGui::LabelText("Animation", std::to_string(Time::GetAnimationUpdateTime()).c_str());
+	ImGui::LabelText("Morph", std::to_string(Time::GetMorphUpdateTime()).c_str());
+	ImGui::LabelText("Skinning", std::to_string(Time::GetSkinningUpdateTime()).c_str());
 
 	ImGui::End();
 

@@ -11,6 +11,7 @@
 #include "Imgui/imgui_impl_win32.h"
 
 #include "PmxFileData.h"
+#include "Time.h"
 
 const unsigned int window_width = 1600;
 const unsigned int window_height = 800;
@@ -63,6 +64,10 @@ bool Application::Init()
 	CreateGameWindow(_hwnd, _windowClass);
 
 	_dx12.reset(new Dx12Wrapper(_hwnd));
+
+	PhysicsManager::Create();
+	PhysicsManager::ActivePhysics(true);
+
 	_pmdRenderer.reset(new PMDRenderer(*_dx12));
 
 	auto miku = std::make_shared<PMDActor>("Model/miku.pmd", *_dx12);
@@ -109,9 +114,14 @@ void Application::Run()
 	float angle = 0.0f;
 	MSG msg = {};
 	unsigned int frame = 0;
+	DWORD prevFrameTime = timeGetTime();
+	float deltaTime = 0;
+	Time::Init();
 
 	while (true)
 	{
+		Time::FrameTime();
+
 		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
 			TranslateMessage(&msg);
@@ -168,14 +178,22 @@ void Application::Run()
 
 		_dx12->Update();
 
+		const PMXActor* actor = _pmxRenderer->GetActor();
+
 		_imgui->UpdateAndSetDrawData(_dx12);
 
 		_dx12->EndDraw();
+
+		DWORD currentTime = timeGetTime();
+		deltaTime = currentTime - prevFrameTime;
+		prevFrameTime = currentTime;
 	}
 }
 
 void Application::Terminate()
 {
+	PhysicsManager::Destroy();
+
 	UnregisterClass(_windowClass.lpszClassName, _windowClass.hInstance);
 }
 

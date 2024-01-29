@@ -24,7 +24,10 @@ _localTransform(XMMatrixIdentity()),
 _globalTransform(XMMatrixIdentity()),
 _ikSolver(nullptr),
 _appendTranslate(XMFLOAT3(0.f, 0.f, 0.f)),
-_appendRotation(XMMatrixIdentity())
+_appendRotation(XMMatrixIdentity()),
+_morphPosition(XMFLOAT3(0.f, 0.f, 0.f)),
+_morphRotation(XMMatrixIdentity()),
+_ikRotation(XMMatrixIdentity())
 {
 }
 
@@ -159,11 +162,6 @@ void BoneNode::UpdateLocalTransform()
 
 void BoneNode::UpdateGlobalTransform()
 {
-	if (_boneIndex == 5)
-	{
-		int d = 0;
-	}
-
 	if (_parentBoneNode == nullptr)
 	{
 		_globalTransform = _localTransform;
@@ -173,6 +171,14 @@ void BoneNode::UpdateGlobalTransform()
 		_globalTransform = _localTransform * _parentBoneNode->GetGlobalTransform();
 	}
 
+	for (BoneNode* child : _childrenNodes)
+	{
+		child->UpdateGlobalTransform();
+	}
+}
+
+void BoneNode::UpdateChildTransform()
+{
 	for (BoneNode* child : _childrenNodes)
 	{
 		child->UpdateGlobalTransform();

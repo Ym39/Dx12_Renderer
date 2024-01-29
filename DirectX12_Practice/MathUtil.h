@@ -1,5 +1,6 @@
 #pragma once
 #include<DirectXMath.h>
+#include <LinearMath/btTransform.h>
 
 using namespace DirectX;
 
@@ -18,4 +19,8 @@ namespace MathUtil
 	float Lerp(float a, float b, float t);
 
 	XMFLOAT3 Lerp(XMFLOAT3 a, XMFLOAT3 b, float t);
+
+	DirectX::XMMATRIX& GetMatrixFrombtTransform(btTransform& btTransform);
+
+	void GetRowMajorMatrix(const XMMATRIX& matrix, float* out);
 }

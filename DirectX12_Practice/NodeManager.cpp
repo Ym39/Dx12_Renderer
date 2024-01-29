@@ -31,6 +31,9 @@ void NodeManager::Init(const std::vector<PMXBone>& bones)
 
 		const PMXBone& currentPmxBone = bones[index];
 
+		bool deformAfterPhysics = (uint16_t)currentPmxBone.boneFlag & (uint16_t)PMXBoneFlags::DeformAfterPhysics;
+		currentBoneNode->SetDeformAfterPhysics(deformAfterPhysics);
+
 		//Append Bone Setting
 		bool appendRotate = (uint16_t)currentPmxBone.boneFlag & (uint16_t)PMXBoneFlags::AppendRotate;
 		bool appendTranslate = (uint16_t)currentPmxBone.boneFlag & (uint16_t)PMXBoneFlags::AppendTranslate;
@@ -150,22 +153,117 @@ void NodeManager::BeforeUpdateAnimation()
 	}
 }
 
-void NodeManager::UpdateAnimation(unsigned int frameNo)
+void NodeManager::EvaluateAnimation(unsigned frameNo)
 {
 	for (BoneNode* curNode : _boneNodeByIdx)
 	{
 		curNode->AnimateMotion(frameNo);
 		curNode->AnimateIK(frameNo);
-		curNode->UpdateLocalTransform();
 	}
+}
 
-	if (_boneNodeByIdx.size() > 0)
+void NodeManager::InitAnimation()
+{
+	for (BoneNode* curNode : _sortedNodes)
 	{
-		_boneNodeByIdx[0]->UpdateGlobalTransform();
+		curNode->UpdateLocalTransform();
 	}
 
 	for (BoneNode* curNode : _sortedNodes)
 	{
+
+		if (curNode->GetParentBoneNode() != nullptr)
+		{
+			continue;
+		}
+
+		curNode->UpdateGlobalTransform();
+	}
+}
+
+void NodeManager::UpdateAnimation()
+{
+	for (BoneNode* curNode : _sortedNodes)
+	{
+		if (curNode->GetDeformAfterPhysics() == true)
+		{
+			continue;
+		}
+
+		curNode->UpdateLocalTransform();
+	}
+
+	for (BoneNode* curNode : _sortedNodes)
+	{
+		if (curNode->GetDeformAfterPhysics() == true)
+		{
+			continue;
+		}
+
+		if (curNode->GetParentBoneNode() != nullptr)
+		{
+			continue;
+		}
+
+		curNode->UpdateGlobalTransform();
+	}
+
+	for (BoneNode* curNode : _sortedNodes)
+	{
+		if (curNode->GetDeformAfterPhysics() == true)
+		{
+			continue;
+		}
+
+		if (curNode->GetAppendBoneNode() != nullptr)
+		{
+			curNode->UpdateAppendTransform();
+			curNode->UpdateGlobalTransform();
+		}
+
+		IKSolver* curSolver = curNode->GetIKSolver();
+		if (curSolver != nullptr)
+		{
+			curSolver->Solve();
+			curNode->UpdateGlobalTransform();
+		}
+	}
+}
+
+void NodeManager::UpdateAnimationAfterPhysics()
+{
+	for (BoneNode* curNode : _sortedNodes)
+	{
+		if (curNode->GetDeformAfterPhysics() == false)
+		{
+			continue;
+		}
+
+		curNode->UpdateLocalTransform();
+	}
+
+	for (BoneNode* curNode : _sortedNodes)
+	{
+		if (curNode->GetDeformAfterPhysics() == false)
+		{
+			continue;
+		}
+
+		if (curNode->GetParentBoneNode() != nullptr)
+		{
+			continue;
+		}
+
+		curNode->UpdateGlobalTransform();
+	}
+
+	for (BoneNode* curNode : _sortedNodes)
+	{
+		if (curNode->GetDeformAfterPhysics() == false)
+		{
+			continue;
+		}
+
 		if (curNode->GetAppendBoneNode() != nullptr)
 		{
 			curNode->UpdateAppendTransform();
