@@ -106,6 +106,7 @@ public:
 
 	void UpdateLocalTransform();
 	void UpdateGlobalTransform();
+	void UpdateGlobalTransformNotUpdateChildren();
 	void UpdateChildTransform();
 
 	void AnimateMotion(unsigned int frameNo);
@@ -156,5 +157,13 @@ private:
 	std::vector<VMDIKkey> _ikKeys;
 
 	IKSolver* _ikSolver = nullptr;
+
+	int _prevAnimationFrameNo = -1;
+	int _prevIKFrameNo = -1;
+
+	std::reverse_iterator<std::vector<VMDKey>::iterator> _currentAnimationFrameIt;
+	std::vector<VMDKey>::iterator _nextAnimationFrameIt;
+
+	std::reverse_iterator<std::vector<VMDIKkey>::iterator> _currentIKFrameIt;
 };
 

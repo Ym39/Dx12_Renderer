@@ -108,6 +108,11 @@ void PMXActor::UpdateAnimation()
 		frameNo = 0;
 	}
 
+	Time::RecordStartMorphUpdateTime();
+	MorphMaterial();
+	MorphBone();
+	Time::EndMorphUpdate();
+
 	Time::RecordStartAnimationUpdateTime();
 
 	_nodeManager.BeforeUpdateAnimation();
@@ -122,12 +127,6 @@ void PMXActor::UpdateAnimation()
 	_nodeManager.UpdateAnimationAfterPhysics();
 
 	Time::EndAnimationUpdate();
-
-
-	Time::RecordStartMorphUpdateTime();
-	MorphMaterial();
-	MorphBone();
-	Time::EndMorphUpdate();
 
 	Time::RecordStartSkinningUpdateTime();
 	VertexSkinning();
@@ -584,7 +583,7 @@ void PMXActor::InitPhysics(const PMXFileData& pmxFileData)
 
 void PMXActor::InitParallelVertexSkinningSetting()
 {
-	unsigned int threadCount = std::thread::hardware_concurrency();
+	unsigned int threadCount = std::thread::hardware_concurrency() * 2 + 1;
 	unsigned int divNum = threadCount - 1;
 
 	_skinningRanges.resize(threadCount);

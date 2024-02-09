@@ -111,6 +111,15 @@ void NodeManager::Init(const std::vector<PMXBone>& bones)
 	{
 			return left->GetDeformDepth() < right->GetDeformDepth();
 	});
+
+	OrderingLocalUpdate(false);
+	OrderingLocalUpdate(true);
+	OrderingGlobalUpdate(false);
+	OrderingGlobalUpdate(true);
+	OrderingAppendOrIKUpdate(false);
+	OrderingAppendOrIKUpdate(true);
+
+	InitParallelAnimateEvaluate();
 }
 
 void NodeManager::SortKey()
@@ -146,20 +155,41 @@ BoneNode* NodeManager::GetBoneNodeByName(std::wstring& name) const
 
 void NodeManager::BeforeUpdateAnimation()
 {
-	for (BoneNode* curNode : _boneNodeByIdx)
-	{
-		curNode->SetMorphPosition(XMFLOAT3(0.f, 0.f, 0.f));
-		curNode->SetMorphRotation(XMMatrixIdentity());
-	}
+	//for (BoneNode* curNode : _boneNodeByIdx)
+	//{
+	//	curNode->SetMorphPosition(XMFLOAT3(0.f, 0.f, 0.f));
+	//	curNode->SetMorphRotation(XMMatrixIdentity());
+	//}
 }
 
 void NodeManager::EvaluateAnimation(unsigned frameNo)
 {
-	for (BoneNode* curNode : _boneNodeByIdx)
+	const int futureCount = _parallelEvaluateFutures.size();
+
+	for (int i = 0; i < futureCount; i++)
 	{
-		curNode->AnimateMotion(frameNo);
-		curNode->AnimateIK(frameNo);
+		const AnimateEvaluateRange& currentRange = _animateEvaluateRanges[i];
+		_parallelEvaluateFutures[i] = std::async(std::launch::async, [this, frameNo, currentRange]()
+			{
+				for (int i = currentRange.startIndex; i < currentRange.startIndex + currentRange.vertexCount; ++i)
+				{
+					BoneNode* curNode = _boneNodeByIdx[i];
+					curNode->AnimateMotion(frameNo);
+					curNode->AnimateIK(frameNo);
+				}
+			});
 	}
+
+	for (const std::future<void>& future : _parallelEvaluateFutures)
+	{
+		future.wait();
+	}
+
+	//for (BoneNode* curNode : _boneNodeByIdx)
+	//{
+	//	curNode->AnimateMotion(frameNo);
+	//	curNode->AnimateIK(frameNo);
+	//}
 }
 
 void NodeManager::InitAnimation()
@@ -183,37 +213,65 @@ void NodeManager::InitAnimation()
 
 void NodeManager::UpdateAnimation()
 {
-	for (BoneNode* curNode : _sortedNodes)
-	{
-		if (curNode->GetDeformAfterPhysics() == true)
-		{
-			continue;
-		}
+	//for (BoneNode* curNode : _sortedNodes)
+	//{
+	//	if (curNode->GetDeformAfterPhysics() == true)
+	//	{
+	//		continue;
+	//	}
 
-		curNode->UpdateLocalTransform();
+	//	curNode->UpdateLocalTransform();
+	//}
+
+	//for (BoneNode* curNode : _sortedNodes)
+	//{
+	//	if (curNode->GetDeformAfterPhysics() == true)
+	//	{
+	//		continue;
+	//	}
+
+	//	if (curNode->GetParentBoneNode() != nullptr)
+	//	{
+	//		continue;
+	//	}
+
+	//	curNode->UpdateGlobalTransform();
+	//}
+
+	for (int index : _beforePhysicsLocalUpdateOrder)
+	{
+		_boneNodeByIdx[index]->UpdateLocalTransform();
 	}
 
-	for (BoneNode* curNode : _sortedNodes)
+	for (int index : _beforePhysicsGlobalUpdateOrder)
 	{
-		if (curNode->GetDeformAfterPhysics() == true)
-		{
-			continue;
-		}
-
-		if (curNode->GetParentBoneNode() != nullptr)
-		{
-			continue;
-		}
-
-		curNode->UpdateGlobalTransform();
+		_boneNodeByIdx[index]->UpdateGlobalTransformNotUpdateChildren();
 	}
 
-	for (BoneNode* curNode : _sortedNodes)
+	//for (BoneNode* curNode : _sortedNodes)
+	//{
+	//	if (curNode->GetDeformAfterPhysics() == true)
+	//	{
+	//		continue;
+	//	}
+
+	//	if (curNode->GetAppendBoneNode() != nullptr)
+	//	{
+	//		curNode->UpdateAppendTransform();
+	//		curNode->UpdateGlobalTransform();
+	//	}
+
+	//	IKSolver* curSolver = curNode->GetIKSolver();
+	//	if (curSolver != nullptr)
+	//	{
+	//		curSolver->Solve();
+	//		curNode->UpdateGlobalTransform();
+	//	}
+	//}
+
+	for (int index : _beforePhysicsAppendOrIKUpdateOrder)
 	{
-		if (curNode->GetDeformAfterPhysics() == true)
-		{
-			continue;
-		}
+		BoneNode* curNode = _boneNodeByIdx[index];
 
 		if (curNode->GetAppendBoneNode() != nullptr)
 		{
@@ -232,37 +290,65 @@ void NodeManager::UpdateAnimation()
 
 void NodeManager::UpdateAnimationAfterPhysics()
 {
-	for (BoneNode* curNode : _sortedNodes)
-	{
-		if (curNode->GetDeformAfterPhysics() == false)
-		{
-			continue;
-		}
+	//for (BoneNode* curNode : _sortedNodes)
+	//{
+	//	if (curNode->GetDeformAfterPhysics() == false)
+	//	{
+	//		continue;
+	//	}
 
-		curNode->UpdateLocalTransform();
+	//	curNode->UpdateLocalTransform();
+	//}
+
+	//for (BoneNode* curNode : _sortedNodes)
+	//{
+	//	if (curNode->GetDeformAfterPhysics() == false)
+	//	{
+	//		continue;
+	//	}
+
+	//	if (curNode->GetParentBoneNode() != nullptr)
+	//	{
+	//		continue;
+	//	}
+
+	//	curNode->UpdateGlobalTransform();
+	//}
+
+	for (int index : _afterPhysicsLocalUpdateOrder)
+	{
+		_boneNodeByIdx[index]->UpdateLocalTransform();
 	}
 
-	for (BoneNode* curNode : _sortedNodes)
+	for (int index : _afterPhysicsGlobalUpdateOrder)
 	{
-		if (curNode->GetDeformAfterPhysics() == false)
-		{
-			continue;
-		}
-
-		if (curNode->GetParentBoneNode() != nullptr)
-		{
-			continue;
-		}
-
-		curNode->UpdateGlobalTransform();
+		_boneNodeByIdx[index]->UpdateGlobalTransformNotUpdateChildren();
 	}
 
-	for (BoneNode* curNode : _sortedNodes)
+	//for (BoneNode* curNode : _sortedNodes)
+	//{
+	//	if (curNode->GetDeformAfterPhysics() == false)
+	//	{
+	//		continue;
+	//	}
+
+	//	if (curNode->GetAppendBoneNode() != nullptr)
+	//	{
+	//		curNode->UpdateAppendTransform();
+	//		curNode->UpdateGlobalTransform();
+	//	}
+
+	//	IKSolver* curSolver = curNode->GetIKSolver();
+	//	if (curSolver != nullptr)
+	//	{
+	//		curSolver->Solve();
+	//		curNode->UpdateGlobalTransform();
+	//	}
+	//}
+
+	for (int index : _afterPhysicsAppendOrIKUpdateOrder)
 	{
-		if (curNode->GetDeformAfterPhysics() == false)
-		{
-			continue;
-		}
+		BoneNode* curNode = _boneNodeByIdx[index];
 
 		if (curNode->GetAppendBoneNode() != nullptr)
 		{
@@ -292,6 +378,103 @@ void NodeManager::Dispose()
 		delete ikSolver;
 		ikSolver = nullptr;
 	}
+}
+
+void NodeManager::OrderingLocalUpdate(bool afterPhysics)
+{
+	for (BoneNode* curNode : _sortedNodes)
+	{
+		if (curNode->GetDeformAfterPhysics() == !afterPhysics)
+		{
+			continue;
+		}
+
+		_beforePhysicsLocalUpdateOrder.push_back(curNode->GetBoneIndex());
+	}
+}
+
+void NodeManager::OrderingGlobalUpdate(bool afterPhysics)
+{
+	for (BoneNode* curNode : _sortedNodes)
+	{
+		if (curNode->GetDeformAfterPhysics() == !afterPhysics)
+		{
+			continue;
+		}
+
+		if (curNode->GetParentBoneNode() != nullptr)
+		{
+			continue;
+		}
+
+		AddGlobalOrder(curNode, afterPhysics);
+	}
+}
+
+void NodeManager::OrderingAppendOrIKUpdate(bool afterPhysics)
+{
+	for (BoneNode* curNode : _sortedNodes)
+	{
+		if (curNode->GetDeformAfterPhysics() == !afterPhysics)
+		{
+			continue;
+		}
+
+		if (curNode->GetAppendBoneNode() != nullptr)
+		{
+			_beforePhysicsAppendOrIKUpdateOrder.push_back(curNode->GetBoneIndex());
+			continue;
+		}
+
+		IKSolver* curSolver = curNode->GetIKSolver();
+		if (curSolver != nullptr)
+		{
+			_beforePhysicsAppendOrIKUpdateOrder.push_back(curNode->GetBoneIndex());
+		}
+	}
+}
+
+void NodeManager::AddGlobalOrder(BoneNode* node, bool afterPhysics)
+{
+	if (afterPhysics == false)
+	{
+		_beforePhysicsGlobalUpdateOrder.push_back(node->GetBoneIndex());
+	}
+	else
+	{
+		_afterPhysicsGlobalUpdateOrder.push_back(node->GetBoneIndex());
+	}
+
+	const auto childNodes = node->GetChildrenNodes();
+
+	for (BoneNode* node : childNodes)
+	{
+		AddGlobalOrder(node, afterPhysics);
+	}
+}
+
+void NodeManager::InitParallelAnimateEvaluate()
+{
+	unsigned int threadCount = (std::thread::hardware_concurrency() * 2) + 1;
+	unsigned int divNum = threadCount - 1;
+
+	_animateEvaluateRanges.resize(threadCount);
+	_parallelEvaluateFutures.resize(threadCount);
+
+	unsigned int divVertexCount = _boneNodeByIdx.size() / divNum;
+	unsigned int remainder = _boneNodeByIdx.size() % divNum;
+
+	int startIndex = 0;
+	for (int i = 0; i < _animateEvaluateRanges.size() - 1; i++)
+	{
+		_animateEvaluateRanges[i].startIndex = startIndex;
+		_animateEvaluateRanges[i].vertexCount = divVertexCount;
+
+		startIndex += _animateEvaluateRanges[i].vertexCount;
+	}
+
+	_animateEvaluateRanges[_animateEvaluateRanges.size() - 1].startIndex = startIndex;
+	_animateEvaluateRanges[_animateEvaluateRanges.size() - 1].vertexCount = remainder;
 }
 
 

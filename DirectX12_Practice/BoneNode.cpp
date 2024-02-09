@@ -177,6 +177,18 @@ void BoneNode::UpdateGlobalTransform()
 	}
 }
 
+void BoneNode::UpdateGlobalTransformNotUpdateChildren()
+{
+	if (_parentBoneNode == nullptr)
+	{
+		_globalTransform = _localTransform;
+	}
+	else
+	{
+		_globalTransform = _localTransform * _parentBoneNode->GetGlobalTransform();
+	}
+}
+
 void BoneNode::UpdateChildTransform()
 {
 	for (BoneNode* child : _childrenNodes)
@@ -185,7 +197,7 @@ void BoneNode::UpdateChildTransform()
 	}
 }
 
-void BoneNode::AnimateMotion(unsigned frameNo)
+void BoneNode::AnimateMotion(unsigned int frameNo)
 {
 	_animateRotation = XMMatrixIdentity();
 	_animatePosition = XMFLOAT3(0.f, 0.f, 0.f);
@@ -195,28 +207,31 @@ void BoneNode::AnimateMotion(unsigned frameNo)
 		return;
 	}
 
-	auto rit = std::find_if(_motionKeys.rbegin(), _motionKeys.rend(),
-		[frameNo](const VMDKey& key)
-		{
-			return key.frameNo <= frameNo;
-		});
-
-	XMVECTOR animatePosition = XMLoadFloat3(&rit->offset);
-
-	auto iterator = rit.base();
-
-	if (iterator != _motionKeys.end())
+	if (_prevAnimationFrameNo != frameNo)
 	{
-		float t = static_cast<float>(frameNo - rit->frameNo) / static_cast<float>(iterator->frameNo - rit->frameNo);
+		_currentAnimationFrameIt = std::find_if(_motionKeys.rbegin(), _motionKeys.rend(),
+			[frameNo](const VMDKey& key)
+			{
+				return key.frameNo <= frameNo;
+			});
 
-		t = GetYFromXOnBezier(t, iterator->p1, iterator->p2, 12);
+		_nextAnimationFrameIt = _currentAnimationFrameIt.base();
+		_prevAnimationFrameNo = frameNo;
+	}
 
-		_animateRotation = XMMatrixRotationQuaternion(XMQuaternionSlerp(rit->quaternion, iterator->quaternion, t));
-		XMStoreFloat3(&_animatePosition, XMVectorLerp(animatePosition, XMLoadFloat3(&iterator->offset), t));
+	XMVECTOR animatePosition = XMLoadFloat3(&_currentAnimationFrameIt->offset);
+	if (_nextAnimationFrameIt != _motionKeys.end())
+	{
+		float t = static_cast<float>(frameNo - _currentAnimationFrameIt->frameNo) / static_cast<float>(_nextAnimationFrameIt->frameNo - _currentAnimationFrameIt->frameNo);
+
+		t = GetYFromXOnBezier(t, _nextAnimationFrameIt->p1, _nextAnimationFrameIt->p2, 12);
+
+		_animateRotation = XMMatrixRotationQuaternion(XMQuaternionSlerp(_currentAnimationFrameIt->quaternion, _nextAnimationFrameIt->quaternion, t));
+		XMStoreFloat3(&_animatePosition, XMVectorLerp(animatePosition, XMLoadFloat3(&_currentAnimationFrameIt->offset), t));
 	}
 	else
 	{
-		_animateRotation = XMMatrixRotationQuaternion(rit->quaternion);
+		_animateRotation = XMMatrixRotationQuaternion(_currentAnimationFrameIt->quaternion);
 	}
 }
 
@@ -227,18 +242,23 @@ void BoneNode::AnimateIK(unsigned frameNo)
 		return;
 	}
 
-	auto rit = std::find_if(_ikKeys.rbegin(), _ikKeys.rend(),
-		[frameNo](const VMDIKkey& key)
-		{
-			return key.frameNo <= frameNo;
-		});
+	if (_prevIKFrameNo != frameNo)
+	{
+		_currentIKFrameIt = std::find_if(_ikKeys.rbegin(), _ikKeys.rend(),
+			[frameNo](const VMDIKkey& key)
+			{
+				return key.frameNo <= frameNo;
+			});
 
-	if (rit == _ikKeys.rend())
+		_prevIKFrameNo = frameNo;
+	}
+
+	if (_currentIKFrameIt == _ikKeys.rend())
 	{
 		return;
 	}
 
-	_ikSolver->SetEnable(rit->enable);
+	_ikSolver->SetEnable(_currentIKFrameIt->enable);
 }
 
 float BoneNode::GetYFromXOnBezier(float x, const DirectX::XMFLOAT2& a, const DirectX::XMFLOAT2& b, uint8_t n)

@@ -19,8 +19,8 @@ std::unique_ptr<btMotionState> PhysicsManager::_groundMS = nullptr;
 std::unique_ptr<btRigidBody> PhysicsManager::_groundRB = nullptr;
 std::unique_ptr<btOverlapFilterCallback> PhysicsManager::_filterCB = nullptr;
 
-float PhysicsManager::_fixedTimeStep = 0.02f;
-int PhysicsManager::_maxSubStepCount = 5;
+float PhysicsManager::_fixedTimeStep = 0.033333f;
+int PhysicsManager::_maxSubStepCount = 4;
 
 std::thread PhysicsManager::_physicsUpdateThread = std::thread();
 bool PhysicsManager::_threadFlag = false;
@@ -66,7 +66,7 @@ bool PhysicsManager::Create()
 	_filterCB = std::move(filterCB);
 
 	btContactSolverInfo& info = _world->getSolverInfo();
-	info.m_numIterations = 4;
+	info.m_numIterations = 10;
 	info.m_solverMode = SOLVER_SIMD;
 
 	return true;
