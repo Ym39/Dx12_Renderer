@@ -114,8 +114,6 @@ void Application::Run()
 	float angle = 0.0f;
 	MSG msg = {};
 	unsigned int frame = 0;
-	DWORD prevFrameTime = timeGetTime();
-	float deltaTime = 0;
 	Time::Init();
 
 	while (true)
@@ -183,10 +181,6 @@ void Application::Run()
 		_imgui->UpdateAndSetDrawData(_dx12);
 
 		_dx12->EndDraw();
-
-		DWORD currentTime = timeGetTime();
-		deltaTime = currentTime - prevFrameTime;
-		prevFrameTime = currentTime;
 	}
 }
 

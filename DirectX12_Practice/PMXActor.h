@@ -32,6 +32,12 @@ struct SkinningRange
 	unsigned int vertexCount;
 };
 
+struct UpdateRange
+{
+	unsigned int startIndex;
+	unsigned int range;
+};
+
 class NodeManager;
 class MorphManager;
 
@@ -124,6 +130,12 @@ private:
 
 	std::vector<SkinningRange> _skinningRanges;
 	std::vector<std::future<void>> _parallelUpdateFutures;
+
+	std::vector<UpdateRange> _morphMaterialRanges;
+	std::vector<std::future<void>> _parallelMorphMaterialUpdateFutures;
+
+	std::vector<UpdateRange> _morphBoneRanges;
+	std::vector<std::future<void>> _parallelMorphBoneUpdateFutures;
 
 	std::vector<std::unique_ptr<RigidBody>> _rigidBodies;
 	std::vector<std::unique_ptr<Joint>> _joints;
