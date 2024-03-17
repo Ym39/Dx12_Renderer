@@ -41,7 +41,7 @@ struct UpdateRange
 struct LoadMaterial
 {
 	bool visible;
-	std::wstring name;
+	std::string name;
 	XMFLOAT4 diffuse;
 	XMFLOAT3 specular;
 	float specularPower;

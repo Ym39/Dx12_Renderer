@@ -14,6 +14,7 @@
 #include <BulletDynamics/Dynamics/btRigidBody.h>
 
 #include "Time.h"
+#include "UnicodeUtil.h"
 
 using namespace std;
 
@@ -396,7 +397,7 @@ HRESULT PMXActor::CreateMaterialData(Dx12Wrapper& dx)
 	for (const auto& material : _pmxFileData.materials)
 	{
 		_loadedMaterial[materialIndex].visible = true;
-		_loadedMaterial[materialIndex].name = material.name;
+		_loadedMaterial[materialIndex].name = UnicodeUtil::WstringToString(material.name);
 		_loadedMaterial[materialIndex].diffuse = material.diffuse;
 		_loadedMaterial[materialIndex].specular = material.specular;
 		_loadedMaterial[materialIndex].specularPower = material.specularPower;
