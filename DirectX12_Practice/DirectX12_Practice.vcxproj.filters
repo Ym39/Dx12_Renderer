@@ -19,6 +19,12 @@
     <Filter Include="Imgui">
       <UniqueIdentifier>{3b8983d0-acd2-4646-8756-989d9afa7fbd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shader\Forward">
+      <UniqueIdentifier>{f3d1ffc9-f133-4663-b70d-958137efc7c6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shader\Postprocess">
+      <UniqueIdentifier>{5279139e-3cda-4467-939b-561c458acd8e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -119,14 +125,29 @@
     <FxCompile Include="BasicVertexShader.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="PMXPixelShader.hlsl">
+    <FxCompile Include="PMXPixelShaderDeferred.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="PMXVertexShader.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="ssao.hlsl">
+    <FxCompile Include="ScreenVertex.hlsl">
+      <Filter>Shader\Forward</Filter>
+    </FxCompile>
+    <FxCompile Include="ScreenPixelForward.hlsl">
+      <Filter>Shader\Forward</Filter>
+    </FxCompile>
+    <FxCompile Include="BlurPixel.hlsl">
+      <Filter>Shader\Postprocess</Filter>
+    </FxCompile>
+    <FxCompile Include="SSAO.hlsl">
+      <Filter>Shader\Postprocess</Filter>
+    </FxCompile>
+    <FxCompile Include="PMXPixelShaderForward.hlsl">
       <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="BloomResult.hlsl">
+      <Filter>Shader\Postprocess</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
@@ -138,6 +159,12 @@
     </None>
     <None Include="PmxShaderHeader.hlsli">
       <Filter>Shader</Filter>
+    </None>
+    <None Include="HeaderScreenForward.hlsli">
+      <Filter>Shader\Forward</Filter>
+    </None>
+    <None Include="HeaderPostprocess.hlsli">
+      <Filter>Shader\Postprocess</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -235,6 +262,9 @@
       <Filter>소스 파일</Filter>
     </ClInclude>
     <ClInclude Include="Time.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="BitFlag.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

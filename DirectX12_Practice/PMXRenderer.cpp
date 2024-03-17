@@ -7,6 +7,8 @@
 #include<string>
 #include<algorithm>
 
+#include "ImguiManager.h"
+
 
 HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 {
@@ -35,21 +37,6 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 		return result;
 	}
 
-	result = D3DCompileFromFile(L"PMXPixelShader.hlsl",
-		nullptr,
-		D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		"DeferrdPS",
-		"ps_5_0",
-		flags,
-		0,
-		&psBlob,
-		&errorBlob);
-
-	if (!CheckShaderCompileResult(result, errorBlob.Get()))
-	{
-		assert(0);
-		return result;
-	}
 
 	//인풋 레이아웃
 	D3D12_INPUT_ELEMENT_DESC inputLayout[] =
@@ -77,8 +64,6 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 
 	gpipeline.VS.pShaderBytecode = vsBlob->GetBufferPointer();
 	gpipeline.VS.BytecodeLength = vsBlob->GetBufferSize();
-	gpipeline.PS.pShaderBytecode = psBlob->GetBufferPointer();
-	gpipeline.PS.BytecodeLength = psBlob->GetBufferSize();
 
 	gpipeline.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
@@ -116,10 +101,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 	gpipeline.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
 	gpipeline.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
-	gpipeline.NumRenderTargets = 3;
 	gpipeline.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
-	gpipeline.RTVFormats[1] = DXGI_FORMAT_B8G8R8A8_UNORM;
-	gpipeline.RTVFormats[2] = DXGI_FORMAT_B8G8R8A8_UNORM;
 
 	gpipeline.SampleDesc.Count = 1;
 	gpipeline.SampleDesc.Quality = 0;
@@ -130,7 +112,51 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 	gpipeline.DepthStencilState.StencilEnable = false;
 	gpipeline.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
-	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(_pipeline.ReleaseAndGetAddressOf()));
+	result = D3DCompileFromFile(L"PMXPixelShaderForward.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"PS",
+		"ps_5_0",
+		flags,
+		0,
+		&psBlob,
+		&errorBlob);
+
+	if (!CheckShaderCompileResult(result, errorBlob.Get()))
+	{
+		assert(0);
+		return result;
+	}
+
+	gpipeline.NumRenderTargets = 1;
+	gpipeline.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
+	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(_forwardPipeline.ReleaseAndGetAddressOf()));
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+	}
+
+	result = D3DCompileFromFile(L"PMXPixelShaderDeferred.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"PS",
+		"ps_5_0",
+		flags,
+		0,
+		&psBlob,
+		&errorBlob);
+
+	if (!CheckShaderCompileResult(result, errorBlob.Get()))
+	{
+		assert(0);
+		return result;
+	}
+
+	gpipeline.RTVFormats[1] = DXGI_FORMAT_B8G8R8A8_UNORM;
+	gpipeline.RTVFormats[2] = DXGI_FORMAT_B8G8R8A8_UNORM;
+
+	gpipeline.NumRenderTargets = 3;
+	gpipeline.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
+	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(_deferredPipeline.ReleaseAndGetAddressOf()));
 	if (FAILED(result)) {
 		assert(SUCCEEDED(result));
 	}
@@ -166,7 +192,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 HRESULT PMXRenderer::CreateRootSignature()
 {
 	//디스크립터 레인지 
-	D3D12_DESCRIPTOR_RANGE descTblRange[5] = {};
+	D3D12_DESCRIPTOR_RANGE descTblRange[6] = {};
 	descTblRange[0].NumDescriptors = 1;
 	descTblRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	descTblRange[0].BaseShaderRegister = 0;
@@ -189,8 +215,10 @@ HRESULT PMXRenderer::CreateRootSignature()
 
 	descTblRange[4] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4);
 
+	descTblRange[5] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 3);
+
 	//루트 파라미터
-	D3D12_ROOT_PARAMETER rootparam[4] = {};
+	D3D12_ROOT_PARAMETER rootparam[5] = {};
 	rootparam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootparam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	rootparam[0].DescriptorTable.pDescriptorRanges = &descTblRange[0];
@@ -211,12 +239,17 @@ HRESULT PMXRenderer::CreateRootSignature()
 	rootparam[3].DescriptorTable.pDescriptorRanges = &descTblRange[4];
 	rootparam[3].DescriptorTable.NumDescriptorRanges = 1;
 
+	rootparam[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootparam[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootparam[4].DescriptorTable.pDescriptorRanges = &descTblRange[5];
+	rootparam[4].DescriptorTable.NumDescriptorRanges = 1;
+
 	//루트 시그니쳐
 	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
 
 	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 	rootSignatureDesc.pParameters = rootparam;
-	rootSignatureDesc.NumParameters = 4;
+	rootSignatureDesc.NumParameters = 5;
 
 	D3D12_STATIC_SAMPLER_DESC samplerDesc[3] = {};
 
@@ -271,6 +304,59 @@ HRESULT PMXRenderer::CreateRootSignature()
 	return result;
 }
 
+HRESULT PMXRenderer::CreateParameterBufferAndHeap()
+{
+	int parameterBufferSize = sizeof(ParameterBuffer);
+	parameterBufferSize = (parameterBufferSize + 0xff) & ~0xff;
+
+	auto result = _dx12.Device()->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(parameterBufferSize),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(_parameterBuffer.ReleaseAndGetAddressOf())
+	);
+
+	if (FAILED(result))
+	{
+		assert(SUCCEEDED(result));
+		return result;
+	}
+
+	result = _parameterBuffer->Map(0, nullptr, (void**)&_mappedParameterBuffer);
+
+	if (FAILED(result))
+	{
+		assert(SUCCEEDED(result));
+		return result;
+	}
+
+	_mappedParameterBuffer->bloomThreshold = 1.0f;
+
+	D3D12_DESCRIPTOR_HEAP_DESC parameterDescHeapDesc = {};
+	parameterDescHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	parameterDescHeapDesc.NodeMask = 0;
+	parameterDescHeapDesc.NumDescriptors = 1;
+	parameterDescHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+
+	result = _dx12.Device()->CreateDescriptorHeap(&parameterDescHeapDesc, IID_PPV_ARGS(_parameterHeap.ReleaseAndGetAddressOf()));
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+		return result;
+	}
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC parameterConstantBufferViewDesc = {};
+	parameterConstantBufferViewDesc.BufferLocation = _parameterBuffer->GetGPUVirtualAddress();
+	parameterConstantBufferViewDesc.SizeInBytes = parameterBufferSize;
+
+	auto parameterDescHeapHandle = _parameterHeap->GetCPUDescriptorHandleForHeapStart();
+
+	_dx12.Device()->CreateConstantBufferView(&parameterConstantBufferViewDesc, parameterDescHeapHandle);
+
+	return S_OK;
+}
+
 bool PMXRenderer::CheckShaderCompileResult(HRESULT result, ID3DBlob* error)
 {
 	if (FAILED(result)) {
@@ -296,6 +382,7 @@ PMXRenderer::PMXRenderer(Dx12Wrapper& dx12):
 {
 	assert(SUCCEEDED(CreateRootSignature()));
 	assert(SUCCEEDED(CreateGraphicsPipelineForPMX()));
+	assert(SUCCEEDED(CreateParameterBufferAndHeap()));
 }
 
 PMXRenderer::~PMXRenderer()
@@ -318,11 +405,21 @@ void PMXRenderer::BeforeDrawFromLight()
 	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
 }
 
-void PMXRenderer::BeforeDraw()
+void PMXRenderer::BeforeDrawAtForwardPipeline()
 {
 	auto cmdList = _dx12.CommandList();
-	cmdList->SetPipelineState(_pipeline.Get());
+	cmdList->SetPipelineState(_forwardPipeline.Get());
 	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+}
+
+void PMXRenderer::BeforeDrawAtDeferredPipeline()
+{
+	auto cmdList = _dx12.CommandList();
+	cmdList->SetPipelineState(_deferredPipeline.Get());
+	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+
+	cmdList->SetDescriptorHeaps(1, _parameterHeap.GetAddressOf());
+	cmdList->SetGraphicsRootDescriptorTable(4, _parameterHeap->GetGPUDescriptorHandleForHeapStart());
 }
 
 void PMXRenderer::DrawFromLight()
@@ -344,6 +441,8 @@ void PMXRenderer::Draw()
 void PMXRenderer::AddActor(std::shared_ptr<PMXActor> actor)
 {
 	_actors.push_back(actor);
+
+	ImguiManager::Instance().SetPmxActor(actor.get());
 }
 
 const PMXActor* PMXRenderer::GetActor()
@@ -351,9 +450,29 @@ const PMXActor* PMXRenderer::GetActor()
 	return _actors[0].get();
 }
 
+void PMXRenderer::SetBloomThreshold(float threshold)
+{
+	if (_mappedParameterBuffer == nullptr)
+	{
+		return;
+	}
+
+	_mappedParameterBuffer->bloomThreshold = threshold;
+}
+
+float PMXRenderer::GetBloomThreshold() const
+{
+	if (_mappedParameterBuffer == nullptr)
+	{
+		return 1.0f;
+	}
+
+	return _mappedParameterBuffer->bloomThreshold;
+}
+
 ID3D12PipelineState* PMXRenderer::GetPipelineState()
 {
-    return _pipeline.Get();
+    return _deferredPipeline.Get();
 }
 
 ID3D12RootSignature* PMXRenderer::GetRootSignature()

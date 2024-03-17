@@ -26,7 +26,6 @@ public:
 	void PostDrawToPera1();
 	void DrawAmbientOcclusion();
 	void DrawShrinkTextureForBlur();
-	void DrawBokeh();
 	void Clear();
 	void Draw();
 	void Update();
@@ -44,16 +43,32 @@ public:
 	ComPtr<ID3D12Resource> GetBlackTexture();
 	ComPtr<ID3D12Resource> GetGradTexture();
 
+	int GetBloomIteration() const;
+	void SetBloomIteration(int iteration);
+	float GetBloomIntensity() const;
+	void SetBloomIntensity(float intensity);
+
 	void SetFov(float fov);
-	void SetLightVector(float vec[3]);
+	void SetDirectionalLightRotation(float vec[3]);
+
+	int GetPostProcessingFlag() const;
+	void SetPostProcessingFlag(int flag);
 
 private:
+
+	struct BloomParameter
+	{
+		int iteration;
+		float intensity;
+		DirectX::XMFLOAT2 padding;
+	};
+
 	HRESULT InitializeDXGIDevice();
 	HRESULT InitializeCommand();
 	HRESULT CreateSwapChain(const HWND& hwnd);
 	HRESULT CreateFinalRenderTargets();
 	HRESULT CreateSceneView();
-	HRESULT CreateBokehParamResource();
+	HRESULT CreateBloomParameterResource();
 	HRESULT CreatePeraResource();
 	bool CreatePeraVertex();
 	bool CreatePeraPipeline();
@@ -82,34 +97,49 @@ private:
 	std::vector<ID3D12Resource*> _backBuffers;
 	std::unique_ptr<D3D12_VIEWPORT> _viewport;
 	std::unique_ptr<D3D12_RECT> _scissorrect;
-	ComPtr<ID3D12Resource> _sceneConstBuff = nullptr;
-	ComPtr<ID3D12DescriptorHeap> _sceneDescHeap = nullptr;
-	ComPtr<ID3D12Resource> _bokehParamResource;
-	std::array<ComPtr<ID3D12Resource>, 2> _pera1Resource;
-	ComPtr<ID3D12Resource> _peraResource2 = nullptr;
-	std::array<ComPtr<ID3D12Resource>, 2> _bloomBuffer;
-	ComPtr<ID3D12Resource> _dofBuffer;
+
 	ComPtr<ID3D12DescriptorHeap> _peraRTVHeap = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _peraSRVHeap = nullptr;
 	ComPtr<ID3D12Resource> _peraVB;
 	D3D12_VERTEX_BUFFER_VIEW _peraVBV;
 	ComPtr<ID3D12RootSignature> _peraRS;
-	ComPtr<ID3D12PipelineState> _peraPipeline;
-	ComPtr<ID3D12PipelineState> _peraPipeline2;
-	ComPtr<ID3D12PipelineState> _blurPipeline;
-	ComPtr<ID3D12PipelineState> _aoPipeline;
-	ComPtr<ID3D12Resource> _aoBuffer;
-	ComPtr<ID3D12DescriptorHeap> _aoRTVDH;
-	ComPtr<ID3D12DescriptorHeap> _aoSRVDH;
-	ComPtr<ID3D12Resource> _depthBuffer = nullptr;
-	ComPtr<ID3D12Resource> _lightDepthBuffer = nullptr;
+
+	// SceneBuffer(view, proj, shadow, camera ...)
+	ComPtr<ID3D12Resource> _sceneConstBuff = nullptr;
+	ComPtr<ID3D12DescriptorHeap> _sceneDescHeap = nullptr;
+
 	ComPtr<ID3D12DescriptorHeap> _dsvHeap = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _depthSRVHeap = nullptr;
+	ComPtr<ID3D12Resource> _depthBuffer = nullptr;
+	ComPtr<ID3D12Resource> _lightDepthBuffer = nullptr;
+
+	std::array<ComPtr<ID3D12Resource>, 2> _pera1Resource; // frameTex, NormalTex
+	std::array<ComPtr<ID3D12Resource>, 2> _bloomBuffer; // texHighLum, texShrinkHighLum
+
+	ComPtr<ID3D12PipelineState> _aoPipeline;
+	ComPtr<ID3D12Resource> _aoBuffer; // texSSAO
+	ComPtr<ID3D12DescriptorHeap> _aoRTVDH;
+	ComPtr<ID3D12DescriptorHeap> _aoSRVDH;
+
+	ComPtr<ID3D12PipelineState> _blurShrinkPipeline;
+	ComPtr<ID3D12Resource> _dofBuffer; // texShrink
+	ComPtr<ID3D12Resource> _bloomResultTexture; //offset 8
+	ComPtr<ID3D12Resource> _bloomResultParameterBuffer;
+	BloomParameter* _mappedBloomParameter = nullptr;
+	ComPtr<ID3D12DescriptorHeap> _bloomResultSRVHeap;
+	ComPtr<ID3D12RootSignature> _blurResultRootSignature;
+	ComPtr<ID3D12PipelineState> _blurResultPipeline;
+	int mBloomIteration = 0;
+
+	ComPtr<ID3D12PipelineState> _screenPipelineDefault;
+	ComPtr<ID3D12PipelineState> _screenPipelineBloom;
+	ComPtr<ID3D12PipelineState> _screenPipelineSSAO;
+	ComPtr<ID3D12PipelineState> _screenPipelineBloomSSAO;
 
 	DirectX::XMFLOAT3 _eye;
 	DirectX::XMFLOAT3 _target;
 	DirectX::XMFLOAT3 _up;
-	DirectX::XMFLOAT3 _parallelLightVec;
+	DirectX::XMFLOAT3 _directionalLightRotation;
 	//Setting Value
 	float _fov;
 	float _lightVector[3];
@@ -140,5 +170,7 @@ private:
 	ComPtr<ID3D12Resource> _gradTex = nullptr;
 
 	ComPtr<ID3D12DescriptorHeap> _heapForImgui;
+
+	int _currentPPFlag;
 };
 

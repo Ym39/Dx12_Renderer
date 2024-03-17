@@ -28,8 +28,6 @@ private:
 	std::shared_ptr<PMDRenderer> _pmdRenderer;
 	std::shared_ptr<PMXRenderer> _pmxRenderer;
 
-	std::shared_ptr<ImguiManager> _imgui;
-
 	void CreateGameWindow(HWND& hwnd, WNDCLASSEX& windowClass);
 
 	Application();

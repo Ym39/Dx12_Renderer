@@ -91,9 +91,7 @@ bool Application::Init()
 
 	_pmxRenderer->AddActor(pmxMiku);
 
-	_imgui.reset(new ImguiManager());
-
-	bResult = _imgui->Initialize(_hwnd, _dx12);
+	bResult = ImguiManager::Instance().Initialize(_hwnd, _dx12);
 	if (bResult == false)
 	{
 		return false;
@@ -133,32 +131,18 @@ void Application::Run()
 
 		_dx12->SetCameraSetting();
 
-		//_pmdRenderer->Update();
-
-		//_pmdRenderer->BeforeDrawFromLight();
-
 		_pmxRenderer->Update();
 		_pmxRenderer->BeforeDrawFromLight();
 
 		_dx12->PreDrawShadow();
 
-		//_pmdRenderer->DrawFromLight();
-
 		_pmxRenderer->DrawFromLight();
 
 		_dx12->PreDrawToPera1();
 
-		//_pmdRenderer->BeforeDraw();
-
-		//_pmxActor->UpdateAndSetDrawData();
-		_pmxRenderer->BeforeDraw();
+		_pmxRenderer->BeforeDrawAtDeferredPipeline();
 
 		_dx12->DrawToPera1();
-
-		//_pmdRenderer->Draw();
-
-		//_pmxActor->BeforeDraw();
-		//_pmxActor->Draw();
 
 		_pmxRenderer->Draw();
 
@@ -168,17 +152,16 @@ void Application::Run()
 
 		_dx12->DrawShrinkTextureForBlur();
 
-		//_dx12->DrawBokeh();
-
 		_dx12->Clear();
 
 		_dx12->Draw();
 
 		_dx12->Update();
 
-		const PMXActor* actor = _pmxRenderer->GetActor();
-
-		_imgui->UpdateAndSetDrawData(_dx12);
+		ImguiManager::Instance().StartUI();
+		ImguiManager::Instance().UpdateAndSetDrawData(_dx12);
+		ImguiManager::Instance().UpdatePostProcessMenu(_dx12, _pmxRenderer);
+		ImguiManager::Instance().EndUI(_dx12);
 
 		_dx12->EndDraw();
 	}

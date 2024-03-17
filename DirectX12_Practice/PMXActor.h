@@ -38,6 +38,16 @@ struct UpdateRange
 	unsigned int range;
 };
 
+struct LoadMaterial
+{
+	bool visible;
+	std::wstring name;
+	XMFLOAT4 diffuse;
+	XMFLOAT3 specular;
+	float specularPower;
+	XMFLOAT3 ambient;
+};
+
 class NodeManager;
 class MorphManager;
 
@@ -52,6 +62,9 @@ public:
 	void Update();
 	void UpdateAnimation();
 	void Draw(Dx12Wrapper& dx, bool isShadow);
+
+	const std::vector<LoadMaterial>& GetMaterials() const;
+	void SetMaterials(const std::vector<LoadMaterial>& setMaterials);
 
 private:
 	HRESULT CreateVbAndIb(Dx12Wrapper& dx);
@@ -116,6 +129,7 @@ private:
 	ComPtr<ID3D12Resource> _materialBuff = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _materialHeap = nullptr;
 	char* _mappedMaterial = nullptr;
+	std::vector<LoadMaterial> _loadedMaterial;
 
 	struct MaterialForShader
 	{

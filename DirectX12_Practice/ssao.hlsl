@@ -1,4 +1,4 @@
-#include "peraHeader.hlsli"
+#include "HeaderScreenForward.hlsli"
 
 float random(float2 uv)
 {
@@ -50,5 +50,5 @@ float SsaoPs(Output input) : SV_Target
 		ao /= div;
 	}
 
-	return 1.0f;
+	return ao;
 }

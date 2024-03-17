@@ -159,13 +159,41 @@ void PMXActor::Draw(Dx12Wrapper& dx, bool isShadow = false)
 	}
 	else
 	{
-		for (auto& material : _pmxFileData.materials)
+		for (int i = 0; i < _pmxFileData.materials.size(); i++)
 		{
-			dx.CommandList()->SetGraphicsRootDescriptorTable(2, materialH);
-			dx.CommandList()->DrawIndexedInstanced(material.numFaceVertices, 1, idxOffset, 0, 0);
+			unsigned int numFaceVertices = _pmxFileData.materials[i].numFaceVertices;
+
+			if (_loadedMaterial[i].visible == true)
+			{
+				dx.CommandList()->SetGraphicsRootDescriptorTable(2, materialH);
+				dx.CommandList()->DrawIndexedInstanced(numFaceVertices, 1, idxOffset, 0, 0);
+			}
+
 			materialH.ptr += cbvSrvIncSize;
-			idxOffset += material.numFaceVertices;
+			idxOffset += numFaceVertices;
 		}
+	}
+}
+
+const std::vector<LoadMaterial>& PMXActor::GetMaterials() const
+{
+	return _loadedMaterial;
+}
+
+void PMXActor::SetMaterials(const std::vector<LoadMaterial>& setMaterials)
+{
+	for (int i = 0; i < setMaterials.size(); i++)
+	{
+		if (_loadedMaterial.size() <= i)
+		{
+			break;
+		}
+
+		_loadedMaterial[i].visible = setMaterials[i].visible;
+		_loadedMaterial[i].ambient = setMaterials[i].ambient;
+		_loadedMaterial[i].diffuse = setMaterials[i].diffuse;
+		_loadedMaterial[i].specular = setMaterials[i].specular;
+		_loadedMaterial[i].specularPower = setMaterials[i].specularPower;
 	}
 }
 
@@ -360,10 +388,21 @@ HRESULT PMXActor::CreateMaterialData(Dx12Wrapper& dx)
 		return result;
 	}
 
+	_loadedMaterial.resize(_pmxFileData.materials.size());
+
 	char* mappedMaterialPtr = _mappedMaterial;
 
+	int materialIndex = 0;
 	for (const auto& material : _pmxFileData.materials)
 	{
+		_loadedMaterial[materialIndex].visible = true;
+		_loadedMaterial[materialIndex].name = material.name;
+		_loadedMaterial[materialIndex].diffuse = material.diffuse;
+		_loadedMaterial[materialIndex].specular = material.specular;
+		_loadedMaterial[materialIndex].specularPower = material.specularPower;
+		_loadedMaterial[materialIndex].ambient = material.ambient;
+		materialIndex++;
+
 		MaterialForShader* uploadMat = reinterpret_cast<MaterialForShader*>(mappedMaterialPtr);
 		uploadMat->diffuse = material.diffuse;
 		uploadMat->specular = material.specular;
@@ -757,9 +796,9 @@ void PMXActor::MorphMaterial()
 
 	char* mappedMaterialPtr = _mappedMaterial;
 
-	for (int i = 0; i < _pmxFileData.materials.size(); i++)
+	for (int i = 0; i < _loadedMaterial.size(); i++)
 	{
-		PMXMaterial& material = _pmxFileData.materials[i];
+		LoadMaterial& material = _loadedMaterial[i];
 
 		MaterialForShader* uploadMat = reinterpret_cast<MaterialForShader*>(mappedMaterialPtr);
 

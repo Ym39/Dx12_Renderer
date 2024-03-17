@@ -228,8 +228,9 @@ float4 VerticalBokehPS(Output input) : SV_TARGET
 
 	float4 ssao = texSSAO.Sample(smp, input.uv);
 	float4 color = tex.Sample(smp, input.uv);
+	float4 shrink = texShrink.Sample(smp, input.uv);
 
-	return color * ssao;
+	return shrink;
 
 	//return col;
 	//return float4(ret.rgb, col.a);
