@@ -51,6 +51,12 @@ cbuffer Material : register(b2)
 	float3 ambient;
 };
 
+cbuffer Parameter : register(b3)
+{
+    float bloomThreshold;
+    float3 padding;
+}
+
 float4 matrix_to_quaternion(matrix m)
 {
     float tr = m[0][0] + m[1][1] + m[2][2];

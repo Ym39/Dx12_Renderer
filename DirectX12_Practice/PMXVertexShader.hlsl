@@ -17,7 +17,7 @@ Output VS(
 	output.normal = mul(world, normal);
 	output.vnormal = mul(view, output.normal);
 	output.uv = uv;
-	output.ray = normalize(pos.xyz - mul(view, eye));
+	output.ray = normalize(pos.xyz - eye);
 	output.instNo = instNo;
 
 	return output;

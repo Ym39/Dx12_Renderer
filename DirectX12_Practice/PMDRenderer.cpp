@@ -6,6 +6,7 @@
 #include"PMDActor.h"
 #include<string>
 #include<algorithm>
+#include "ImguiManager.h"
 
 HRESULT PMDRenderer::CreateGraphicsPipelineForPMD()
 {
