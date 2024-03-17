@@ -43,6 +43,9 @@ bool ImguiManager::Initialize(HWND hwnd, std::shared_ptr<Dx12Wrapper> dx)
 		return false;
 	}
 
+	ImGuiIO& io = ImGui::GetIO();
+	ImFont* font = io.Fonts->AddFontFromFileTTF("font/Togalite-Regular.otf", 16.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
+
 	int ppFlag = dx->GetPostProcessingFlag();
 	_enableBloom = (ppFlag & BLOOM) == BLOOM;
 
@@ -143,13 +146,13 @@ void ImguiManager::UpdatePmxActorDebugWindow()
 		bool visible = curMat.visible;
 
 		std::string matIndexString = std::to_string(i);
-		if (ImGui::CollapsingHeader(matIndexString.c_str(), ImGuiTreeNodeFlags_Framed))
+		if (ImGui::CollapsingHeader(curMat.name.c_str(), ImGuiTreeNodeFlags_Framed))
 		{
-			ImGui::Checkbox("Visible", &visible);
-			ImGui::ColorEdit4("Diffuse", diffuseColor);
-			ImGui::ColorEdit3("Specular", specularColor);
-			ImGui::InputFloat("SpecularPower", &specularPower);
-			ImGui::ColorEdit3("Ambient", ambientColor);
+			ImGui::Checkbox(("Visible ## mat" + matIndexString).c_str(), &visible);
+			ImGui::ColorEdit4(("Diffuse ## mat" + matIndexString).c_str(), diffuseColor);
+			ImGui::ColorEdit3(("Specular ## mat" + matIndexString).c_str(), specularColor);
+			ImGui::InputFloat(("SpecularPower ## mat" + matIndexString).c_str(), &specularPower);
+			ImGui::ColorEdit3(("Ambient ## mat" + matIndexString).c_str(), ambientColor);
 		}
 
 		curMat.visible = visible;

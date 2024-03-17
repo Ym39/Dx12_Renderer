@@ -19,6 +19,15 @@ namespace UnicodeUtil
 		return true;
 	}
 
+	std::string WstringToString(const std::wstring& wstr)
+	{
+		if (wstr.empty()) return std::string();
+		int sizeNeeded = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], -1, NULL, 0, NULL, NULL);
+		std::string strTo(sizeNeeded - 1, 0); 
+		WideCharToMultiByte(CP_UTF8, 0, &wstr[0], -1, &strTo[0], sizeNeeded, NULL, NULL);
+		return strTo;
+	}
+
 	std::string convertShiftJisToUtf8(const std::string& shiftJisText) {
 		// Create a wide string from the shift_jis text
 		std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
