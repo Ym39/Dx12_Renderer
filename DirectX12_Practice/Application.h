@@ -17,6 +17,7 @@ class PMDRenderer;
 class PMDActor;
 class PMXRenderer;
 class PMXActor;
+class FBXRenderer;
 class ImguiManager;
 
 class Application
@@ -27,6 +28,7 @@ private:
 	std::shared_ptr<Dx12Wrapper> _dx12;
 	std::shared_ptr<PMDRenderer> _pmdRenderer;
 	std::shared_ptr<PMXRenderer> _pmxRenderer;
+	std::shared_ptr<FBXRenderer> _fbxRenderer;
 
 	void CreateGameWindow(HWND& hwnd, WNDCLASSEX& windowClass);
 

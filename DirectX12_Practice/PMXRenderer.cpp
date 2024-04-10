@@ -157,7 +157,8 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 	gpipeline.NumRenderTargets = 3;
 	gpipeline.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
 	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(_deferredPipeline.ReleaseAndGetAddressOf()));
-	if (FAILED(result)) {
+	if (FAILED(result)) 
+	{
 		assert(SUCCEEDED(result));
 	}
 

@@ -23,6 +23,7 @@ public:
 	void PreDrawShadow();
 	bool PreDrawToPera1();
 	void DrawToPera1();
+	void DrawToPera1ForFbx();
 	void PostDrawToPera1();
 	void DrawAmbientOcclusion();
 	void DrawShrinkTextureForBlur();
