@@ -5,6 +5,8 @@
 #include"PMXActor.h"
 #include "PMXRenderer.h"
 #include "ImguiManager.h"
+#include "FBXActor.h"
+#include "FBXRenderer.h"
 
 #include "Imgui/imgui.h"
 #include "Imgui/imgui_impl_dx12.h"
@@ -91,6 +93,12 @@ bool Application::Init()
 
 	_pmxRenderer->AddActor(pmxMiku);
 
+	auto stage = std::make_shared<FBXActor>();
+	stage->Initialize("FBX/stage.fbx", *_dx12);
+
+	_fbxRenderer.reset(new FBXRenderer(*_dx12));
+	_fbxRenderer->AddActor(stage);
+
 	bResult = ImguiManager::Instance().Initialize(_hwnd, _dx12);
 	if (bResult == false)
 	{
@@ -134,6 +142,8 @@ void Application::Run()
 		_pmxRenderer->Update();
 		_pmxRenderer->BeforeDrawFromLight();
 
+		_fbxRenderer->Update();
+
 		_dx12->PreDrawShadow();
 
 		_pmxRenderer->DrawFromLight();
@@ -145,6 +155,12 @@ void Application::Run()
 		_dx12->DrawToPera1();
 
 		_pmxRenderer->Draw();
+
+		_fbxRenderer->BeforeDrawAtForwardPipeline();
+		
+		_dx12->DrawToPera1ForFbx();
+
+		_fbxRenderer->Draw();
 
 		_dx12->PostDrawToPera1();
 

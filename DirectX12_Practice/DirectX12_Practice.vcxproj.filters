@@ -111,6 +111,12 @@
     <ClCompile Include="Time.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="FBXActor.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="FBXRenderer.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="peraPixel.hlsl">
@@ -149,6 +155,12 @@
     <FxCompile Include="BloomResult.hlsl">
       <Filter>Shader\Postprocess</Filter>
     </FxCompile>
+    <FxCompile Include="FBXVertexShader.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="FBXPixelShader.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="peraHeader.hlsli">
@@ -165,6 +177,9 @@
     </None>
     <None Include="HeaderPostprocess.hlsli">
       <Filter>Shader\Postprocess</Filter>
+    </None>
+    <None Include="FBXShaderHeader.hlsli">
+      <Filter>Shader</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -265,6 +280,12 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="BitFlag.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="FBXActor.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="FBXRenderer.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

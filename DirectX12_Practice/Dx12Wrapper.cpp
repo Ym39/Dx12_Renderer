@@ -249,6 +249,21 @@ void Dx12Wrapper::DrawToPera1()
 	_cmdList->SetGraphicsRootDescriptorTable(3, handle);
 }
 
+void Dx12Wrapper::DrawToPera1ForFbx()
+{
+	auto wsize = Application::Instance().GetWindowSize();
+
+	ID3D12DescriptorHeap* sceneheaps[] = { _sceneDescHeap.Get() };
+	_cmdList->SetDescriptorHeaps(1, sceneheaps);
+	_cmdList->SetGraphicsRootDescriptorTable(0, _sceneDescHeap->GetGPUDescriptorHandleForHeapStart());
+
+	D3D12_VIEWPORT vp = CD3DX12_VIEWPORT(0.0f, 0.0f, wsize.cx, wsize.cy);
+	_cmdList->RSSetViewports(1, &vp);
+
+	CD3DX12_RECT rc(0, 0, wsize.cx, wsize.cy);
+	_cmdList->RSSetScissorRects(1, &rc);
+}
+
 void Dx12Wrapper::PostDrawToPera1()
 {
 	for (auto& resource : _pera1Resource)
