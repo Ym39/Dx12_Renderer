@@ -14,9 +14,8 @@
 
 #include "PmxFileData.h"
 #include "Time.h"
-
-const unsigned int window_width = 1600;
-const unsigned int window_height = 800;
+#include "Define.h"
+#include "Input.h"
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
@@ -28,13 +27,18 @@ LRESULT WindowProcedure(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 		return 0;
 	}
 
+	if (msg == WM_MOUSEMOVE)
+	{
+		Input::Instance()->SetWMMouse(static_cast<int>(LOWORD(lparam)), static_cast<int>(HIWORD(lparam)));
+	}
+
 	ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam);
 	return DefWindowProc(hwnd, msg, wparam, lparam);
 }
 
 void Application::CreateGameWindow(HWND& hwnd, WNDCLASSEX& windowClass)
 {
-	HINSTANCE hInst = GetModuleHandle(nullptr);
+	_hInstance = GetModuleHandle(nullptr);
 
 	windowClass.cbSize = sizeof(WNDCLASSEX);
 	windowClass.lpfnWndProc = (WNDPROC)WindowProcedure;
@@ -122,6 +126,12 @@ void Application::Run()
 	unsigned int frame = 0;
 	Time::Init();
 
+	if (Input::Instance()->Initialize(_hInstance, _hwnd) == false)
+	{
+		OutputDebugStringA("Fail Input Initialize");
+		return;
+	}
+
 	while (true)
 	{
 		Time::FrameTime();
@@ -137,7 +147,31 @@ void Application::Run()
 			break;
 		}
 
+		if (Input::Instance()->Update() == false)
+		{
+			break;
+		}
+
 		_dx12->SetCameraSetting();
+
+		static FBXActor* selectedFbxActor = nullptr;
+
+		if (Input::Instance()->GetMouseDown(0) == true)
+		{
+			float mousePositionX = Input::Instance()->GetMousePositionX();
+			float mousePositionY = Input::Instance()->GetMousePositionY();
+			XMFLOAT3 cameraPosition = _dx12->GetCameraPosition();
+			XMMATRIX viewMatrix = _dx12->GetViewMatrix();
+			XMMATRIX projMatrix = _dx12->GetProjectionMatrix();
+
+			for (auto& actor : _fbxRenderer->GetActor())
+			{
+				if (actor->TestSelect(mousePositionX, mousePositionY, cameraPosition, viewMatrix, projMatrix) == true)
+				{
+					selectedFbxActor = actor.get();
+				}
+			}
+		}
 
 		_pmxRenderer->Update();
 		_pmxRenderer->BeforeDrawFromLight();
@@ -177,6 +211,7 @@ void Application::Run()
 		ImguiManager::Instance().StartUI();
 		ImguiManager::Instance().UpdateAndSetDrawData(_dx12);
 		ImguiManager::Instance().UpdatePostProcessMenu(_dx12, _pmxRenderer);
+		ImguiManager::Instance().UpdateSelectInspector(selectedFbxActor);
 		ImguiManager::Instance().EndUI(_dx12);
 
 		_dx12->EndDraw();

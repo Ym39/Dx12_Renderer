@@ -23,6 +23,7 @@ public:
 	ID3D12PipelineState* GetPipelineState() const;
 	ID3D12RootSignature* GetRootSignature() const;
 	void AddActor(std::shared_ptr<FBXActor> actor);
+	std::vector<std::shared_ptr<FBXActor>>& GetActor();
 
 private:
 	HRESULT CreateRootSignature();

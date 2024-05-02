@@ -10,6 +10,7 @@
 #include<functional>
 #include<array>
 
+class Transform;
 class Dx12Wrapper
 {
 	template<typename T>
@@ -54,6 +55,10 @@ public:
 
 	int GetPostProcessingFlag() const;
 	void SetPostProcessingFlag(int flag);
+
+	DirectX::XMFLOAT3 GetCameraPosition() const;
+	DirectX::XMMATRIX GetViewMatrix() const;
+	DirectX::XMMATRIX GetProjectionMatrix() const;
 
 private:
 
@@ -137,6 +142,7 @@ private:
 	ComPtr<ID3D12PipelineState> _screenPipelineSSAO;
 	ComPtr<ID3D12PipelineState> _screenPipelineBloomSSAO;
 
+	Transform* _cameraTransform;
 	DirectX::XMFLOAT3 _eye;
 	DirectX::XMFLOAT3 _target;
 	DirectX::XMFLOAT3 _up;

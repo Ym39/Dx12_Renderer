@@ -5,9 +5,12 @@
 #include<format>
 #include <vector>
 
+#include "IType.h"
+
 class PMXActor;
 class PMXRenderer;
 struct LoadMaterial;
+class FBXActor;
 
 constexpr float pi = 3.141592653589f;
 
@@ -32,6 +35,7 @@ public:
 
 	void SetPmxActor(PMXActor* actor);
 	void UpdatePostProcessMenu(std::shared_ptr<Dx12Wrapper> dx, std::shared_ptr<PMXRenderer> renderer);
+	void UpdateSelectInspector(IType* typeObject);
 
 private:
 	void UpdatePmxActorDebugWindow();

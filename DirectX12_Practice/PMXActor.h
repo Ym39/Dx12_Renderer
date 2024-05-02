@@ -15,6 +15,8 @@
 #include "NodeManager.h"
 #include "MorphManager.h"
 #include "PhysicsManager.h"
+#include "IGetTransform.h"
+#include "Transform.h"
 
 using namespace DirectX;
 
@@ -52,7 +54,7 @@ class NodeManager;
 class MorphManager;
 
 class Dx12Wrapper;
-class PMXActor
+class PMXActor : IGetTransform
 {
 public:
 	PMXActor();
@@ -65,6 +67,8 @@ public:
 
 	const std::vector<LoadMaterial>& GetMaterials() const;
 	void SetMaterials(const std::vector<LoadMaterial>& setMaterials);
+
+	Transform& GetTransform() override;
 
 private:
 	HRESULT CreateVbAndIb(Dx12Wrapper& dx);
@@ -111,6 +115,7 @@ private:
 	std::vector<ComPtr<ID3D12Resource>> _toonResources;
 	std::vector<ComPtr<ID3D12Resource>> _sphereTextureResources;
 
+	Transform _tranform;
 	ComPtr<ID3D12Resource> _transformMat = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _transformHeap = nullptr;
 	std::vector<XMMATRIX> _boneMatrices;

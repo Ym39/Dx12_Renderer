@@ -1,9 +1,12 @@
 #include "Dx12Wrapper.h"
-#include<cassert>
-#include<d3dx12.h>
-#include"Application.h"
+#include <cassert>
+#include <d3dx12.h>
+#include "Application.h"
 #include "Utill.h"
 #include "BitFlag.h"
+#include "Input.h"
+#include "Transform.h"
+#include "Time.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -118,6 +121,10 @@ Dx12Wrapper::Dx12Wrapper(HWND hwnd) :
 		assert(0);
 		return;
 	}
+
+	_cameraTransform = new Transform();
+	_cameraTransform->SetPosition(0.0f, 10.0f, -30.0f);
+	_cameraTransform->SetRotation(0.0f, 0.0f, 0.0f);
 }
 
 Dx12Wrapper::~Dx12Wrapper()
@@ -126,6 +133,52 @@ Dx12Wrapper::~Dx12Wrapper()
 
 void Dx12Wrapper::SetCameraSetting()
 {
+	if (Input::Instance()->GetMousePressed(1) == true)
+	{
+		float deltaFloat = Time::GetDeltaTime();
+		float mouseX = Input::Instance()->GetMouseX();
+		float mouseY = Input::Instance()->GetMouseY();
+		
+		float senstive = 0.025f;
+
+		DirectX::XMFLOAT3 rotation = _cameraTransform->GetRotation();
+		rotation.y = rotation.y + (senstive * deltaFloat * mouseX);
+		rotation.x = rotation.x + (senstive * deltaFloat * mouseY);
+		_cameraTransform->SetRotation(rotation.x, rotation.y, rotation.z);
+
+		bool inputWASD = false;
+		DirectX::XMVECTOR cameraForward = XMLoadFloat3(&_cameraTransform->GetForward());
+		DirectX::XMVECTOR cameraRight = XMLoadFloat3(&_cameraTransform->GetRight());
+		DirectX::XMVECTOR moveVector = XMVectorZero();
+
+		if (Input::Instance()->GetKeyPressed(DIK_W) == true)
+		{
+			moveVector += cameraForward;
+			inputWASD = true;
+		}
+		if (Input::Instance()->GetKeyPressed(DIK_S) == true)
+		{
+			moveVector -= cameraForward;
+			inputWASD = true;
+		}
+		if (Input::Instance()->GetKeyPressed(DIK_A) == true)
+		{
+			moveVector -= cameraRight;
+			inputWASD = true;
+		}
+		if (Input::Instance()->GetKeyPressed(DIK_D) == true)
+		{
+			moveVector += cameraRight;
+			inputWASD = true;
+		}
+
+		if (inputWASD == true)
+		{
+			moveVector = XMVector3Normalize(moveVector);
+			_cameraTransform->AddTranslation(moveVector.m128_f32[0], moveVector.m128_f32[1], moveVector.m128_f32[2]);
+		}
+	}
+
 	auto wsize = Application::Instance().GetWindowSize();
 
 	auto eyePos = XMLoadFloat3(&_eye);
@@ -136,7 +189,7 @@ void Dx12Wrapper::SetCameraSetting()
 	XMMATRIX projectionMatrix = XMMatrixPerspectiveFovLH(_fov, static_cast<float>(wsize.cx) / static_cast<float>(wsize.cy), 0.1f, 1000.0f);
 
 	XMVECTOR det;
-	_mappedSceneMatricesData->view = lookMatrix;
+	_mappedSceneMatricesData->view = _cameraTransform->GetViewMatrix();
 	_mappedSceneMatricesData->proj = projectionMatrix;
 	_mappedSceneMatricesData->invProj = XMMatrixInverse(&det, projectionMatrix);
 	_mappedSceneMatricesData->eye = _eye;
@@ -702,6 +755,21 @@ int Dx12Wrapper::GetPostProcessingFlag() const
 void Dx12Wrapper::SetPostProcessingFlag(int flag)
 {
 	_currentPPFlag = flag;
+}
+
+DirectX::XMFLOAT3 Dx12Wrapper::GetCameraPosition() const
+{
+	return _cameraTransform->GetPosition();
+}
+
+DirectX::XMMATRIX Dx12Wrapper::GetViewMatrix() const
+{
+	return _mappedSceneMatricesData->view;
+}
+
+DirectX::XMMATRIX Dx12Wrapper::GetProjectionMatrix() const
+{
+	return _mappedSceneMatricesData->proj;
 }
 
 HRESULT Dx12Wrapper::InitializeDXGIDevice()
