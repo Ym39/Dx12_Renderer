@@ -198,6 +198,11 @@ void PMXActor::SetMaterials(const std::vector<LoadMaterial>& setMaterials)
 	}
 }
 
+Transform& PMXActor::GetTransform()
+{
+	return _tranform;
+}
+
 HRESULT PMXActor::CreateVbAndIb(Dx12Wrapper& dx)
 {
 	D3D12_HEAP_PROPERTIES heapprop = {};

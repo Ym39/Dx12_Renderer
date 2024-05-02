@@ -3,6 +3,7 @@
 unsigned int Time::_applicationStartTime = 0;
 unsigned int Time::_currentFrameTime = 0;
 unsigned int Time::_deltaTime = 0.0f;
+float Time::_deltaTimeFloat = 0.0f;
 unsigned int Time::_startAnimationUpdateTime = 0;
 unsigned int Time::_startMorphUpdateTime = 0;
 unsigned int Time::_startSkinningUpdateTime = 0.0f;
@@ -20,6 +21,7 @@ void Time::FrameTime()
 {
 	const unsigned int current = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 	_deltaTime = current - _currentFrameTime;
+	_deltaTimeFloat = static_cast<float>(_deltaTime) * 0.001f;
 	_currentFrameTime = current;
 }
 
@@ -31,6 +33,11 @@ unsigned int Time::GetTime()
 unsigned int Time::GetDeltaTime()
 {
 	return _deltaTime;
+}
+
+float Time::GetDeltaTimeFloat()
+{
+	return _deltaTime * 0.001f;
 }
 
 unsigned Time::GetAnimationUpdateTime()

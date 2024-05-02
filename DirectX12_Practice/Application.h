@@ -25,6 +25,7 @@ class Application
 private:
 	WNDCLASSEX _windowClass;
 	HWND _hwnd;
+	HINSTANCE _hInstance;
 	std::shared_ptr<Dx12Wrapper> _dx12;
 	std::shared_ptr<PMDRenderer> _pmdRenderer;
 	std::shared_ptr<PMXRenderer> _pmxRenderer;

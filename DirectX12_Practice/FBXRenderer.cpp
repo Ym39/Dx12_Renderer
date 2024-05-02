@@ -63,6 +63,11 @@ void FBXRenderer::AddActor(std::shared_ptr<FBXActor> actor)
 	_actors.push_back(actor);
 }
 
+std::vector<std::shared_ptr<FBXActor>>& FBXRenderer::GetActor()
+{
+	return _actors;
+}
+
 HRESULT FBXRenderer::CreateRootSignature()
 {
 	D3D12_DESCRIPTOR_RANGE descriptorRange[2] = {};

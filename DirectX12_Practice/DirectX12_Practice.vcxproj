@@ -146,6 +146,7 @@
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="BoneNode.cpp" />
+    <ClCompile Include="BoundBox.cpp" />
     <ClCompile Include="Dx12Wrapper.cpp" />
     <ClCompile Include="FBXActor.cpp" />
     <ClCompile Include="FBXRenderer.cpp" />
@@ -158,6 +159,7 @@
     <ClCompile Include="Imgui\imgui_impl_win32.cpp" />
     <ClCompile Include="Imgui\imgui_tables.cpp" />
     <ClCompile Include="Imgui\imgui_widgets.cpp" />
+    <ClCompile Include="Input.cpp" />
     <ClCompile Include="Joint.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MathUtil.cpp" />
@@ -172,6 +174,7 @@
     <ClCompile Include="PMXRenderer.cpp" />
     <ClCompile Include="RigidBody.cpp" />
     <ClCompile Include="Time.cpp" />
+    <ClCompile Include="Transform.cpp" />
     <ClCompile Include="UnicodeUtil.cpp" />
     <ClCompile Include="VMDFileData.cpp" />
   </ItemGroup>
@@ -305,6 +308,8 @@
     <ClInclude Include="Application.h" />
     <ClInclude Include="BitFlag.h" />
     <ClInclude Include="BoneNode.h" />
+    <ClInclude Include="BoundBox.h" />
+    <ClInclude Include="Define.h" />
     <ClInclude Include="Dx12Wrapper.h" />
     <ClInclude Include="FBXActor.h" />
     <ClInclude Include="FBXRenderer.h" />
@@ -318,6 +323,10 @@
     <ClInclude Include="Imgui\imstb_rectpack.h" />
     <ClInclude Include="Imgui\imstb_textedit.h" />
     <ClInclude Include="Imgui\imstb_truetype.h" />
+    <ClInclude Include="IGetTransform.h" />
+    <ClInclude Include="Input.h" />
+    <ClInclude Include="ISelectable.h" />
+    <ClInclude Include="IType.h" />
     <ClInclude Include="Joint.h" />
     <ClInclude Include="MathUtil.h" />
     <ClInclude Include="Morph.h" />
@@ -334,6 +343,7 @@
     <ClInclude Include="RigidBody.h" />
     <ClInclude Include="srtconv.h" />
     <ClInclude Include="Time.h" />
+    <ClInclude Include="Transform.h" />
     <ClInclude Include="UnicodeUtil.h" />
     <ClInclude Include="Utill.h" />
     <ClInclude Include="VMDFileData.h" />

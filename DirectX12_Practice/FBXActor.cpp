@@ -1,8 +1,15 @@
 #include "FBXActor.h"
+#include "FBXActor.h"
 
 #include <d3dx12.h>
 
 #include "Dx12Wrapper.h"
+#include "Transform.h"
+#include "BoundBox.h"
+
+FBXActor::FBXActor() 
+{
+}
 
 bool FBXActor::Initialize(const std::string& path, Dx12Wrapper& dx)
 {
@@ -38,6 +45,16 @@ bool FBXActor::Initialize(const std::string& path, Dx12Wrapper& dx)
 		return false;
 	}
 
+	std::vector<DirectX::XMFLOAT3> vertexPositionList;
+	vertexPositionList.reserve(_vertices.size());
+
+	for (const auto& vertex : _vertices)
+	{
+		vertexPositionList.push_back(vertex.position);
+	}
+
+	_bounds = BoundsBox::CreateBoundsBox(vertexPositionList);
+
 	return true;
 }
 
@@ -67,6 +84,29 @@ void FBXActor::Draw(Dx12Wrapper& dx, bool isShadow)
 
 void FBXActor::Update()
 {
+	_mappedWorldTranform[0] = _transform.GetTransformMatrix();
+}
+
+Transform& FBXActor::GetTransform()
+{
+	return _transform;
+}
+
+TypeIdentity FBXActor::GetType()
+{
+	return TypeIdentity::FbxActor;
+}
+
+bool FBXActor::TestSelect(int mouseX, int mouseY, DirectX::XMFLOAT3 cameraPosition, const DirectX::XMMATRIX& viewMatrix, const DirectX::XMMATRIX& projectionMatrix)
+{
+	if (_bounds == nullptr)
+	{
+		return false;
+	}
+
+	DirectX::XMFLOAT3 worldPosition = _transform.GetPosition();
+
+	return _bounds->TestIntersectionBoundsBoxByMousePosition(mouseX, mouseY, worldPosition, cameraPosition, viewMatrix, projectionMatrix);
 }
 
 DirectX::XMFLOAT3 FBXActor::AiVector3ToXMFLOAT3(const aiVector3D& vec)

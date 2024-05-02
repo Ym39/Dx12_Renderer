@@ -9,6 +9,7 @@ public:
 
 	static unsigned int GetTime();
 	static unsigned int GetDeltaTime();
+	static float GetDeltaTimeFloat();
 
 	static unsigned int GetAnimationUpdateTime();
 	static unsigned int GetMorphUpdateTime();
@@ -26,6 +27,7 @@ private:
 	static unsigned int _applicationStartTime;
 	static unsigned int _currentFrameTime;
 	static unsigned int _deltaTime;
+	static float _deltaTimeFloat;
 
 	static unsigned int _startAnimationUpdateTime;
 	static unsigned int _startMorphUpdateTime;

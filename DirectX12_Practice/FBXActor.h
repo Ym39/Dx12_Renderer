@@ -8,7 +8,13 @@
 #include <d3d12.h>
 #include <wrl/client.h>
 
+#include "Transform.h"
+#include "IGetTransform.h"
+#include "ISelectable.h"
+#include "IType.h"
+
 class Dx12Wrapper;
+class BoundsBox;
 
 struct FBXVertex
 {
@@ -25,12 +31,20 @@ struct FBXMesh
 	unsigned int indexCount;
 };
 
-class FBXActor
+class FBXActor : public IGetTransform,
+                 public ISelectable,
+                 public IType
 {
 public:
+	FBXActor();
+
 	bool Initialize(const std::string& path, Dx12Wrapper& dx);
 	void Draw(Dx12Wrapper& dx, bool isShadow);
 	void Update();
+
+	Transform& GetTransform() override;
+	TypeIdentity GetType() override;
+	bool TestSelect(int mouseX, int mouseY, DirectX::XMFLOAT3 cameraPosition, const DirectX::XMMATRIX& viewMatrix, const DirectX::XMMATRIX& projectionMatrix) override;
 
 private:
 	DirectX::XMFLOAT3 AiVector3ToXMFLOAT3(const aiVector3D& vec);
@@ -61,5 +75,8 @@ private:
 	ComPtr<ID3D12Resource> _transformBuffer = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _transformHeap = nullptr;
 	DirectX::XMMATRIX* _mappedWorldTranform;
+	Transform _transform;
+
+	BoundsBox* _bounds = nullptr;
 };
 

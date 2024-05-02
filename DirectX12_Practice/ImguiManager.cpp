@@ -7,6 +7,7 @@
 #include "PMXActor.h"
 #include "BitFlag.h"
 #include "PMXRenderer.h"
+#include "FBXActor.h"
 
 ImguiManager ImguiManager::_instance;
 
@@ -239,4 +240,57 @@ void ImguiManager::UpdatePostProcessMenu(std::shared_ptr<Dx12Wrapper> dx, std::s
 
 	dx->SetBloomIteration(mBloomIteration);
 	dx->SetBloomIntensity(mBloomIntensity);
+}
+
+void ImguiManager::UpdateSelectInspector(IType* typeObject)
+{
+	ImGui::Begin("Select Inspector");
+
+	if(typeObject == nullptr)
+	{
+		ImGui::End();
+		return;
+	}
+
+	TypeIdentity type = typeObject->GetType();
+
+	if (type == TypeIdentity::FbxActor)
+	{
+		FBXActor* fbxActor = static_cast<FBXActor*>(typeObject);
+
+		bool valueChanged = false;
+
+		Transform& transform = fbxActor->GetTransform();
+		DirectX::XMFLOAT3 position = transform.GetPosition();
+		DirectX::XMFLOAT3 rotation = transform.GetRotation();
+		DirectX::XMFLOAT3 scale = transform.GetScale();
+
+		float positionArray[] = { position.x, position.y, position.z };
+		float rotationArray[] = { rotation.x, rotation.y, rotation.z };
+		float scaleArray[] = { scale.x, scale.y, scale.z };
+
+		if (ImGui::DragFloat3("Position ## Inspector", positionArray, 0.01f))
+		{
+			valueChanged = true;
+		}
+
+		if (ImGui::DragFloat3("Rotation ## Inspector", rotationArray, 0.01f))
+		{
+			valueChanged = true;
+		}
+
+		if (ImGui::DragFloat3("Scale ## Inspector", scaleArray, 0.01f))
+		{
+			valueChanged = true;
+		}
+
+		if (valueChanged == true)
+		{
+			transform.SetPosition(positionArray[0], positionArray[1], positionArray[2]);
+			transform.SetRotation(rotationArray[0], rotationArray[1], rotationArray[2]);
+			transform.SetScale(scaleArray[0], scaleArray[1], scaleArray[2]);
+		}
+	}
+
+	ImGui::End();
 }
