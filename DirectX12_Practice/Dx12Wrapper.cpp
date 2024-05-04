@@ -747,6 +747,11 @@ void Dx12Wrapper::SetDirectionalLightRotation(float vec[3])
 	_directionalLightRotation.z = vec[2];
 }
 
+const DirectX::XMFLOAT3& Dx12Wrapper::GetDirectionalLightRotation() const
+{
+	return _directionalLightRotation;
+}
+
 int Dx12Wrapper::GetPostProcessingFlag() const
 {
 	return _currentPPFlag;

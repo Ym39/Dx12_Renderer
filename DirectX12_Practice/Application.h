@@ -37,6 +37,8 @@ private:
 	Application(const Application&) = delete;
 	void operator=(const Application&) = delete;
 
+	void ReadSceneData();
+
 public:
 	static Application& Instance();
 

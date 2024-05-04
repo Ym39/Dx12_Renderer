@@ -52,6 +52,7 @@ public:
 
 	void SetFov(float fov);
 	void SetDirectionalLightRotation(float vec[3]);
+	const DirectX::XMFLOAT3& GetDirectionalLightRotation() const;
 
 	int GetPostProcessingFlag() const;
 	void SetPostProcessingFlag(int flag);

@@ -12,6 +12,7 @@
 #include "IGetTransform.h"
 #include "ISelectable.h"
 #include "IType.h"
+#include "Serialize.h"
 
 class Dx12Wrapper;
 class BoundsBox;
@@ -46,6 +47,8 @@ public:
 	TypeIdentity GetType() override;
 	bool TestSelect(int mouseX, int mouseY, DirectX::XMFLOAT3 cameraPosition, const DirectX::XMMATRIX& viewMatrix, const DirectX::XMMATRIX& projectionMatrix) override;
 
+	void GetSerialize(json& j);
+
 private:
 	DirectX::XMFLOAT3 AiVector3ToXMFLOAT3(const aiVector3D& vec);
 	DirectX::XMFLOAT2 AiVector2ToXMFLOAT2(const aiVector2D& vec);
@@ -58,6 +61,8 @@ private:
 private:
 	template<typename T>
 	using ComPtr = Microsoft::WRL::ComPtr<T>;
+
+	std::string _modelPath;
 
 	std::vector<FBXVertex> _vertices;
 	std::vector<unsigned int> _indices;
