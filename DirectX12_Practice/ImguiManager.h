@@ -11,6 +11,7 @@ class PMXActor;
 class PMXRenderer;
 struct LoadMaterial;
 class FBXActor;
+class FBXRenderer;
 
 constexpr float pi = 3.141592653589f;
 
@@ -36,6 +37,7 @@ public:
 	void SetPmxActor(PMXActor* actor);
 	void UpdatePostProcessMenu(std::shared_ptr<Dx12Wrapper> dx, std::shared_ptr<PMXRenderer> renderer);
 	void UpdateSelectInspector(IType* typeObject);
+	void UpdateSaveMenu(std::shared_ptr<Dx12Wrapper> dx, std::shared_ptr<FBXRenderer> fbxRenderer);
 
 private:
 	void UpdatePmxActorDebugWindow();

@@ -13,6 +13,8 @@ FBXActor::FBXActor()
 
 bool FBXActor::Initialize(const std::string& path, Dx12Wrapper& dx)
 {
+	_modelPath = path;
+
 	Assimp::Importer importer;
 
 	unsigned int flag;
@@ -107,6 +109,25 @@ bool FBXActor::TestSelect(int mouseX, int mouseY, DirectX::XMFLOAT3 cameraPositi
 	DirectX::XMFLOAT3 worldPosition = _transform.GetPosition();
 
 	return _bounds->TestIntersectionBoundsBoxByMousePosition(mouseX, mouseY, worldPosition, cameraPosition, viewMatrix, projectionMatrix);
+}
+
+void FBXActor::GetSerialize(json& j)
+{
+	json positionJson;
+	Serialize::Float3ToJson(positionJson, _transform.GetPosition());
+	json rotationJson;
+	Serialize::Float3ToJson(rotationJson, _transform.GetRotation());
+	json scaleJson;
+	Serialize::Float3ToJson(scaleJson, _transform.GetScale());
+
+	j["ModelPath"] = _modelPath;
+
+	json transformJson;
+	transformJson["Position"] = positionJson;
+	transformJson["Rotation"] = rotationJson;
+	transformJson["Scale"] = scaleJson;
+
+	j["Transform"] = transformJson;
 }
 
 DirectX::XMFLOAT3 FBXActor::AiVector3ToXMFLOAT3(const aiVector3D& vec)

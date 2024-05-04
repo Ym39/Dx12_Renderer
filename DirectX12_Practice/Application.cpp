@@ -17,6 +17,9 @@
 #include "Define.h"
 #include "Input.h"
 
+#include <iomanip>
+#include <fstream>
+
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
 LRESULT WindowProcedure(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
@@ -97,11 +100,13 @@ bool Application::Init()
 
 	_pmxRenderer->AddActor(pmxMiku);
 
-	auto stage = std::make_shared<FBXActor>();
-	stage->Initialize("FBX/stage.fbx", *_dx12);
+	//auto stage = std::make_shared<FBXActor>();
+	//stage->Initialize("FBX/stage.fbx", *_dx12);
 
 	_fbxRenderer.reset(new FBXRenderer(*_dx12));
-	_fbxRenderer->AddActor(stage);
+	//_fbxRenderer->AddActor(stage);
+
+	ReadSceneData();
 
 	bResult = ImguiManager::Instance().Initialize(_hwnd, _dx12);
 	if (bResult == false)
@@ -212,6 +217,7 @@ void Application::Run()
 		ImguiManager::Instance().UpdateAndSetDrawData(_dx12);
 		ImguiManager::Instance().UpdatePostProcessMenu(_dx12, _pmxRenderer);
 		ImguiManager::Instance().UpdateSelectInspector(selectedFbxActor);
+		ImguiManager::Instance().UpdateSaveMenu(_dx12, _fbxRenderer);
 		ImguiManager::Instance().EndUI(_dx12);
 
 		_dx12->EndDraw();
@@ -240,6 +246,86 @@ Application::Application()
 
 Application::~Application()
 {
+}
+
+void Application::ReadSceneData()
+{
+	const std::string sceneJsonFileName = "Scene.json";
+
+	std::ifstream sceneFile(sceneJsonFileName);
+	if (sceneFile.good() == false)
+	{
+		return;
+	}
+
+	if (sceneFile.is_open() == false)
+	{
+		return;
+	}
+
+	json sceneData = json::parse(sceneFile);
+	sceneFile.close();
+
+	if (sceneData.contains("Directional Light") == true)
+	{
+		float lightDirection[3]
+		{
+			sceneData["Directional Light"]["x"],
+			sceneData["Directional Light"]["y"],
+			sceneData["Directional Light"]["z"]
+		};
+
+		_dx12->SetDirectionalLightRotation(lightDirection);
+	}
+
+	if (sceneData.contains("FbxActor") == true)
+	{
+		for (const auto& fbxActorJson : sceneData["FbxActor"])
+		{
+			if (fbxActorJson.contains("ModelPath") == false ||
+				fbxActorJson.contains("Transform") == false)
+			{
+				continue;
+			}
+
+			std::string fbxFileName = fbxActorJson["ModelPath"];
+
+			json transformJson = fbxActorJson["Transform"];
+			if (transformJson.contains("Position") == false ||
+				transformJson.contains("Rotation") == false ||
+				transformJson.contains("Scale") == false)
+			{
+				continue;
+			}
+
+			DirectX::XMFLOAT3 position;
+			position.x = transformJson["Position"]["x"];
+			position.y = transformJson["Position"]["y"];
+			position.z = transformJson["Position"]["z"];
+
+			DirectX::XMFLOAT3 rotation;
+			rotation.x = transformJson["Rotation"]["x"];
+			rotation.y = transformJson["Rotation"]["y"];
+			rotation.z = transformJson["Rotation"]["z"];
+
+			DirectX::XMFLOAT3 scale;
+			scale.x = transformJson["Scale"]["x"];
+			scale.y = transformJson["Scale"]["y"];
+			scale.z = transformJson["Scale"]["z"];
+
+			std::shared_ptr<FBXActor> newActor = std::make_shared<FBXActor>();
+			if (newActor->Initialize(fbxFileName, *_dx12) == false)
+			{
+				continue;
+			}
+			Transform& transform = newActor->GetTransform();
+			transform.SetPosition(position.x, position.y, position.z);
+			transform.SetRotation(rotation.x, rotation.y, rotation.z);
+			transform.SetScale(scale.x, scale.y, scale.z);
+
+			_fbxRenderer->AddActor(newActor);
+		}
+	}
 }
 
 Application& Application::Instance()

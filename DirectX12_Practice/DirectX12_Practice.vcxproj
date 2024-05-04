@@ -173,6 +173,7 @@
     <ClCompile Include="PmxFileData.cpp" />
     <ClCompile Include="PMXRenderer.cpp" />
     <ClCompile Include="RigidBody.cpp" />
+    <ClCompile Include="Serialize.cpp" />
     <ClCompile Include="Time.cpp" />
     <ClCompile Include="Transform.cpp" />
     <ClCompile Include="UnicodeUtil.cpp" />
@@ -328,6 +329,7 @@
     <ClInclude Include="ISelectable.h" />
     <ClInclude Include="IType.h" />
     <ClInclude Include="Joint.h" />
+    <ClInclude Include="json.hpp" />
     <ClInclude Include="MathUtil.h" />
     <ClInclude Include="Morph.h" />
     <ClInclude Include="MorphManager.h" />
@@ -341,6 +343,7 @@
     <ClInclude Include="PmxFileData.h" />
     <ClInclude Include="PMXRenderer.h" />
     <ClInclude Include="RigidBody.h" />
+    <ClInclude Include="Serialize.h" />
     <ClInclude Include="srtconv.h" />
     <ClInclude Include="Time.h" />
     <ClInclude Include="Transform.h" />

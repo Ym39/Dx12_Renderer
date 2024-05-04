@@ -1,4 +1,7 @@
 #include "ImguiManager.h"
+
+#include <iomanip>
+
 #include "Imgui/imgui.h"
 #include "Imgui/imgui_impl_dx12.h"
 #include "Imgui/imgui_impl_win32.h"
@@ -8,6 +11,8 @@
 #include "BitFlag.h"
 #include "PMXRenderer.h"
 #include "FBXActor.h"
+#include "FBXRenderer.h"
+#include "Serialize.h"
 
 ImguiManager ImguiManager::_instance;
 
@@ -51,7 +56,10 @@ bool ImguiManager::Initialize(HWND hwnd, std::shared_ptr<Dx12Wrapper> dx)
 	_enableBloom = (ppFlag & BLOOM) == BLOOM;
 
 	dx->SetFov(mFov);
-	dx->SetDirectionalLightRotation(mLightRotation);
+	const DirectX::XMFLOAT3& lightRotation = dx->GetDirectionalLightRotation();
+	mLightRotation[0] = lightRotation.x;
+	mLightRotation[1] = lightRotation.y;
+	mLightRotation[2] = lightRotation.z;
 
 	dx->SetBloomIteration(mBloomIteration);
 	dx->SetBloomIntensity(mBloomIntensity);
@@ -290,6 +298,27 @@ void ImguiManager::UpdateSelectInspector(IType* typeObject)
 			transform.SetRotation(rotationArray[0], rotationArray[1], rotationArray[2]);
 			transform.SetScale(scaleArray[0], scaleArray[1], scaleArray[2]);
 		}
+	}
+
+	ImGui::End();
+}
+
+void ImguiManager::UpdateSaveMenu(std::shared_ptr<Dx12Wrapper> dx, std::shared_ptr<FBXRenderer> fbxRenderer)
+{
+	ImGui::Begin("Save Menu");
+	if (ImGui::Button("Save ## SaveMenu") == true)
+	{
+		json sceneJson;
+
+		const DirectX::XMFLOAT3& lightRotation = dx->GetDirectionalLightRotation();
+		json lightRotationJson;
+		Serialize::Float3ToJson(lightRotationJson, lightRotation);
+		sceneJson["Directional Light"] = lightRotationJson;
+
+		Serialize::SerializeScene(sceneJson, fbxRenderer->GetActor());
+
+		std::ofstream o("Scene.json");
+		o << std::setw(4) << sceneJson << std::endl;
 	}
 
 	ImGui::End();
