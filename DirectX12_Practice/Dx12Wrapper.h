@@ -144,10 +144,8 @@ private:
 	ComPtr<ID3D12PipelineState> _screenPipelineBloomSSAO;
 
 	Transform* _cameraTransform;
-	DirectX::XMFLOAT3 _eye;
-	DirectX::XMFLOAT3 _target;
-	DirectX::XMFLOAT3 _up;
-	DirectX::XMFLOAT3 _directionalLightRotation;
+	Transform* _directionalLightTransform;
+
 	//Setting Value
 	float _fov;
 	float _lightVector[3];

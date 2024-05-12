@@ -18,10 +18,6 @@ using namespace DirectX;
 using namespace Microsoft::WRL;
 
 Dx12Wrapper::Dx12Wrapper(HWND hwnd) :
-	_directionalLightRotation(60, -30, -1),
-	_eye(0, 10, -30),
-	_target(0, 10, 0),
-	_up(0, 1, 0),
     _currentPPFlag(0)
 {
 #ifdef _DEBUG
@@ -125,6 +121,8 @@ Dx12Wrapper::Dx12Wrapper(HWND hwnd) :
 	_cameraTransform = new Transform();
 	_cameraTransform->SetPosition(0.0f, 10.0f, -30.0f);
 	_cameraTransform->SetRotation(0.0f, 0.0f, 0.0f);
+
+	_directionalLightTransform = new Transform();
 }
 
 Dx12Wrapper::~Dx12Wrapper()
@@ -181,35 +179,23 @@ void Dx12Wrapper::SetCameraSetting()
 
 	auto wsize = Application::Instance().GetWindowSize();
 
-	auto eyePos = XMLoadFloat3(&_eye);
-	auto targetPos = XMLoadFloat3(&_target);
-	auto upVec = XMLoadFloat3(&_up);
-
-	XMMATRIX lookMatrix = XMMatrixLookAtLH(eyePos, targetPos, upVec);
 	XMMATRIX projectionMatrix = XMMatrixPerspectiveFovLH(_fov, static_cast<float>(wsize.cx) / static_cast<float>(wsize.cy), 0.1f, 1000.0f);
 
 	XMVECTOR det;
 	_mappedSceneMatricesData->view = _cameraTransform->GetViewMatrix();
 	_mappedSceneMatricesData->proj = projectionMatrix;
 	_mappedSceneMatricesData->invProj = XMMatrixInverse(&det, projectionMatrix);
-	_mappedSceneMatricesData->eye = _eye;
+	_mappedSceneMatricesData->eye = _cameraTransform->GetPosition();
 
 	XMFLOAT4 planeVec(0, 1, 0, 0);
-	_mappedSceneMatricesData->shadow = XMMatrixShadow(XMLoadFloat4(&planeVec), -XMLoadFloat3(&_directionalLightRotation));
+	XMFLOAT3 lightPosition = _directionalLightTransform->GetPosition();
+	_mappedSceneMatricesData->shadow = XMMatrixShadow(XMLoadFloat4(&planeVec), -XMLoadFloat3(&lightPosition));
 
-	XMFLOAT3 lightVector(0, 0, 1);
-	XMVECTOR lightDirectionRotation = XMQuaternionRotationRollPitchYaw(
-		XMConvertToRadians(_directionalLightRotation.x),
-		XMConvertToRadians(_directionalLightRotation.y),
-		XMConvertToRadians(_directionalLightRotation.z));
-	XMVECTOR loadLightVector = XMLoadFloat3(&lightVector);
-	XMVECTOR resultLightVector = XMVector3Rotate(loadLightVector, lightDirectionRotation);
-	XMStoreFloat3(&lightVector, resultLightVector);
-	_mappedSceneMatricesData->light = XMFLOAT4(lightVector.x, lightVector.y, lightVector.z, 0);
+	XMFLOAT3 lightDirection = _directionalLightTransform->GetForward();
+	_mappedSceneMatricesData->light = XMFLOAT4(lightDirection.x, lightDirection.y, lightDirection.z, 0);
 
-	auto lightPos = targetPos + XMVector3Normalize(resultLightVector) * XMVector3Length(XMVectorSubtract(targetPos, eyePos)).m128_f32[0];
-
-	_mappedSceneMatricesData->lightCamera = XMMatrixLookAtLH(lightPos, targetPos, upVec) * XMMatrixOrthographicLH(40, 40, 1.0f, 100.0f);
+	XMMATRIX lightMatrix = _directionalLightTransform->GetViewMatrix();
+	_mappedSceneMatricesData->lightCamera = lightMatrix * XMMatrixOrthographicLH(40, 40, 1.0f, 100.0f);
 }
 
 void Dx12Wrapper::PreDrawShadow()
@@ -742,14 +728,21 @@ void Dx12Wrapper::SetFov(float fov)
 
 void Dx12Wrapper::SetDirectionalLightRotation(float vec[3])
 {
-	_directionalLightRotation.x = vec[0];
-	_directionalLightRotation.y = vec[1];
-	_directionalLightRotation.z = vec[2];
+	_directionalLightTransform->SetRotation(vec[0], vec[1], vec[2]);
+	DirectX::XMFLOAT3 storeVector = _directionalLightTransform->GetForward();
+	DirectX::XMVECTOR lightDirection = DirectX::XMLoadFloat3(&storeVector);
+	DirectX::XMVECTOR sceneCenter = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+
+	float shadowDistance = 50.0f;
+	DirectX::XMVECTOR lightPosition = DirectX::XMVectorMultiplyAdd(lightDirection, XMVectorReplicate(-shadowDistance), sceneCenter);
+	DirectX::XMStoreFloat3(&storeVector, lightPosition);
+
+	_directionalLightTransform->SetPosition(storeVector.x, storeVector.y, storeVector.z);
 }
 
 const DirectX::XMFLOAT3& Dx12Wrapper::GetDirectionalLightRotation() const
 {
-	return _directionalLightRotation;
+	return _directionalLightTransform->GetRotation();
 }
 
 int Dx12Wrapper::GetPostProcessingFlag() const
