@@ -19,6 +19,7 @@ class PMXRenderer;
 class PMXActor;
 class FBXRenderer;
 class ImguiManager;
+class MaterialManager;
 
 class Application
 {

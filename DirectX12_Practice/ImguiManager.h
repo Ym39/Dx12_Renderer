@@ -38,6 +38,7 @@ public:
 	void UpdatePostProcessMenu(std::shared_ptr<Dx12Wrapper> dx, std::shared_ptr<PMXRenderer> renderer);
 	void UpdateSelectInspector(IType* typeObject);
 	void UpdateSaveMenu(std::shared_ptr<Dx12Wrapper> dx, std::shared_ptr<FBXRenderer> fbxRenderer);
+	void UpdateMaterialManagerWindow(std::shared_ptr<Dx12Wrapper> dx);
 
 private:
 	void UpdatePmxActorDebugWindow();

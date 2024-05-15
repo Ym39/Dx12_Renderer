@@ -13,6 +13,7 @@
 #include "FBXActor.h"
 #include "FBXRenderer.h"
 #include "Serialize.h"
+#include "MaterialManager.h"
 
 ImguiManager ImguiManager::_instance;
 
@@ -320,6 +321,139 @@ void ImguiManager::UpdateSaveMenu(std::shared_ptr<Dx12Wrapper> dx, std::shared_p
 		std::ofstream o("Scene.json");
 		o << std::setw(4) << sceneJson << std::endl;
 	}
+
+	ImGui::End();
+}
+
+void ImguiManager::UpdateMaterialManagerWindow(std::shared_ptr<Dx12Wrapper> dx)
+{
+	static std::string selectedMaterialName;
+	static StandardLoadMaterial selectedMaterial;
+	static char inputMaterialName[256];
+
+	ImGui::Begin("Material", NULL, ImGuiWindowFlags_MenuBar);
+
+	if (ImGui::BeginMenuBar())
+	{
+		if (ImGui::MenuItem("Save") == true)
+		{
+			MaterialManager::Instance().SaveMaterialData();
+		}
+
+		ImGui::EndMenuBar();
+	}
+
+	ImGui::BeginChild("Material List", ImVec2(ImGui::GetContentRegionAvail().x * 0.5f, 0), true);
+
+	ImGui::InputText("##InputMaterialName", inputMaterialName, 256);
+	ImGui::SameLine();
+	if (ImGui::Button("Add New Material") == true)
+	{
+		MaterialManager::Instance().AddNewMaterial(*dx, inputMaterialName);
+	}
+
+	const auto& materialNameList = MaterialManager::Instance().GetNameList();
+
+	const StandardLoadMaterial* curSelectMat;
+	for (int i = 0; i < materialNameList.size(); i++)
+	{
+		std::string indexString = std::to_string(i);
+		if (ImGui::Button((materialNameList[i] + "##" + indexString).c_str()))
+		{
+			selectedMaterialName = materialNameList[i];
+			if (MaterialManager::Instance().GetMaterialData(selectedMaterialName, &curSelectMat) == true)
+			{
+				selectedMaterial.name = curSelectMat->name;
+				selectedMaterial.diffuse = curSelectMat->diffuse;
+				selectedMaterial.specular = curSelectMat->specular;
+				selectedMaterial.specularPower = curSelectMat->specularPower;
+				selectedMaterial.ambient = curSelectMat->ambient;
+			}
+			break;
+		}
+	}
+
+	ImGui::EndChild();
+	ImGui::SameLine();
+	ImGui::BeginChild("Material Inspector", ImVec2(0, 0), true);
+
+	if (selectedMaterialName.empty() == false)
+	{
+		ImGui::LabelText("Name ## SelectedMaterialName", selectedMaterialName.c_str());
+
+		bool modifyMaterial = false;
+
+		float diffuseColor[4] = 
+		{
+			selectedMaterial.diffuse.x,
+			selectedMaterial.diffuse.y,
+			selectedMaterial.diffuse.z,
+			selectedMaterial.diffuse.w
+		};
+
+		if (ImGui::ColorEdit4("Diffuse ## MatInspector", diffuseColor) == true)
+		{
+			modifyMaterial = true;
+			selectedMaterial.diffuse.x = diffuseColor[0];
+			selectedMaterial.diffuse.y = diffuseColor[1];
+			selectedMaterial.diffuse.z = diffuseColor[2];
+			selectedMaterial.diffuse.w = diffuseColor[3];
+		}
+
+		float specularColor[3] =
+		{
+			selectedMaterial.specular.x,
+			selectedMaterial.specular.y,
+			selectedMaterial.specular.z,
+		};
+
+		if (ImGui::ColorEdit3("Specular ## MatInspector", specularColor) == true)
+		{
+			modifyMaterial = true;
+			selectedMaterial.specular.x = specularColor[0];
+			selectedMaterial.specular.y = specularColor[1];
+			selectedMaterial.specular.z = specularColor[2];
+		}
+
+		float specularPower = selectedMaterial.specularPower;
+		if (ImGui::InputFloat("Specular Power ## MatInspector", &specularPower) == true)
+		{
+			modifyMaterial = true;
+			selectedMaterial.specularPower = specularPower;
+		}
+
+		float ambientColor[3] =
+		{
+			selectedMaterial.ambient.x,
+			selectedMaterial.ambient.y,
+			selectedMaterial.ambient.z,
+		};
+
+		if (ImGui::ColorEdit3("Ambient ## MatInspector", ambientColor) == true)
+		{
+			modifyMaterial = true;
+			selectedMaterial.ambient.x = ambientColor[0];
+			selectedMaterial.ambient.y = ambientColor[1];
+			selectedMaterial.ambient.z = ambientColor[2];
+		}
+
+		if (modifyMaterial == true)
+		{
+			MaterialManager::Instance().SetMaterialData(selectedMaterialName, selectedMaterial);
+
+			const StandardLoadMaterial* modifiedMat;
+			if (MaterialManager::Instance().GetMaterialData(selectedMaterialName, &modifiedMat) == true)
+			{
+				selectedMaterial.name = modifiedMat->name;
+				selectedMaterial.diffuse = modifiedMat->diffuse;
+				selectedMaterial.specular = modifiedMat->specular;
+				selectedMaterial.specularPower = modifiedMat->specularPower;
+				selectedMaterial.ambient = modifiedMat->ambient;
+			}
+		}
+	}
+
+	ImGui::EndChild();
 
 	ImGui::End();
 }
