@@ -7,6 +7,7 @@
 #include "ImguiManager.h"
 #include "FBXActor.h"
 #include "FBXRenderer.h"
+#include "MaterialManager.h"
 
 #include "Imgui/imgui.h"
 #include "Imgui/imgui_impl_dx12.h"
@@ -105,6 +106,12 @@ bool Application::Init()
 
 	_fbxRenderer.reset(new FBXRenderer(*_dx12));
 	//_fbxRenderer->AddActor(stage);
+
+	bResult = MaterialManager::Instance().Init(*_dx12);
+	if (bResult == false)
+	{
+		return false;
+	}
 
 	ReadSceneData();
 
@@ -218,6 +225,7 @@ void Application::Run()
 		ImguiManager::Instance().UpdatePostProcessMenu(_dx12, _pmxRenderer);
 		ImguiManager::Instance().UpdateSelectInspector(selectedFbxActor);
 		ImguiManager::Instance().UpdateSaveMenu(_dx12, _fbxRenderer);
+		ImguiManager::Instance().UpdateMaterialManagerWindow(_dx12);
 		ImguiManager::Instance().EndUI(_dx12);
 
 		_dx12->EndDraw();

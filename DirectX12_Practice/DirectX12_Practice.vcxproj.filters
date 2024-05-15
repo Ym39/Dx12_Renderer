@@ -135,6 +135,9 @@
     <ClCompile Include="Serialize.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="MaterialManager.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="peraPixel.hlsl">
@@ -331,6 +334,9 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="Serialize.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="MaterialManager.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
