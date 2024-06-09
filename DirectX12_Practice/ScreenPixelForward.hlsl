@@ -5,8 +5,8 @@ float4 ps(Output input) : SV_TARGET
 {
 	if (input.uv.x < 0.2 && input.uv.y >= 0.6 && input.uv.y < 0.8)
 	{
-		float s = texBloomResult.Sample(smp, (input.uv - float2(0, 0.6)) * 5);
-		return float4(s, s, s, 1);
+		float3 texBloom = texBloomResult.Sample(smp, (input.uv - float2(0, 0.6)) * 5);
+		return float4(texBloom, 1);
 	}
 
 	float w, h, levels;

@@ -34,7 +34,7 @@ cbuffer Material : register(b2)
 {
 	float4 diffuse;
 	float3 specular;
-	float specularPower;
+	float roughness;
 	float3 ambient;
 	float padding;
 };

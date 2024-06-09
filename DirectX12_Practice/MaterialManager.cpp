@@ -140,7 +140,7 @@ bool MaterialManager::ReadMaterialData()
 
 			if (materialJson.contains("specularPower") == true)
 			{
-				mMaterialDataList[i].specularPower = materialJson["specularPower"];
+				mMaterialDataList[i].roughness = materialJson["specularPower"];
 			}
 
 			if (materialJson.contains("ambient") == true)
@@ -183,7 +183,7 @@ void MaterialManager::SaveMaterialData()
 
 		mat["diffuse"] = diffuse;
 		mat["specular"] = specular;
-		mat["specularPower"] = standardMat.specularPower;
+		mat["specularPower"] = standardMat.roughness;
 		mat["ambient"] = ambient;
 
 		standardMaterialJson.push_back(mat);
@@ -221,7 +221,7 @@ void MaterialManager::SetMaterialData(std::string name, const StandardLoadMateri
 
 	mMaterialDataList[index].diffuse = setData.diffuse;
 	mMaterialDataList[index].specular = setData.specular;
-	mMaterialDataList[index].specularPower = setData.specularPower;
+	mMaterialDataList[index].roughness = setData.roughness;
 	mMaterialDataList[index].ambient = setData.ambient;
 
 	int materialBufferSize = sizeof(StandardUploadMaterial);
@@ -233,7 +233,7 @@ void MaterialManager::SetMaterialData(std::string name, const StandardLoadMateri
 	StandardUploadMaterial* uploadMaterial = reinterpret_cast<StandardUploadMaterial*>(mappedMaterialPtr);
 	uploadMaterial->diffuse = setData.diffuse;
 	uploadMaterial->specular = setData.specular;
-	uploadMaterial->specularPower = setData.specularPower;
+	uploadMaterial->roughness = setData.roughness;
 	uploadMaterial->ambient = setData.ambient;
 }
 
@@ -298,7 +298,7 @@ bool MaterialManager::CreateBuffer(Dx12Wrapper& dx)
 		StandardUploadMaterial* uploadMaterial = reinterpret_cast<StandardUploadMaterial*>(mappedMaterialPtr);
 		uploadMaterial->diffuse = material.diffuse;
 		uploadMaterial->specular = material.specular;
-		uploadMaterial->specularPower = material.specularPower;
+		uploadMaterial->roughness = material.roughness;
 		uploadMaterial->ambient = material.ambient;
 
 		mappedMaterialPtr += materialBufferSize;
