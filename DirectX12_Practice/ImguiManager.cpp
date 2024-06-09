@@ -293,11 +293,46 @@ void ImguiManager::UpdateSelectInspector(IType* typeObject)
 			valueChanged = true;
 		}
 
+		const auto& fbxActorMaterialNameList = fbxActor->GetMaterialNameList();
+		std::vector<std::string> selectNameList(fbxActorMaterialNameList);
+
+		const auto& materialNameList = MaterialManager::Instance().GetNameList();
+		const char** nameItems = new const char*[materialNameList.size()];
+
+		for (int i = 0; i < materialNameList.size(); i++)
+		{
+			nameItems[i] = materialNameList[i].c_str();
+		}
+
+		for (int i = 0; i < fbxActorMaterialNameList.size(); i++)
+		{
+			std::string comboName = "## fbxActorMaterialSelect" + std::to_string(i);
+
+			int selectIndex = -1;
+
+			for (int j = 0; j < materialNameList.size(); j++)
+			{
+				if (fbxActorMaterialNameList[i] == materialNameList[j])
+				{
+					selectIndex = j;
+					break;
+				}
+			}
+
+			if (ImGui::Combo(comboName.c_str(), &selectIndex, nameItems, materialNameList.size()))
+			{
+				selectNameList[i] = materialNameList[selectIndex];
+
+				valueChanged = true;
+			}
+		}
+
 		if (valueChanged == true)
 		{
 			transform.SetPosition(positionArray[0], positionArray[1], positionArray[2]);
 			transform.SetRotation(rotationArray[0], rotationArray[1], rotationArray[2]);
 			transform.SetScale(scaleArray[0], scaleArray[1], scaleArray[2]);
+			fbxActor->SetMaterialName(selectNameList);
 		}
 	}
 

@@ -22,12 +22,13 @@ struct StandardLoadMaterial
 	DirectX::XMFLOAT3 ambient;
 };
 
-struct StandardUploadMaterial
+struct alignas(16) StandardUploadMaterial
 {
 	DirectX::XMFLOAT4 diffuse;
 	DirectX::XMFLOAT3 specular;
 	float specularPower;
 	DirectX::XMFLOAT3 ambient;
+	float padding;
 };
 
 class MaterialManager
@@ -49,6 +50,7 @@ public:
 	bool GetMaterialData(std::string name, const StandardLoadMaterial** result) const;
 	void SetMaterialData(std::string name, const StandardLoadMaterial& setData);
 
+	void SetMaterialDescriptorHeaps(Dx12Wrapper& dx);
 	void SetGraphicsRootDescriptorTableMaterial(Dx12Wrapper& dx, unsigned int rootParameterIndex, std::string name);
 
 private:

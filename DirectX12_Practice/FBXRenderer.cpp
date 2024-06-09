@@ -70,7 +70,7 @@ std::vector<std::shared_ptr<FBXActor>>& FBXRenderer::GetActor()
 
 HRESULT FBXRenderer::CreateRootSignature()
 {
-	D3D12_DESCRIPTOR_RANGE descriptorRange[2] = {};
+	D3D12_DESCRIPTOR_RANGE descriptorRange[3] = {};
 
 	//Scene Buffer
 	descriptorRange[0].NumDescriptors = 1;
@@ -84,10 +84,17 @@ HRESULT FBXRenderer::CreateRootSignature()
 	descriptorRange[1].BaseShaderRegister = 1;
 	descriptorRange[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	CD3DX12_ROOT_PARAMETER rootParam[2] = {};
+	//Material Buffer
+	descriptorRange[2].NumDescriptors = 1;
+	descriptorRange[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	descriptorRange[2].BaseShaderRegister = 2;
+	descriptorRange[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	CD3DX12_ROOT_PARAMETER rootParam[3] = {};
 
 	rootParam[0].InitAsDescriptorTable(1, &descriptorRange[0], D3D12_SHADER_VISIBILITY_ALL);
 	rootParam[1].InitAsDescriptorTable(1, &descriptorRange[1], D3D12_SHADER_VISIBILITY_ALL);
+	rootParam[2].InitAsDescriptorTable(1, &descriptorRange[2], D3D12_SHADER_VISIBILITY_ALL);
 
 	CD3DX12_STATIC_SAMPLER_DESC samplerDesc[1] = {};
 	samplerDesc[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
