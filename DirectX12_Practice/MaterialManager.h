@@ -18,7 +18,7 @@ struct StandardLoadMaterial
 	std::string name;
 	DirectX::XMFLOAT4 diffuse;
 	DirectX::XMFLOAT3 specular;
-	float specularPower;
+	float roughness;
 	DirectX::XMFLOAT3 ambient;
 };
 
@@ -26,7 +26,7 @@ struct alignas(16) StandardUploadMaterial
 {
 	DirectX::XMFLOAT4 diffuse;
 	DirectX::XMFLOAT3 specular;
-	float specularPower;
+	float roughness;
 	DirectX::XMFLOAT3 ambient;
 	float padding;
 };

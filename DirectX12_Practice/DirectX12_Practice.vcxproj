@@ -300,6 +300,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="BasicShaderHeader.hlsli" />
+    <None Include="BRDF.hlsli" />
     <None Include="FBXShaderHeader.hlsli" />
     <None Include="HeaderPostprocess.hlsli" />
     <None Include="HeaderScreenForward.hlsli" />

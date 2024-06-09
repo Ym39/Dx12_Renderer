@@ -401,7 +401,7 @@ void ImguiManager::UpdateMaterialManagerWindow(std::shared_ptr<Dx12Wrapper> dx)
 				selectedMaterial.name = curSelectMat->name;
 				selectedMaterial.diffuse = curSelectMat->diffuse;
 				selectedMaterial.specular = curSelectMat->specular;
-				selectedMaterial.specularPower = curSelectMat->specularPower;
+				selectedMaterial.roughness = curSelectMat->roughness;
 				selectedMaterial.ambient = curSelectMat->ambient;
 			}
 			break;
@@ -450,11 +450,11 @@ void ImguiManager::UpdateMaterialManagerWindow(std::shared_ptr<Dx12Wrapper> dx)
 			selectedMaterial.specular.z = specularColor[2];
 		}
 
-		float specularPower = selectedMaterial.specularPower;
-		if (ImGui::InputFloat("Specular Power ## MatInspector", &specularPower) == true)
+		float roughness = selectedMaterial.roughness;
+		if (ImGui::SliderFloat("Roughness ## MatInspector", &roughness, 0.0f, 1.0f) == true)
 		{
 			modifyMaterial = true;
-			selectedMaterial.specularPower = specularPower;
+			selectedMaterial.roughness = roughness;
 		}
 
 		float ambientColor[3] =
@@ -482,7 +482,7 @@ void ImguiManager::UpdateMaterialManagerWindow(std::shared_ptr<Dx12Wrapper> dx)
 				selectedMaterial.name = modifiedMat->name;
 				selectedMaterial.diffuse = modifiedMat->diffuse;
 				selectedMaterial.specular = modifiedMat->specular;
-				selectedMaterial.specularPower = modifiedMat->specularPower;
+				selectedMaterial.roughness = modifiedMat->roughness;
 				selectedMaterial.ambient = modifiedMat->ambient;
 			}
 		}

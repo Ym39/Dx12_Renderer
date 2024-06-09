@@ -202,6 +202,9 @@
     <None Include="FBXShaderHeader.hlsli">
       <Filter>Shader</Filter>
     </None>
+    <None Include="BRDF.hlsli">
+      <Filter>Shader</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h">
