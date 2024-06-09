@@ -237,11 +237,22 @@ void MaterialManager::SetMaterialData(std::string name, const StandardLoadMateri
 	uploadMaterial->ambient = setData.ambient;
 }
 
+void MaterialManager::SetMaterialDescriptorHeaps(Dx12Wrapper& dx)
+{
+	ID3D12DescriptorHeap* heaps[] = { mMaterialHeap.Get() };
+	dx.CommandList()->SetDescriptorHeaps(1, heaps);
+}
+
+
 void MaterialManager::SetGraphicsRootDescriptorTableMaterial(Dx12Wrapper& dx, unsigned rootParameterIndex, std::string name)
 {
+	auto matDescHeapHandle = mMaterialHeap->GetGPUDescriptorHandleForHeapStart();
+
 	auto it = mIndexByName.find(name);
 	if (it == mIndexByName.end())
 	{
+		dx.CommandList()->SetGraphicsRootDescriptorTable(rootParameterIndex, matDescHeapHandle);
+
 		return;
 	}
 
@@ -249,8 +260,7 @@ void MaterialManager::SetGraphicsRootDescriptorTableMaterial(Dx12Wrapper& dx, un
 
 	auto increaseSize = dx.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	auto matDescHeapHandle = mMaterialHeap->GetGPUDescriptorHandleForHeapStart();
-	matDescHeapHandle.ptr = increaseSize * index;
+	matDescHeapHandle.ptr += increaseSize * index;
 
 	dx.CommandList()->SetGraphicsRootDescriptorTable(rootParameterIndex, matDescHeapHandle);
 }

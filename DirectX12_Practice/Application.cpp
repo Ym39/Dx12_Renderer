@@ -331,6 +331,20 @@ void Application::ReadSceneData()
 			transform.SetRotation(rotation.x, rotation.y, rotation.z);
 			transform.SetScale(scale.x, scale.y, scale.z);
 
+			if (fbxActorJson.contains("Material") == true)
+			{
+				std::vector<std::string> materialNameList;
+				json materialJson = fbxActorJson["Material"];
+				materialNameList.resize(materialJson.size());
+
+				for (int i = 0; i < materialNameList.size(); i++)
+				{
+					materialNameList[i] = materialJson[i].get<std::string>();
+				}
+
+				newActor->SetMaterialName(materialNameList);
+			}
+
 			_fbxRenderer->AddActor(newActor);
 		}
 	}

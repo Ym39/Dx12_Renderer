@@ -25,7 +25,16 @@ cbuffer SceneBuffer : register(b0)
 	float3 eye;
 };
 
-cbuffer Transform: register(b1)
+cbuffer Transform : register(b1)
 {
 	matrix world;
+};
+
+cbuffer Material : register(b2)
+{
+	float4 diffuse;
+	float3 specular;
+	float specularPower;
+	float3 ambient;
+	float padding;
 };

@@ -40,6 +40,7 @@ public:
 	FBXActor();
 
 	bool Initialize(const std::string& path, Dx12Wrapper& dx);
+	void SetMaterialName(const std::vector<std::string> materialNameList);
 	void Draw(Dx12Wrapper& dx, bool isShadow);
 	void Update();
 
@@ -47,6 +48,7 @@ public:
 	TypeIdentity GetType() override;
 	bool TestSelect(int mouseX, int mouseY, DirectX::XMFLOAT3 cameraPosition, const DirectX::XMMATRIX& viewMatrix, const DirectX::XMMATRIX& projectionMatrix) override;
 
+	const std::vector<std::string> GetMaterialNameList() const;
 	void GetSerialize(json& j);
 
 private:
@@ -67,6 +69,7 @@ private:
 	std::vector<FBXVertex> _vertices;
 	std::vector<unsigned int> _indices;
 	std::vector<FBXMesh> _meshes;
+	std::vector<std::string> _meshMaterialNameList;
 	unsigned int _vertexCount = 0;
 	unsigned int _indexCount = 0;
 

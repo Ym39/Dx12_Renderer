@@ -6,6 +6,7 @@
 #include "Dx12Wrapper.h"
 #include "Transform.h"
 #include "BoundBox.h"
+#include "MaterialManager.h"
 
 FBXActor::FBXActor() 
 {
@@ -34,6 +35,7 @@ bool FBXActor::Initialize(const std::string& path, Dx12Wrapper& dx)
 	}
 
 	ReadNode(scene->mRootNode, scene);
+	_meshMaterialNameList.resize(_meshes.size());
 
 	auto hResult = CreateVertexBufferAndIndexBuffer(dx);
 	if (FAILED(hResult))
@@ -60,6 +62,19 @@ bool FBXActor::Initialize(const std::string& path, Dx12Wrapper& dx)
 	return true;
 }
 
+void FBXActor::SetMaterialName(const std::vector<std::string> materialNameList)
+{
+	for (int i = 0; i < _meshMaterialNameList.size(); i++)
+	{
+		if (materialNameList.size() <= i)
+		{
+			continue;
+		}
+
+		_meshMaterialNameList[i] = materialNameList[i];
+	}
+}
+
 void FBXActor::Draw(Dx12Wrapper& dx, bool isShadow)
 {
 	dx.CommandList()->IASetVertexBuffers(0, 1, &_vertexBufferView);
@@ -70,10 +85,14 @@ void FBXActor::Draw(Dx12Wrapper& dx, bool isShadow)
 	dx.CommandList()->SetDescriptorHeaps(1, transformHeap);
 	dx.CommandList()->SetGraphicsRootDescriptorTable(1, _transformHeap->GetGPUDescriptorHandleForHeapStart());
 
+	MaterialManager::Instance().SetMaterialDescriptorHeaps(dx);
+
 	unsigned int indexOffset = 0;
 
 	for (int i = 0; i < _meshes.size(); i++)
 	{
+		MaterialManager::Instance().SetGraphicsRootDescriptorTableMaterial(dx, 2, _meshMaterialNameList[i]);
+
 		unsigned int indexCount = _meshes[i].indexCount;
 
 		dx.CommandList()->DrawIndexedInstanced(indexCount, 1, indexOffset, 0, 0);
@@ -111,6 +130,11 @@ bool FBXActor::TestSelect(int mouseX, int mouseY, DirectX::XMFLOAT3 cameraPositi
 	return _bounds->TestIntersectionBoundsBoxByMousePosition(mouseX, mouseY, worldPosition, cameraPosition, viewMatrix, projectionMatrix);
 }
 
+const std::vector<std::string> FBXActor::GetMaterialNameList() const
+{
+	return _meshMaterialNameList;
+}
+
 void FBXActor::GetSerialize(json& j)
 {
 	json positionJson;
@@ -128,6 +152,14 @@ void FBXActor::GetSerialize(json& j)
 	transformJson["Scale"] = scaleJson;
 
 	j["Transform"] = transformJson;
+
+	json materialNameJson;
+	for (int i = 0; i < _meshMaterialNameList.size(); i++)
+	{
+		materialNameJson[i] = _meshMaterialNameList[i];
+	}
+
+	j["Material"] = materialNameJson;
 }
 
 DirectX::XMFLOAT3 FBXActor::AiVector3ToXMFLOAT3(const aiVector3D& vec)
