@@ -403,6 +403,7 @@ void ImguiManager::UpdateMaterialManagerWindow(std::shared_ptr<Dx12Wrapper> dx)
 				selectedMaterial.specular = curSelectMat->specular;
 				selectedMaterial.roughness = curSelectMat->roughness;
 				selectedMaterial.ambient = curSelectMat->ambient;
+				selectedMaterial.isBloom = curSelectMat->isBloom;
 			}
 			break;
 		}
@@ -472,6 +473,13 @@ void ImguiManager::UpdateMaterialManagerWindow(std::shared_ptr<Dx12Wrapper> dx)
 			selectedMaterial.ambient.z = ambientColor[2];
 		}
 
+		bool isBloom = selectedMaterial.isBloom;
+		if (ImGui::Checkbox("IsBloom ## MatInspector", &isBloom) == true)
+		{
+			modifyMaterial = true;
+			selectedMaterial.isBloom = isBloom;
+		}
+
 		if (modifyMaterial == true)
 		{
 			MaterialManager::Instance().SetMaterialData(selectedMaterialName, selectedMaterial);
@@ -484,6 +492,7 @@ void ImguiManager::UpdateMaterialManagerWindow(std::shared_ptr<Dx12Wrapper> dx)
 				selectedMaterial.specular = modifiedMat->specular;
 				selectedMaterial.roughness = modifiedMat->roughness;
 				selectedMaterial.ambient = modifiedMat->ambient;
+				selectedMaterial.isBloom = modifiedMat->isBloom;
 			}
 		}
 	}

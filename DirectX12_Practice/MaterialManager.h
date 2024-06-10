@@ -20,6 +20,7 @@ struct StandardLoadMaterial
 	DirectX::XMFLOAT3 specular;
 	float roughness;
 	DirectX::XMFLOAT3 ambient;
+	bool isBloom;
 };
 
 struct alignas(16) StandardUploadMaterial
@@ -28,7 +29,7 @@ struct alignas(16) StandardUploadMaterial
 	DirectX::XMFLOAT3 specular;
 	float roughness;
 	DirectX::XMFLOAT3 ambient;
-	float padding;
+	float bloomFactor;
 };
 
 class MaterialManager
@@ -45,7 +46,7 @@ public:
 	const std::vector<std::string>& GetNameList() const;
 
 	bool ReadMaterialData();
-	void SaveMaterialData();
+	void SaveMaterialData() const;
 
 	bool GetMaterialData(std::string name, const StandardLoadMaterial** result) const;
 	void SetMaterialData(std::string name, const StandardLoadMaterial& setData);

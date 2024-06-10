@@ -36,5 +36,5 @@ cbuffer Material : register(b2)
 	float3 specular;
 	float roughness;
 	float3 ambient;
-	float padding;
+	float bloomFactor;
 };
