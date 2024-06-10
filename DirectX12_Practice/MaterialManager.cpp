@@ -150,6 +150,11 @@ bool MaterialManager::ReadMaterialData()
 				mMaterialDataList[i].ambient.z = materialJson["ambient"]["z"];
 			}
 
+			if (materialJson.contains("isBloom") == true)
+			{
+				mMaterialDataList[i].isBloom = materialJson["isBloom"];
+			}
+
 			mIndexByName[mMaterialDataList[i].name] = i;
 			mNameList.push_back(mMaterialDataList[i].name);
 			i++;
@@ -159,7 +164,7 @@ bool MaterialManager::ReadMaterialData()
 	return true;
 }
 
-void MaterialManager::SaveMaterialData()
+void MaterialManager::SaveMaterialData() const
 {
 	json materialJson;
 
@@ -185,6 +190,7 @@ void MaterialManager::SaveMaterialData()
 		mat["specular"] = specular;
 		mat["specularPower"] = standardMat.roughness;
 		mat["ambient"] = ambient;
+		mat["isBloom"] = standardMat.isBloom;
 
 		standardMaterialJson.push_back(mat);
 	}
@@ -223,6 +229,7 @@ void MaterialManager::SetMaterialData(std::string name, const StandardLoadMateri
 	mMaterialDataList[index].specular = setData.specular;
 	mMaterialDataList[index].roughness = setData.roughness;
 	mMaterialDataList[index].ambient = setData.ambient;
+	mMaterialDataList[index].isBloom = setData.isBloom;
 
 	int materialBufferSize = sizeof(StandardUploadMaterial);
 	materialBufferSize = (materialBufferSize + 0xff) & ~0xff;
@@ -235,6 +242,7 @@ void MaterialManager::SetMaterialData(std::string name, const StandardLoadMateri
 	uploadMaterial->specular = setData.specular;
 	uploadMaterial->roughness = setData.roughness;
 	uploadMaterial->ambient = setData.ambient;
+	uploadMaterial->bloomFactor = setData.isBloom ? 1.0f : 0.0f;
 }
 
 void MaterialManager::SetMaterialDescriptorHeaps(Dx12Wrapper& dx)
@@ -300,6 +308,7 @@ bool MaterialManager::CreateBuffer(Dx12Wrapper& dx)
 		uploadMaterial->specular = material.specular;
 		uploadMaterial->roughness = material.roughness;
 		uploadMaterial->ambient = material.ambient;
+		uploadMaterial->bloomFactor = material.isBloom ? 1.0f : 0.0f;
 
 		mappedMaterialPtr += materialBufferSize;
 	}

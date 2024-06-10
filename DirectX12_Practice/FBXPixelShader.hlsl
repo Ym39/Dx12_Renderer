@@ -16,7 +16,7 @@ PixelOutput PS(Output input) : SV_TARGET
 	PixelOutput output;
 
 	output.color = float4(finalColor, 1.0f);
-	output.highLum = diffuse;
+	output.highLum = diffuse * bloomFactor;
 	output.normal.rgb = float3((input.normal.xyz + 1.0f) / 2.0f);
 	output.normal.a = 1.0f;
 
