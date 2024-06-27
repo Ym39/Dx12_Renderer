@@ -182,6 +182,9 @@
     <FxCompile Include="FBXPixelShader.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
+    <FxCompile Include="PMXReflectionPixelShader.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="peraHeader.hlsli">

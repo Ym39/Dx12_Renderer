@@ -21,6 +21,8 @@ public:
 	~Dx12Wrapper();
 
 	void SetCameraSetting();
+	void PreDrawStencil();
+	void PreDrawReflection();
 	void PreDrawShadow();
 	bool PreDrawToPera1();
 	void DrawToPera1();
@@ -33,6 +35,8 @@ public:
 	void Update();
 	void BeginDraw();
 	void EndDraw();
+
+	void SetResolutionDescriptorHeap(unsigned int rootParameterIndex) const;
 
 	ComPtr<ID3D12Device> Device();
 	ComPtr<ID3D12GraphicsCommandList> CommandList();
@@ -70,12 +74,19 @@ private:
 		DirectX::XMFLOAT2 padding;
 	};
 
+	struct ResolutionBuffer
+	{
+		float width;
+		float height;
+	};
+
 	HRESULT InitializeDXGIDevice();
 	HRESULT InitializeCommand();
 	HRESULT CreateSwapChain(const HWND& hwnd);
 	HRESULT CreateFinalRenderTargets();
 	HRESULT CreateSceneView();
 	HRESULT CreateBloomParameterResource();
+	HRESULT CreateResolutionConstantBuffer();
 	HRESULT CreatePeraResource();
 	bool CreatePeraVertex();
 	bool CreatePeraPipeline();
@@ -115,13 +126,19 @@ private:
 	ComPtr<ID3D12Resource> _sceneConstBuff = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _sceneDescHeap = nullptr;
 
+	ComPtr<ID3D12Resource> _resolutionConstBuffer = nullptr;
+	ComPtr<ID3D12DescriptorHeap> _resolutionDescHeap = nullptr;
+	ResolutionBuffer* _mappedResolutionBuffer = nullptr;
+
 	ComPtr<ID3D12DescriptorHeap> _dsvHeap = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _depthSRVHeap = nullptr;
 	ComPtr<ID3D12Resource> _depthBuffer = nullptr;
 	ComPtr<ID3D12Resource> _lightDepthBuffer = nullptr;
+	ComPtr<ID3D12Resource> _stencilBuffer = nullptr;
 
 	std::array<ComPtr<ID3D12Resource>, 2> _pera1Resource; // frameTex, NormalTex
 	std::array<ComPtr<ID3D12Resource>, 2> _bloomBuffer; // texHighLum, texShrinkHighLum
+	ComPtr<ID3D12Resource> _reflectionBuffer;
 
 	ComPtr<ID3D12PipelineState> _aoPipeline;
 	ComPtr<ID3D12Resource> _aoBuffer; // texSSAO

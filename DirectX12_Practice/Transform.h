@@ -25,6 +25,9 @@ public:
 	DirectX::XMMATRIX& GetTransformMatrix() const;
 	DirectX::XMMATRIX& GetViewMatrix() const;
 
+	DirectX::XMMATRIX& GetPlanarReflectionsViewMatrix(const DirectX::XMFLOAT3& planeNormal, const DirectX::XMFLOAT3& planePosition) const;
+	DirectX::XMMATRIX& GetPlanarReflectionsTransform(const DirectX::XMFLOAT3& planeNormal, const DirectX::XMFLOAT3& planePosition) const;
+
 private:
 	DirectX::XMFLOAT3 mPosition;
 	DirectX::XMFLOAT3 mRotation;

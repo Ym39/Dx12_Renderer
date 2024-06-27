@@ -63,7 +63,8 @@ public:
 	bool Initialize(const std::wstring& filePath, Dx12Wrapper& dx);
 	void Update();
 	void UpdateAnimation();
-	void Draw(Dx12Wrapper& dx, bool isShadow);
+	void Draw(Dx12Wrapper& dx, bool isShadow) const;
+	void DrawReflection(Dx12Wrapper& dx) const;
 
 	const std::vector<LoadMaterial>& GetMaterials() const;
 	void SetMaterials(const std::vector<LoadMaterial>& setMaterials);
@@ -115,21 +116,16 @@ private:
 	std::vector<ComPtr<ID3D12Resource>> _toonResources;
 	std::vector<ComPtr<ID3D12Resource>> _sphereTextureResources;
 
-	Transform _tranform;
+	Transform _transformComp;
 	ComPtr<ID3D12Resource> _transformMat = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _transformHeap = nullptr;
 	std::vector<XMMATRIX> _boneMatrices;
 	std::vector<XMMATRIX> _boneLocalMatrices;
 
-	struct Transform
-	{
-		void* operator new(size_t size);
-		DirectX::XMMATRIX world;
-	};
-
-	Transform _transform;
 	DirectX::XMMATRIX* _mappedMatrices;
+	DirectX::XMMATRIX* _mappedReflectionMatrices;
 	ComPtr<ID3D12Resource> _transformBuff = nullptr;
+	ComPtr<ID3D12Resource> _reflectionTransformBuff = nullptr;
 
 	ComPtr<ID3D12Resource> _materialBuff = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _materialHeap = nullptr;

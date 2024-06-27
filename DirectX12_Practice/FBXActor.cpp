@@ -75,7 +75,7 @@ void FBXActor::SetMaterialName(const std::vector<std::string> materialNameList)
 	}
 }
 
-void FBXActor::Draw(Dx12Wrapper& dx, bool isShadow)
+void FBXActor::Draw(Dx12Wrapper& dx, bool isShadow) const
 {
 	dx.CommandList()->IASetVertexBuffers(0, 1, &_vertexBufferView);
 	dx.CommandList()->IASetIndexBuffer(&_indexBufferView);

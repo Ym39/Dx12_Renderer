@@ -12,6 +12,8 @@ struct PixelOutput
 	float4 highLum : SV_TARGET2;
 };
 
+Texture2D<float4> reflectionRenderTexture: register(t0);
+
 SamplerState smp : register(s0);
 
 cbuffer SceneBuffer : register(b0)
@@ -37,4 +39,10 @@ cbuffer Material : register(b2)
 	float roughness;
 	float3 ambient;
 	float bloomFactor;
+};
+
+cbuffer Resolution : register(b3)
+{
+	float screenWidth;
+	float screenHeight;
 };

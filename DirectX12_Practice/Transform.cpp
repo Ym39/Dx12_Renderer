@@ -94,3 +94,40 @@ DirectX::XMMATRIX& Transform::GetViewMatrix() const
 	DirectX::XMMATRIX result = DirectX::XMMatrixLookToLH(positionVector, forwardVector, upVector);
 	return result;
 }
+
+DirectX::XMMATRIX& Transform::GetPlanarReflectionsViewMatrix(const DirectX::XMFLOAT3& planeNormal, const DirectX::XMFLOAT3& planePosition) const
+{
+	DirectX::XMVECTOR planeNormalVector = DirectX::XMLoadFloat3(&planeNormal);
+	DirectX::XMVECTOR planePositionVector = DirectX::XMLoadFloat3(&planePosition);
+
+	DirectX::XMMATRIX viewMatrix = GetViewMatrix();
+
+	float d = -DirectX::XMVectorGetX(DirectX::XMVector3Dot(planeNormalVector, planePositionVector));
+	DirectX::XMFLOAT4 plane(DirectX::XMVectorGetX(planeNormalVector), DirectX::XMVectorGetY(planeNormalVector), DirectX::XMVectorGetZ(planeNormalVector), d);
+
+	DirectX::XMMATRIX reflectionMatrix = DirectX::XMMatrixReflect(XMLoadFloat4(&plane));
+
+	DirectX::XMMATRIX reflectedViewMatrix = DirectX::XMMatrixMultiply(viewMatrix, reflectionMatrix);
+	return reflectedViewMatrix;
+}
+
+DirectX::XMMATRIX& Transform::GetPlanarReflectionsTransform(const DirectX::XMFLOAT3& planeNormal, const DirectX::XMFLOAT3& planePosition) const
+{
+	DirectX::XMVECTOR planeNormalVector = DirectX::XMLoadFloat3(&planeNormal);
+	DirectX::XMVECTOR planePositionVector = DirectX::XMLoadFloat3(&planePosition);
+
+	float d = -DirectX::XMVectorGetX(DirectX::XMVector3Dot(planeNormalVector, planePositionVector));
+	DirectX::XMFLOAT4 plane(DirectX::XMVectorGetX(planeNormalVector), DirectX::XMVectorGetY(planeNormalVector), DirectX::XMVectorGetZ(planeNormalVector), d);
+
+	DirectX::XMMATRIX reflectionMatrix = DirectX::XMMatrixReflect(XMLoadFloat4(&plane));
+
+	DirectX::XMMATRIX s = DirectX::XMMatrixScaling(mScale.x, mScale.y, mScale.z);
+	DirectX::XMMATRIX r = DirectX::XMMatrixRotationRollPitchYaw(mRotation.x, mRotation.y, mRotation.z);
+	DirectX::XMMATRIX t = DirectX::XMMatrixTranslation(mPosition.x, mPosition.y, mPosition.z);
+	DirectX::XMMATRIX result = s * r * t;
+
+	result = reflectionMatrix * result;
+
+	return result;
+}
+
