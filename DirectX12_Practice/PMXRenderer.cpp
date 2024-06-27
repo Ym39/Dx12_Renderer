@@ -162,6 +162,65 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 		assert(SUCCEEDED(result));
 	}
 
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC reflectionPipelineDesc = {};
+
+	reflectionPipelineDesc.pRootSignature = _rootSignature.Get();
+	reflectionPipelineDesc.VS.pShaderBytecode = vsBlob->GetBufferPointer();
+	reflectionPipelineDesc.VS.BytecodeLength = vsBlob->GetBufferSize();
+	reflectionPipelineDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+	reflectionPipelineDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	reflectionPipelineDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	reflectionPipelineDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	reflectionPipelineDesc.BlendState.AlphaToCoverageEnable = false;
+	reflectionPipelineDesc.BlendState.IndependentBlendEnable = true;
+	reflectionPipelineDesc.InputLayout.pInputElementDescs = inputLayout;
+	reflectionPipelineDesc.InputLayout.NumElements = _countof(inputLayout);
+	reflectionPipelineDesc.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
+	reflectionPipelineDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	reflectionPipelineDesc.NumRenderTargets = 1;
+	reflectionPipelineDesc.BlendState.RenderTarget[0] = transparencyBlendDesc;
+	reflectionPipelineDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
+	reflectionPipelineDesc.SampleDesc.Count = 1;
+	reflectionPipelineDesc.SampleDesc.Quality = 0;
+	reflectionPipelineDesc.DepthStencilState.DepthEnable = true;
+	reflectionPipelineDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	reflectionPipelineDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	reflectionPipelineDesc.DepthStencilState.StencilEnable = true;
+	reflectionPipelineDesc.DepthStencilState.StencilReadMask = 0xFF;
+	reflectionPipelineDesc.DepthStencilState.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectionPipelineDesc.DepthStencilState.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectionPipelineDesc.DepthStencilState.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	reflectionPipelineDesc.DepthStencilState.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+	reflectionPipelineDesc.DepthStencilState.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectionPipelineDesc.DepthStencilState.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectionPipelineDesc.DepthStencilState.BackFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	reflectionPipelineDesc.DepthStencilState.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+	reflectionPipelineDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+	result = D3DCompileFromFile(L"PMXReflectionPixelShader.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"PS",
+		"ps_5_0",
+		flags,
+		0,
+		&psBlob,
+		&errorBlob);
+
+	if (!CheckShaderCompileResult(result, errorBlob.Get()))
+	{
+		assert(0);
+		return result;
+	}
+
+	reflectionPipelineDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
+
+	result = _dx12.Device()->CreateGraphicsPipelineState(&reflectionPipelineDesc, IID_PPV_ARGS(_reflectionPipeline.ReleaseAndGetAddressOf()));
+	if (FAILED(result))
+	{
+		assert(SUCCEEDED(result));
+	}
+
 	result = D3DCompileFromFile(L"PMXVertexShader.hlsl",
 		nullptr,
 		D3D_COMPILE_STANDARD_FILE_INCLUDE,
@@ -423,7 +482,14 @@ void PMXRenderer::BeforeDrawAtDeferredPipeline()
 	cmdList->SetGraphicsRootDescriptorTable(4, _parameterHeap->GetGPUDescriptorHandleForHeapStart());
 }
 
-void PMXRenderer::DrawFromLight()
+void PMXRenderer::BeforeDrawReflection()
+{
+	auto cmdList = _dx12.CommandList();
+	cmdList->SetPipelineState(_reflectionPipeline.Get());
+	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+}
+
+void PMXRenderer::DrawFromLight() const
 {
 	for (auto& actor : _actors)
 	{
@@ -431,11 +497,19 @@ void PMXRenderer::DrawFromLight()
 	}
 }
 
-void PMXRenderer::Draw()
+void PMXRenderer::Draw() const
 {
 	for (auto& actor : _actors)
 	{
 		actor->Draw(_dx12, false);
+	}
+}
+
+void PMXRenderer::DrawReflection() const
+{
+	for (auto& actor : _actors)
+	{
+		actor->DrawReflection(_dx12);
 	}
 }
 

@@ -17,6 +17,7 @@ private:
 	ComPtr<ID3D12PipelineState> _deferredPipeline = nullptr;
 	ComPtr<ID3D12PipelineState> _forwardPipeline = nullptr;
 	ComPtr<ID3D12PipelineState> _shadowPipeline = nullptr;
+	ComPtr<ID3D12PipelineState> _reflectionPipeline = nullptr;
 	ComPtr<ID3D12RootSignature> _rootSignature = nullptr;
 
 	struct ParameterBuffer
@@ -48,9 +49,11 @@ public:
 	void BeforeDrawFromLight();
 	void BeforeDrawAtForwardPipeline();
 	void BeforeDrawAtDeferredPipeline();
+	void BeforeDrawReflection();
 
-	void DrawFromLight();
-	void Draw();
+	void DrawFromLight() const;
+	void Draw() const;
+	void DrawReflection() const;
 
 	void AddActor(std::shared_ptr<PMXActor> actor);
 	const PMXActor* GetActor();

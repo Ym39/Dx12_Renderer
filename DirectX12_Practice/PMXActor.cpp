@@ -29,10 +29,6 @@ PMXActor::~PMXActor()
 	_nodeManager.Dispose();
 }
 
-void* PMXActor::Transform::operator new(size_t size) {
-	return _aligned_malloc(size, 16);
-}
-
 bool PMXActor::Initialize(const std::wstring& filePath, Dx12Wrapper& dx)
 {
 	bool result = LoadPMXFile(filePath, _pmxFileData);
@@ -49,7 +45,7 @@ bool PMXActor::Initialize(const std::wstring& filePath, Dx12Wrapper& dx)
 		return false;
 	}
 
-	_transform.world = XMMatrixIdentity() * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+	//_transform.world = XMMatrixIdentity() * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 
 	InitParallelVertexSkinningSetting();
 
@@ -91,6 +87,8 @@ bool PMXActor::Initialize(const std::wstring& filePath, Dx12Wrapper& dx)
 
 void PMXActor::Update()
 {
+	_mappedMatrices[0] = _transformComp.GetTransformMatrix();
+	_mappedReflectionMatrices[0] = _transformComp.GetPlanarReflectionsTransform(XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT3(0.0f, 0.0f, 0.0f));
 }
 
 void PMXActor::UpdateAnimation()
@@ -135,7 +133,7 @@ void PMXActor::UpdateAnimation()
 	Time::EndSkinningUpdate();
 }
 
-void PMXActor::Draw(Dx12Wrapper& dx, bool isShadow = false)
+void PMXActor::Draw(Dx12Wrapper& dx, bool isShadow = false) const
 {
 	dx.CommandList()->IASetVertexBuffers(0, 1, &_vbView);
 	dx.CommandList()->IASetIndexBuffer(&_ibView);
@@ -149,17 +147,17 @@ void PMXActor::Draw(Dx12Wrapper& dx, bool isShadow = false)
 
 	dx.CommandList()->SetDescriptorHeaps(1, mdh);
 
-	auto materialH = _materialHeap->GetGPUDescriptorHandleForHeapStart();
-	unsigned int idxOffset = 0;
-
-	auto cbvSrvIncSize = dx.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 4;
-
 	if (isShadow == true)
 	{
 		dx.CommandList()->DrawIndexedInstanced(_pmxFileData.faces.size() * 3, 1, 0, 0, 0);
 	}
 	else
 	{
+		auto cbvSrvIncSize = dx.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 4;
+
+		auto materialH = _materialHeap->GetGPUDescriptorHandleForHeapStart();
+		unsigned int idxOffset = 0;
+
 		for (int i = 0; i < _pmxFileData.materials.size(); i++)
 		{
 			unsigned int numFaceVertices = _pmxFileData.materials[i].numFaceVertices;
@@ -173,6 +171,45 @@ void PMXActor::Draw(Dx12Wrapper& dx, bool isShadow = false)
 			materialH.ptr += cbvSrvIncSize;
 			idxOffset += numFaceVertices;
 		}
+	}
+}
+
+void PMXActor::DrawReflection(Dx12Wrapper& dx) const
+{
+	dx.CommandList()->IASetVertexBuffers(0, 1, &_vbView);
+	dx.CommandList()->IASetIndexBuffer(&_ibView);
+	dx.CommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	ID3D12DescriptorHeap* transheap[] = { _transformHeap.Get() };
+	dx.CommandList()->SetDescriptorHeaps(1, transheap);
+
+	auto transformHandle = _transformHeap->GetGPUDescriptorHandleForHeapStart();
+	auto incSize = dx.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	transformHandle.ptr += incSize;
+	dx.CommandList()->SetGraphicsRootDescriptorTable(1, transformHandle);
+
+	ID3D12DescriptorHeap* mdh[] = { _materialHeap.Get() };
+
+	dx.CommandList()->SetDescriptorHeaps(1, mdh);
+
+	auto cbvSrvIncSize = dx.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 4;
+
+	auto materialH = _materialHeap->GetGPUDescriptorHandleForHeapStart();
+	unsigned int idxOffset = 0;
+
+	for (int i = 0; i < _pmxFileData.materials.size(); i++)
+	{
+		unsigned int numFaceVertices = _pmxFileData.materials[i].numFaceVertices;
+
+		if (_loadedMaterial[i].visible == true)
+		{
+			dx.CommandList()->SetGraphicsRootDescriptorTable(2, materialH);
+			dx.CommandList()->DrawIndexedInstanced(numFaceVertices, 1, idxOffset, 0, 0);
+		}
+
+		materialH.ptr += cbvSrvIncSize;
+		idxOffset += numFaceVertices;
 	}
 }
 
@@ -200,7 +237,7 @@ void PMXActor::SetMaterials(const std::vector<LoadMaterial>& setMaterials)
 
 Transform& PMXActor::GetTransform()
 {
-	return _tranform;
+	return _transformComp;
 }
 
 HRESULT PMXActor::CreateVbAndIb(Dx12Wrapper& dx)
@@ -344,13 +381,36 @@ HRESULT PMXActor::CreateTransformView(Dx12Wrapper& dx)
 		return result;
 	}
 
-	_mappedMatrices[0] = _transform.world;
+	_mappedMatrices[0] = _transformComp.GetTransformMatrix();
+
+	result = dx.Device()->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(buffSize),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(_reflectionTransformBuff.ReleaseAndGetAddressOf())
+	);
+
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+		return result;
+	}
+
+	result = _reflectionTransformBuff->Map(0, nullptr, (void**)&_mappedReflectionMatrices);
+
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+		return result;
+	}
+
+	_mappedReflectionMatrices[0] = _transformComp.GetPlanarReflectionsTransform(XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT3(0.0f, 0.0f, 0.0f));
 
 	D3D12_DESCRIPTOR_HEAP_DESC transformDescHeapDesc = {};
 
 	transformDescHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	transformDescHeapDesc.NodeMask = 0;
-	transformDescHeapDesc.NumDescriptors = 1;
+	transformDescHeapDesc.NumDescriptors = 2;
 	transformDescHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
 	result = dx.Device()->CreateDescriptorHeap(&transformDescHeapDesc, IID_PPV_ARGS(_transformHeap.ReleaseAndGetAddressOf()));
@@ -363,7 +423,15 @@ HRESULT PMXActor::CreateTransformView(Dx12Wrapper& dx)
 	cbvDesc.BufferLocation = _transformBuff->GetGPUVirtualAddress();
 	cbvDesc.SizeInBytes = buffSize;
 
-	dx.Device()->CreateConstantBufferView(&cbvDesc, _transformHeap->GetCPUDescriptorHandleForHeapStart());
+	auto handle = _transformHeap->GetCPUDescriptorHandleForHeapStart();
+	auto incSize = dx.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	dx.Device()->CreateConstantBufferView(&cbvDesc, handle);
+
+	cbvDesc.BufferLocation = _reflectionTransformBuff->GetGPUVirtualAddress();
+	handle.ptr+= incSize;
+
+	dx.Device()->CreateConstantBufferView(&cbvDesc, handle);
 
 	return S_OK;
 }

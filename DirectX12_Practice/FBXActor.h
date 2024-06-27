@@ -41,7 +41,7 @@ public:
 
 	bool Initialize(const std::string& path, Dx12Wrapper& dx);
 	void SetMaterialName(const std::vector<std::string> materialNameList);
-	void Draw(Dx12Wrapper& dx, bool isShadow);
+	void Draw(Dx12Wrapper& dx, bool isShadow) const;
 	void Update();
 
 	Transform& GetTransform() override;

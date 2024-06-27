@@ -16,6 +16,7 @@ public:
 
 	void Update();
 
+	void BeforeWriteToStencil();
 	void BeforeDrawAtForwardPipeline();
 
 	void Draw();
@@ -37,6 +38,7 @@ private:
 
 	ComPtr<ID3D12RootSignature> _rootSignature = nullptr;
 	ComPtr<ID3D12PipelineState> _forwardPipeline = nullptr;
+	ComPtr<ID3D12PipelineState> _stencilWritePipeline = nullptr;
 
 	std::vector<std::shared_ptr<FBXActor>> _actors;
 };

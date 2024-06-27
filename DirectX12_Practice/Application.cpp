@@ -185,10 +185,22 @@ void Application::Run()
 			}
 		}
 
+		// Update
 		_pmxRenderer->Update();
-		_pmxRenderer->BeforeDrawFromLight();
-
 		_fbxRenderer->Update();
+
+		//Stencil Write
+		_fbxRenderer->BeforeWriteToStencil();
+		_dx12->PreDrawStencil();
+		_fbxRenderer->Draw();
+
+		//Reflection
+		_pmxRenderer->BeforeDrawReflection();
+		_dx12->PreDrawReflection();
+		_pmxRenderer->DrawReflection();
+
+		//Shadow Map
+		_pmxRenderer->BeforeDrawFromLight();
 
 		_dx12->PreDrawShadow();
 
@@ -196,30 +208,35 @@ void Application::Run()
 
 		_dx12->PreDrawToPera1();
 
+		// FBX
+		_fbxRenderer->BeforeDrawAtForwardPipeline();
+
+		_dx12->DrawToPera1ForFbx();
+
+		_fbxRenderer->Draw();
+
+		// PMX
 		_pmxRenderer->BeforeDrawAtDeferredPipeline();
 
 		_dx12->DrawToPera1();
 
 		_pmxRenderer->Draw();
 
-		_fbxRenderer->BeforeDrawAtForwardPipeline();
-		
-		_dx12->DrawToPera1ForFbx();
-
-		_fbxRenderer->Draw();
-
+		// PostProcess
 		_dx12->PostDrawToPera1();
 
 		_dx12->DrawAmbientOcclusion();
 
 		_dx12->DrawShrinkTextureForBlur();
 
+		// Draw Frame
 		_dx12->Clear();
 
 		_dx12->Draw();
 
 		_dx12->Update();
 
+		// Imgui
 		ImguiManager::Instance().StartUI();
 		ImguiManager::Instance().UpdateAndSetDrawData(_dx12);
 		ImguiManager::Instance().UpdatePostProcessMenu(_dx12, _pmxRenderer);

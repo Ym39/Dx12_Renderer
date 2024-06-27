@@ -63,6 +63,13 @@ Dx12Wrapper::Dx12Wrapper(HWND hwnd) :
 		return;
 	}
 
+
+	if (FAILED(CreateResolutionConstantBuffer()))
+	{
+		assert(0);
+		return;
+	}
+
 	if (FAILED(CreatePeraResource()))
 	{
 		assert(0);
@@ -198,6 +205,56 @@ void Dx12Wrapper::SetCameraSetting()
 	_mappedSceneMatricesData->lightCamera = lightMatrix * XMMatrixOrthographicLH(40, 40, 1.0f, 100.0f);
 }
 
+void Dx12Wrapper::PreDrawStencil()
+{
+	auto handle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
+	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+	_cmdList->OMSetRenderTargets(0, nullptr, false, &handle);
+	_cmdList->ClearDepthStencilView(handle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	_cmdList->OMSetStencilRef(1);
+	
+	auto wsize = Application::Instance().GetWindowSize();
+
+	ID3D12DescriptorHeap* sceneheaps[] = { _sceneDescHeap.Get() };
+	_cmdList->SetDescriptorHeaps(1, sceneheaps);
+	_cmdList->SetGraphicsRootDescriptorTable(0, _sceneDescHeap->GetGPUDescriptorHandleForHeapStart());
+
+	D3D12_VIEWPORT vp = CD3DX12_VIEWPORT(0.0f, 0.0f, wsize.cx, wsize.cy);
+	_cmdList->RSSetViewports(1, &vp);
+
+	CD3DX12_RECT rc(0, 0, wsize.cx, wsize.cy);
+	_cmdList->RSSetScissorRects(1, &rc);
+}
+
+void Dx12Wrapper::PreDrawReflection()
+{
+	auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(_reflectionBuffer.Get(),
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	_cmdList->ResourceBarrier(1, &barrier);
+
+	auto dsvHandle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
+	dsvHandle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV) * 2;
+
+	auto rtvHeapPointer = _peraRTVHeap->GetCPUDescriptorHandleForHeapStart();
+	rtvHeapPointer.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV) * 6;
+
+	_cmdList->OMSetRenderTargets(1, &rtvHeapPointer, false, &dsvHandle);
+	_cmdList->OMSetStencilRef(1);
+
+	float clearColorBlack[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	_cmdList->ClearRenderTargetView(rtvHeapPointer, clearColorBlack, 0, nullptr);
+
+	ID3D12DescriptorHeap* sceneheaps[] = { _sceneDescHeap.Get() };
+	_cmdList->SetDescriptorHeaps(1, sceneheaps);
+
+	auto heapHandle = _sceneDescHeap->GetGPUDescriptorHandleForHeapStart();
+	_cmdList->SetGraphicsRootDescriptorTable(0, heapHandle);
+}
+
 void Dx12Wrapper::PreDrawShadow()
 {
 	auto handle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
@@ -290,6 +347,12 @@ void Dx12Wrapper::DrawToPera1()
 
 void Dx12Wrapper::DrawToPera1ForFbx()
 {
+	auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(_reflectionBuffer.Get(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+	_cmdList->ResourceBarrier(1, &barrier);
+
 	auto wsize = Application::Instance().GetWindowSize();
 
 	ID3D12DescriptorHeap* sceneheaps[] = { _sceneDescHeap.Get() };
@@ -301,6 +364,16 @@ void Dx12Wrapper::DrawToPera1ForFbx()
 
 	CD3DX12_RECT rc(0, 0, wsize.cx, wsize.cy);
 	_cmdList->RSSetScissorRects(1, &rc);
+
+	//Set Reflection RenderTexture;
+
+	ID3D12DescriptorHeap* renderTextureHeaps[] = { _peraSRVHeap.Get() };
+	_cmdList->SetDescriptorHeaps(1, renderTextureHeaps);
+
+	auto reflectionTextureHandle = _peraSRVHeap->GetGPUDescriptorHandleForHeapStart();
+	auto incSize = _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	reflectionTextureHandle.ptr += incSize * 6;
+	_cmdList->SetGraphicsRootDescriptorTable(3, reflectionTextureHandle);
 }
 
 void Dx12Wrapper::PostDrawToPera1()
@@ -629,6 +702,13 @@ void Dx12Wrapper::EndDraw()
 	_swapChain->Present(0, 0);
 }
 
+void Dx12Wrapper::SetResolutionDescriptorHeap(unsigned rootParameterIndex) const
+{
+	ID3D12DescriptorHeap* heap[] = { _resolutionDescHeap.Get() };
+	_cmdList->SetDescriptorHeaps(1, heap);
+	_cmdList->SetGraphicsRootDescriptorTable(rootParameterIndex, _resolutionDescHeap->GetGPUDescriptorHandleForHeapStart());
+}
+
 ComPtr<ID3D12Device> Dx12Wrapper::Device()
 {
 	return _dev;
@@ -944,6 +1024,11 @@ HRESULT Dx12Wrapper::CreateSceneView()
 
 	_mappedSceneMatricesData = nullptr;
 	result = _sceneConstBuff->Map(0, nullptr, (void**)&_mappedSceneMatricesData);
+	if (FAILED(result))
+	{
+		assert(SUCCEEDED(result));
+		return result;
+	}
 
 	XMFLOAT3 eye(0, 10, -30);
 	XMFLOAT3 target(0, 10, 0);
@@ -968,6 +1053,7 @@ HRESULT Dx12Wrapper::CreateSceneView()
 	result = _dev->CreateDescriptorHeap(&descHeapDesc, IID_PPV_ARGS(_sceneDescHeap.ReleaseAndGetAddressOf()));
 
 	auto heapHandle = _sceneDescHeap->GetCPUDescriptorHandleForHeapStart();
+	auto incSize = _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 	cbvDesc.BufferLocation = _sceneConstBuff->GetGPUVirtualAddress();
@@ -1032,6 +1118,63 @@ HRESULT Dx12Wrapper::CreateBloomParameterResource()
 	return result;
 }
 
+HRESULT Dx12Wrapper::CreateResolutionConstantBuffer()
+{
+	auto heapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+
+	unsigned int size = sizeof(ResolutionBuffer);
+	unsigned int alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+	unsigned int width = size + alignment - (size % alignment);
+
+	auto resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(width);
+
+	auto result = _dev->CreateCommittedResource(
+		&heapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&resourceDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(_resolutionConstBuffer.ReleaseAndGetAddressOf()));
+	if (FAILED(result) == true)
+	{
+		return result;
+	}
+
+	result = _resolutionConstBuffer->Map(0, nullptr, (void**)&_mappedResolutionBuffer);
+	if (FAILED(result) == true)
+	{
+		return result;
+	}
+
+	const SIZE windowSize = Application::Instance().GetWindowSize();
+	_mappedResolutionBuffer->width = static_cast<float>(windowSize.cx);
+	_mappedResolutionBuffer->height = static_cast<float>(windowSize.cy);
+
+	_resolutionConstBuffer->Unmap(0, nullptr);
+
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	heapDesc.NodeMask = 0;
+	heapDesc.NumDescriptors = 1;
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+	result = _dev->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(_resolutionDescHeap.ReleaseAndGetAddressOf()));
+	if (FAILED(result) == true)
+	{
+		return result;
+	}
+
+	auto handle = _resolutionDescHeap->GetCPUDescriptorHandleForHeapStart();
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC constantBufferViewDesc;
+	constantBufferViewDesc.BufferLocation = _resolutionConstBuffer->GetGPUVirtualAddress();
+	constantBufferViewDesc.SizeInBytes = _resolutionConstBuffer->GetDesc().Width;
+
+	_dev->CreateConstantBufferView(&constantBufferViewDesc, handle);
+
+	return result;
+}
+
 HRESULT Dx12Wrapper::CreatePeraResource()
 {
 	auto& bbuff = _backBuffers[0];
@@ -1076,6 +1219,20 @@ HRESULT Dx12Wrapper::CreatePeraResource()
 		return result;
 	}
 
+	result = _dev->CreateCommittedResource(
+		&heapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&resDesc,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		&clearValueBlack,
+		IID_PPV_ARGS(_reflectionBuffer.ReleaseAndGetAddressOf())
+	);
+
+	if (FAILED(result))
+	{
+		return result;
+	}
+
 	for (auto& resource : _bloomBuffer)
 	{
 		auto result = _dev->CreateCommittedResource(
@@ -1113,7 +1270,7 @@ HRESULT Dx12Wrapper::CreatePeraResource()
 	}
 
 	auto heapDesc = _rtvHeaps->GetDesc();
-	heapDesc.NumDescriptors = 6;
+	heapDesc.NumDescriptors = 7;
 	result = _dev->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(_peraRTVHeap.ReleaseAndGetAddressOf()));
 
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
@@ -1138,8 +1295,11 @@ HRESULT Dx12Wrapper::CreatePeraResource()
 	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 	_dev->CreateRenderTargetView(_bloomResultTexture.Get(), &rtvDesc, handle); //rtv offset 5
+	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-	heapDesc.NumDescriptors = 6;
+	_dev->CreateRenderTargetView(_reflectionBuffer.Get(), &rtvDesc, handle); //rtv offset 7
+
+	heapDesc.NumDescriptors = 7;
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	heapDesc.NodeMask = 0;
@@ -1174,6 +1334,9 @@ HRESULT Dx12Wrapper::CreatePeraResource()
 	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	_dev->CreateShaderResourceView(_bloomResultTexture.Get(), &srvDesc, handle); //offset 5
+	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	_dev->CreateShaderResourceView(_reflectionBuffer.Get(), &srvDesc, handle); //offset 6
 	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	return result;
@@ -1664,6 +1827,27 @@ HRESULT Dx12Wrapper::CreateDepthStencilView()
 		return result;
 	}
 
+	D3D12_RESOURCE_DESC stencilResourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D24_UNORM_S8_UINT, desc.Width, desc.Height);
+	stencilResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+	D3D12_CLEAR_VALUE stencilClearValue = {};
+	stencilClearValue.DepthStencil.Stencil = 0.0f;
+	stencilClearValue.DepthStencil.Depth = 1.0f;
+	stencilClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+	result = _dev->CreateCommittedResource(
+		&depthHeapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&stencilResourceDesc,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		&stencilClearValue,
+		IID_PPV_ARGS(_stencilBuffer.ReleaseAndGetAddressOf())
+	);
+	if (FAILED(result))
+	{
+		return result;
+	}
+
 	depthResDesc.Width = shadow_difinition;
 	depthResDesc.Height = shadow_difinition;
 	result = _dev->CreateCommittedResource(&depthHeapProp,
@@ -1678,7 +1862,7 @@ HRESULT Dx12Wrapper::CreateDepthStencilView()
 	}
 
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-	dsvHeapDesc.NumDescriptors = 2;
+	dsvHeapDesc.NumDescriptors = 3;
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
@@ -1697,10 +1881,16 @@ HRESULT Dx12Wrapper::CreateDepthStencilView()
 
 	_dev->CreateDepthStencilView(_lightDepthBuffer.Get(), &dsvDesc, handle);
 
+	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+	_dev->CreateDepthStencilView(_stencilBuffer.Get(), &dsvDesc, handle);
+
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	heapDesc.NodeMask = 0;
-	heapDesc.NumDescriptors = 2;
+	heapDesc.NumDescriptors = 3;
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
 	result = _dev->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&_depthSRVHeap));
@@ -1723,6 +1913,8 @@ HRESULT Dx12Wrapper::CreateDepthStencilView()
 	srvHandle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	_dev->CreateShaderResourceView(_lightDepthBuffer.Get(), &depthSrvResDesc, srvHandle);
+
+	srvHandle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
     return result;
 }
