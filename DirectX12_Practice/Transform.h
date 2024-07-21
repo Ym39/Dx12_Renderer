@@ -12,6 +12,8 @@ public:
 
 	void SetRotation(float x, float y, float z);
 	const DirectX::XMFLOAT3& GetRotation() const;
+	const DirectX::XMFLOAT3 GetRotationRadians() const;
+	const DirectX::XMFLOAT4 GetQuaternion() const;
 
 	void SetScale(float x, float y, float z);
 	const DirectX::XMFLOAT3& GetScale() const;

@@ -12,6 +12,7 @@ class PMXRenderer;
 struct LoadMaterial;
 class FBXActor;
 class FBXRenderer;
+class IActor;
 
 constexpr float pi = 3.141592653589f;
 
@@ -34,11 +35,14 @@ public:
 
 	void UpdateAndSetDrawData(std::shared_ptr<Dx12Wrapper> dx);
 
+	void AddActor(std::shared_ptr<IActor> actor);
+
 	void SetPmxActor(PMXActor* actor);
 	void UpdatePostProcessMenu(std::shared_ptr<Dx12Wrapper> dx, std::shared_ptr<PMXRenderer> renderer);
 	void UpdateSelectInspector(IType* typeObject);
 	void UpdateSaveMenu(std::shared_ptr<Dx12Wrapper> dx, std::shared_ptr<FBXRenderer> fbxRenderer);
 	void UpdateMaterialManagerWindow(std::shared_ptr<Dx12Wrapper> dx);
+	void UpdateActorManager(std::shared_ptr<Dx12Wrapper> dx);
 
 private:
 	void UpdatePmxActorDebugWindow();
@@ -57,5 +61,7 @@ private:
 
 	bool _enableBloom;
 	bool _enableSSAO;
+
+	std::vector<std::shared_ptr<IActor>> mActorList = {};
 };
 

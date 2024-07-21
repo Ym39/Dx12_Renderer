@@ -36,7 +36,11 @@ public:
 	void BeginDraw();
 	void EndDraw();
 
+	void SetSceneBuffer(int rootParameterIndex) const;
+	void SetRSSetViewportsAndScissorRectsByScreenSize() const;
+
 	void SetResolutionDescriptorHeap(unsigned int rootParameterIndex) const;
+	void SetGlobalParameterBuffer(unsigned int rootParameterIndex) const;
 
 	ComPtr<ID3D12Device> Device();
 	ComPtr<ID3D12GraphicsCommandList> CommandList();
@@ -80,6 +84,12 @@ private:
 		float height;
 	};
 
+	struct GlobalParameterBuffer
+	{
+		float time;
+		int randomSeed;
+	};
+
 	HRESULT InitializeDXGIDevice();
 	HRESULT InitializeCommand();
 	HRESULT CreateSwapChain(const HWND& hwnd);
@@ -87,6 +97,7 @@ private:
 	HRESULT CreateSceneView();
 	HRESULT CreateBloomParameterResource();
 	HRESULT CreateResolutionConstantBuffer();
+	HRESULT CreateGlobalParameterBuffer();
 	HRESULT CreatePeraResource();
 	bool CreatePeraVertex();
 	bool CreatePeraPipeline();
@@ -102,6 +113,8 @@ private:
 	ID3D12Resource* CreateTextureFromFile(const std::wstring& texpath);
 	ID3D12Resource* CreateDefaultTexture(size_t width, size_t height);
 	ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeapForImgui();
+
+	void UpdateGlobalParameterBuffer() const; 
 
 	SIZE _winSize;
 
@@ -125,6 +138,8 @@ private:
 	// SceneBuffer(view, proj, shadow, camera ...)
 	ComPtr<ID3D12Resource> _sceneConstBuff = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _sceneDescHeap = nullptr;
+
+	ComPtr<ID3D12Resource> _globalParameterBuffer = nullptr;
 
 	ComPtr<ID3D12Resource> _resolutionConstBuffer = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _resolutionDescHeap = nullptr;

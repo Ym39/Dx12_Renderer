@@ -30,6 +30,11 @@ unsigned int Time::GetTime()
 	return _currentFrameTime;
 }
 
+float Time::GetTimeFloat()
+{
+	return static_cast<float>(_currentFrameTime) * 0.001f;
+}
+
 unsigned int Time::GetDeltaTime()
 {
 	return _deltaTime;
@@ -37,7 +42,7 @@ unsigned int Time::GetDeltaTime()
 
 float Time::GetDeltaTimeFloat()
 {
-	return _deltaTime * 0.001f;
+	return static_cast<float>(_deltaTime) * 0.001f;
 }
 
 unsigned Time::GetAnimationUpdateTime()

@@ -18,6 +18,7 @@ class PMDActor;
 class PMXRenderer;
 class PMXActor;
 class FBXRenderer;
+class InstancingRenderer;
 class ImguiManager;
 class MaterialManager;
 
@@ -31,6 +32,7 @@ private:
 	std::shared_ptr<PMDRenderer> _pmdRenderer;
 	std::shared_ptr<PMXRenderer> _pmxRenderer;
 	std::shared_ptr<FBXRenderer> _fbxRenderer;
+	std::shared_ptr<InstancingRenderer> _InstancingRenderer;
 
 	void CreateGameWindow(HWND& hwnd, WNDCLASSEX& windowClass);
 

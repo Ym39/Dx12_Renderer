@@ -12,6 +12,7 @@
 #include "PMXRenderer.h"
 #include "FBXActor.h"
 #include "FBXRenderer.h"
+#include "IActor.h"
 #include "Serialize.h"
 #include "MaterialManager.h"
 
@@ -111,6 +112,11 @@ void ImguiManager::UpdateAndSetDrawData(std::shared_ptr<Dx12Wrapper> dx)
 		dx->SetFov(mFov);
 		dx->SetDirectionalLightRotation(mLightRotation);
 	}
+}
+
+void ImguiManager::AddActor(std::shared_ptr<IActor> actor)
+{
+	mActorList.push_back(actor);
 }
 
 void ImguiManager::SetPmxActor(PMXActor* actor)
@@ -499,5 +505,38 @@ void ImguiManager::UpdateMaterialManagerWindow(std::shared_ptr<Dx12Wrapper> dx)
 
 	ImGui::EndChild();
 
+	ImGui::End();
+}
+
+void ImguiManager::UpdateActorManager(std::shared_ptr<Dx12Wrapper> dx)
+{
+	static std::shared_ptr<IActor> selectedActor = nullptr;
+
+	ImGui::Begin("Actor List", NULL, ImGuiWindowFlags_MenuBar);
+
+	ImGui::BeginChild("##ActorList", ImVec2(ImGui::GetContentRegionAvail().x * 0.5f, 0), true);
+
+	for (int i = 0; i < mActorList.size(); i++)
+	{
+		std::string indexString = std::to_string(i);
+		if (ImGui::Button((mActorList[i]->GetName() + "##" + indexString).c_str()))
+		{
+			selectedActor = mActorList[i];
+			break;
+		}
+	}
+
+	ImGui::EndChild();
+	ImGui::SameLine();
+	ImGui::BeginChild("Actor Inspector", ImVec2(0, 0), true);
+
+	if (selectedActor != nullptr)
+	{
+		ImGui::LabelText("Name ## Actor Name", selectedActor->GetName().c_str());
+
+		selectedActor->UpdateImGui(*dx);
+	}
+
+	ImGui::EndChild();
 	ImGui::End();
 }

@@ -5,9 +5,12 @@
 #include"PMXActor.h"
 #include "PMXRenderer.h"
 #include "ImguiManager.h"
+#include "InstancingRenderer.h"
+#include "GeometryInstancingActor.h"
 #include "FBXActor.h"
 #include "FBXRenderer.h"
 #include "MaterialManager.h"
+#include "Geometry.h"
 
 #include "Imgui/imgui.h"
 #include "Imgui/imgui_impl_dx12.h"
@@ -20,6 +23,7 @@
 
 #include <iomanip>
 #include <fstream>
+
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
@@ -107,6 +111,18 @@ bool Application::Init()
 	_fbxRenderer.reset(new FBXRenderer(*_dx12));
 	//_fbxRenderer->AddActor(stage);
 
+	_InstancingRenderer.reset(new InstancingRenderer(*_dx12));
+	auto cubeGeometryActor = std::make_shared<GeometryInstancingActor>(Geometry::Cube(), 2000);
+	cubeGeometryActor->GetTransform().SetPosition(-250.0f, 0.0f, -450.0f);
+	cubeGeometryActor->GetTransform().SetScale(0.8f, 4.0f, 0.8f);
+
+	cubeGeometryActor->Initialize(*_dx12);
+	cubeGeometryActor->SetName("Cube");
+
+	ImguiManager::Instance().AddActor(cubeGeometryActor);
+
+	_InstancingRenderer->AddActor(cubeGeometryActor);
+
 	bResult = MaterialManager::Instance().Init(*_dx12);
 	if (bResult == false)
 	{
@@ -186,8 +202,10 @@ void Application::Run()
 		}
 
 		// Update
+		_dx12->Update();
 		_pmxRenderer->Update();
 		_fbxRenderer->Update();
+		_InstancingRenderer->Update();
 
 		//Stencil Write
 		_fbxRenderer->BeforeWriteToStencil();
@@ -222,6 +240,10 @@ void Application::Run()
 
 		_pmxRenderer->Draw();
 
+		// Instancing Geometry
+		_InstancingRenderer->BeforeDrawAtForwardPipeline();
+		_InstancingRenderer->Draw();
+
 		// PostProcess
 		_dx12->PostDrawToPera1();
 
@@ -243,9 +265,13 @@ void Application::Run()
 		ImguiManager::Instance().UpdateSelectInspector(selectedFbxActor);
 		ImguiManager::Instance().UpdateSaveMenu(_dx12, _fbxRenderer);
 		ImguiManager::Instance().UpdateMaterialManagerWindow(_dx12);
+		ImguiManager::Instance().UpdateActorManager(_dx12);
 		ImguiManager::Instance().EndUI(_dx12);
 
 		_dx12->EndDraw();
+
+		// EndOfFrame
+		_InstancingRenderer->EndOfFrame();
 	}
 }
 

@@ -8,6 +8,7 @@ public:
 	static void FrameTime();
 
 	static unsigned int GetTime();
+	static float GetTimeFloat();
 	static unsigned int GetDeltaTime();
 	static float GetDeltaTimeFloat();
 

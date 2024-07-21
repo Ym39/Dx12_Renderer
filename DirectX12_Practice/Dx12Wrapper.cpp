@@ -7,6 +7,7 @@
 #include "Input.h"
 #include "Transform.h"
 #include "Time.h"
+#include <random>
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -71,6 +72,12 @@ Dx12Wrapper::Dx12Wrapper(HWND hwnd) :
 	}
 
 	if (FAILED(CreatePeraResource()))
+	{
+		assert(0);
+		return;
+	}
+
+	if (FAILED(CreateGlobalParameterBuffer()))
 	{
 		assert(0);
 		return;
@@ -316,7 +323,7 @@ bool Dx12Wrapper::PreDrawToPera1()
 	float clearColorGray[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
 	float clearColorBlack[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-	_cmdList->ClearRenderTargetView(rtvs[0], clearColorGray, 0, nullptr);
+	_cmdList->ClearRenderTargetView(rtvs[0], clearColorBlack, 0, nullptr);
 	_cmdList->ClearRenderTargetView(rtvs[1], clearColorBlack, 0, nullptr);
 	_cmdList->ClearRenderTargetView(rtvs[2], clearColorBlack, 0, nullptr);
 
@@ -630,6 +637,7 @@ void Dx12Wrapper::Draw()
 
 void Dx12Wrapper::Update()
 {
+	UpdateGlobalParameterBuffer();
 }
 
 void Dx12Wrapper::BeginDraw()
@@ -702,11 +710,34 @@ void Dx12Wrapper::EndDraw()
 	_swapChain->Present(0, 0);
 }
 
+void Dx12Wrapper::SetSceneBuffer(int rootParameterIndex) const
+{
+	ID3D12DescriptorHeap* sceneHeaps[] = { _sceneDescHeap.Get() };
+	_cmdList->SetDescriptorHeaps(1, sceneHeaps);
+	_cmdList->SetGraphicsRootDescriptorTable(rootParameterIndex, _sceneDescHeap->GetGPUDescriptorHandleForHeapStart());
+}
+
+void Dx12Wrapper::SetRSSetViewportsAndScissorRectsByScreenSize() const
+{
+	const auto windowSize = Application::Instance().GetWindowSize();
+
+	D3D12_VIEWPORT vp = CD3DX12_VIEWPORT(0.0f, 0.0f, windowSize.cx, windowSize.cy);
+	_cmdList->RSSetViewports(1, &vp);
+
+	CD3DX12_RECT rc(0, 0, windowSize.cx, windowSize.cy);
+	_cmdList->RSSetScissorRects(1, &rc);
+}
+
 void Dx12Wrapper::SetResolutionDescriptorHeap(unsigned rootParameterIndex) const
 {
 	ID3D12DescriptorHeap* heap[] = { _resolutionDescHeap.Get() };
 	_cmdList->SetDescriptorHeaps(1, heap);
 	_cmdList->SetGraphicsRootDescriptorTable(rootParameterIndex, _resolutionDescHeap->GetGPUDescriptorHandleForHeapStart());
+}
+
+void Dx12Wrapper::SetGlobalParameterBuffer(unsigned rootParameterIndex) const
+{
+	_cmdList->SetGraphicsRootConstantBufferView(rootParameterIndex, _globalParameterBuffer->GetGPUVirtualAddress());
 }
 
 ComPtr<ID3D12Device> Dx12Wrapper::Device()
@@ -1171,6 +1202,27 @@ HRESULT Dx12Wrapper::CreateResolutionConstantBuffer()
 	constantBufferViewDesc.SizeInBytes = _resolutionConstBuffer->GetDesc().Width;
 
 	_dev->CreateConstantBufferView(&constantBufferViewDesc, handle);
+
+	return result;
+}
+
+HRESULT Dx12Wrapper::CreateGlobalParameterBuffer()
+{
+	auto heapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+
+	unsigned int size = sizeof(GlobalParameterBuffer);
+	unsigned int alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+	unsigned int width = size + alignment - (size % alignment);
+
+	auto resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(width);
+
+	auto result = _dev->CreateCommittedResource(
+		&heapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&resourceDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(_globalParameterBuffer.ReleaseAndGetAddressOf()));
 
 	return result;
 }
@@ -2146,5 +2198,18 @@ ComPtr<ID3D12DescriptorHeap> Dx12Wrapper::CreateDescriptorHeapForImgui()
 	_dev->CreateDescriptorHeap(&desc, IID_PPV_ARGS(result.ReleaseAndGetAddressOf()));
 
 	return result;
+}
+
+void Dx12Wrapper::UpdateGlobalParameterBuffer() const
+{
+	GlobalParameterBuffer* mapped;
+	static std::random_device randomDevice;
+	static std::mt19937 generator(randomDevice());
+	static std::uniform_int_distribution<int> distribution(0, 99);
+	
+	_globalParameterBuffer->Map(0, nullptr, reinterpret_cast<void**>(&mapped));
+	mapped->time = Time::GetTimeFloat();
+	mapped->randomSeed = distribution(generator);
+	_globalParameterBuffer->Unmap(0, nullptr);
 }
 
