@@ -24,22 +24,8 @@ float4 ps(Output input) : SV_TARGET
 #endif
 
 #ifdef BLOOM
-
-	//float4 bloomAccum = float4(0, 0, 0, 0);
-	//float2 uvSize = float2(1, 0.5);
-	//float2 uvOffset = float2(0, 0);
-
-	//for (int i = 0; i < 8; ++i)
-	//{
-	//	bloomAccum += Get5x5GaussianBlur(texShrinkHighLum, smp, input.uv * uvSize + uvOffset, dx, dy, float4(uvOffset, uvOffset + uvSize));
-	//	uvOffset.y += uvSize.y;
-	//	uvSize *= 0.5f;
-	//}
-
-	//float4 bloomColor = Get5x5GaussianBlur(texHighLum, smp, input.uv, dx, dy, float4(0, 0, 1, 1)) + saturate(bloomAccum);
 	float4 bloomColor = texBloomResult.Sample(smp, input.uv);
 	result += bloomColor;
-
 #endif
 
 	return result;

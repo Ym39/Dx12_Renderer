@@ -1,49 +1,29 @@
-float4 Get5x5GaussianBlur(Texture2D<float4> tex, SamplerState smp, float2 uv, float dx, float dy, float4 rect) {
-	float4 ret = tex.Sample(smp, uv);
+float4 Get5x5GaussianBlur(Texture2D<float4> tex, SamplerState smp, float2 uv, float dx, float dy, float4 rect)
+{
+    float4 ret = tex.Sample(smp, uv);
+    float4 blurColor = float4(0, 0, 0, 0);
 
-	float l1 = -dx, l2 = -2 * dx;
-	float r1 = dx, r2 = 2 * dx;
-	float u1 = -dy, u2 = -2 * dy;
-	float d1 = dy, d2 = 2 * dy;
-	l1 = max(uv.x + l1, rect.x) - uv.x;
-	l2 = max(uv.x + l2, rect.x) - uv.x;
-	r1 = min(uv.x + r1, rect.z - dx) - uv.x;
-	r2 = min(uv.x + r2, rect.z - dx) - uv.x;
+    float weights[5][5] = {
+        {1 / 273.0,  4 / 273.0,  7 / 273.0,  4 / 273.0, 1 / 273.0},
+        {4 / 273.0, 16 / 273.0, 26 / 273.0, 16 / 273.0, 4 / 273.0},
+        {7 / 273.0, 26 / 273.0, 41 / 273.0, 26 / 273.0, 7 / 273.0},
+        {4 / 273.0, 16 / 273.0, 26 / 273.0, 16 / 273.0, 4 / 273.0},
+        {1 / 273.0,  4 / 273.0,  7 / 273.0,  4 / 273.0, 1 / 273.0}
+    };
 
-	u1 = max(uv.y + u1, rect.y) - uv.y;
-	u2 = max(uv.y + u2, rect.y) - uv.y;
-	d1 = min(uv.y + d1, rect.w - dy) - uv.y;
-	d2 = min(uv.y + d2, rect.w - dy) - uv.y;
+    float offsets[5] = { -2.0f, -1.0f, 0.0f, 1.0f, 2.0f };
 
-	return float4((
-		tex.Sample(smp, uv + float2(l2, u2)).rgb
-		+ tex.Sample(smp, uv + float2(l1, u2)).rgb * 4
-		+ tex.Sample(smp, uv + float2(0, u2)).rgb * 6
-		+ tex.Sample(smp, uv + float2(r1, u2)).rgb * 4
-		+ tex.Sample(smp, uv + float2(r2, u2)).rgb
+    for (int i = 0; i < 5; ++i) {
+        for (int j = 0; j < 5; ++j) {
+            float2 offset = float2(offsets[i] * dx, offsets[j] * dy);
+            float2 sampleUV = uv + offset;
 
-		+ tex.Sample(smp, uv + float2(l2, u1)).rgb * 4
-		+ tex.Sample(smp, uv + float2(l1, u1)).rgb * 16
-		+ tex.Sample(smp, uv + float2(0, u1)).rgb * 24
-		+ tex.Sample(smp, uv + float2(r1, u1)).rgb * 16
-		+ tex.Sample(smp, uv + float2(r2, u1)).rgb * 4
+            sampleUV.x = clamp(sampleUV.x, rect.x + dx * 0.5, rect.z - dx * 0.5);
+            sampleUV.y = clamp(sampleUV.y, rect.y + dy * 0.5, rect.w - dy * 0.5);
 
-		+ tex.Sample(smp, uv + float2(l2, 0)).rgb * 6
-		+ tex.Sample(smp, uv + float2(l1, 0)).rgb * 24
-		+ ret.rgb * 36
-		+ tex.Sample(smp, uv + float2(r1, 0)).rgb * 24
-		+ tex.Sample(smp, uv + float2(r2, 0)).rgb * 6
+            blurColor += tex.Sample(smp, sampleUV) * weights[i][j];
+        }
+    }
 
-		+ tex.Sample(smp, uv + float2(l2, d1)).rgb * 4
-		+ tex.Sample(smp, uv + float2(l1, d1)).rgb * 16
-		+ tex.Sample(smp, uv + float2(0, d1)).rgb * 24
-		+ tex.Sample(smp, uv + float2(r1, d1)).rgb * 16
-		+ tex.Sample(smp, uv + float2(r2, d1)).rgb * 4
-
-		+ tex.Sample(smp, uv + float2(l2, d2)).rgb
-		+ tex.Sample(smp, uv + float2(l1, d2)).rgb * 4
-		+ tex.Sample(smp, uv + float2(0, d2)).rgb * 6
-		+ tex.Sample(smp, uv + float2(r1, d2)).rgb * 4
-		+ tex.Sample(smp, uv + float2(r2, d2)).rgb
-		) / 256.0f, ret.a);
+    return float4(blurColor.rgb, ret.a);
 }

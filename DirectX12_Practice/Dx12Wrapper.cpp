@@ -579,12 +579,8 @@ void Dx12Wrapper::Clear()
 
 	_cmdList->OMSetRenderTargets(1, &rtvHeapPointer, false, nullptr);
 
-	//ƒNƒŠƒAƒJƒ‰?		 R   G   B   A
-	float clsClr[4] = { 0.5,0.5,0.5,1.0 };
+	float clsClr[4] = { 0.0,0.0,0.0,1.0 };
 	_cmdList->ClearRenderTargetView(rtvHeapPointer, clsClr, 0, nullptr);
-	//_cmdList->ClearDepthStencilView(_dsvHeap->GetCPUDescriptorHandleForHeapStart(),
-	//	D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
 }
 
 void Dx12Wrapper::Draw()
@@ -1481,8 +1477,9 @@ bool Dx12Wrapper::CreatePeraPipeline()
 	rsDesc.pParameters = rp;
 
 	D3D12_STATIC_SAMPLER_DESC sampler = CD3DX12_STATIC_SAMPLER_DESC(0);
-	//sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	//sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	rsDesc.pStaticSamplers = &sampler;
 	rsDesc.NumStaticSamplers = 1;
 	rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;

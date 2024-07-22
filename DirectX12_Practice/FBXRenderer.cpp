@@ -190,7 +190,7 @@ HRESULT FBXRenderer::CreateGraphicsPipeline()
 	graphicsPipelineDesc.pRootSignature = _rootSignature.Get();
 	graphicsPipelineDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 	graphicsPipelineDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	graphicsPipelineDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+	graphicsPipelineDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	graphicsPipelineDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	graphicsPipelineDesc.InputLayout.pInputElementDescs = inputLayout;
 	graphicsPipelineDesc.InputLayout.NumElements = _countof(inputLayout);

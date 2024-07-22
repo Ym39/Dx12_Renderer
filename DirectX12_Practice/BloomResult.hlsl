@@ -36,11 +36,6 @@ float4 ps(Output input) : SV_TARGET
 		uvSize *= 0.5f;
 	}
 
-	bloomAccum += Get5x5GaussianBlur(texShrinkBlur, smp, input.uv * uvSize + uvOffset, dx, dy, float4(uvOffset, uvOffset + uvSize)) * intensity;
-	uvOffset.y += uvSize.y;
-	uvSize *= 0.5f;
-
 	float4 bloomColor = Get5x5GaussianBlur(texHighLum, smp, input.uv, dx, dy, float4(0, 0, 1, 1)) * intensity + saturate(bloomAccum);
-
 	return bloomColor;
 }
