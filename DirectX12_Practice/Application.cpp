@@ -11,6 +11,7 @@
 #include "FBXRenderer.h"
 #include "MaterialManager.h"
 #include "Geometry.h"
+#include "Render.h"
 
 #include "Imgui/imgui.h"
 #include "Imgui/imgui_impl_dx12.h"
@@ -78,23 +79,10 @@ bool Application::Init()
 	CreateGameWindow(_hwnd, _windowClass);
 
 	_dx12.reset(new Dx12Wrapper(_hwnd));
+	_render.reset(new Render(_dx12));
 
 	PhysicsManager::Create();
 	PhysicsManager::ActivePhysics(true);
-
-	_pmdRenderer.reset(new PMDRenderer(*_dx12));
-
-	auto miku = std::make_shared<PMDActor>("Model/miku.pmd", *_dx12);
-	miku->PlayAnimation();
-	miku->SetPosition(0.f, 0.f, 0.f);
-	_pmdRenderer->AddActor(miku);
-
-	auto miku2 = std::make_shared<PMDActor>("Model/miku.pmd", *_dx12);
-	miku2->PlayAnimation();
-	miku2->SetPosition(20.f, 0.f, 50.f);
-	_pmdRenderer->AddActor(miku2);
-
-	_pmxRenderer.reset(new PMXRenderer(*_dx12));
 
 	auto pmxMiku = std::make_shared<PMXActor>();
 	bool bResult = pmxMiku.get()->Initialize(L"PMXModel\\«ß«¯ªµªó.pmx", *_dx12);
@@ -103,15 +91,9 @@ bool Application::Init()
 		return false;
 	}
 
-	_pmxRenderer->AddActor(pmxMiku);
+	pmxMiku->SetName("Miku");
+	_render->AddPMXActor(pmxMiku);
 
-	//auto stage = std::make_shared<FBXActor>();
-	//stage->Initialize("FBX/stage.fbx", *_dx12);
-
-	_fbxRenderer.reset(new FBXRenderer(*_dx12));
-	//_fbxRenderer->AddActor(stage);
-
-	_InstancingRenderer.reset(new InstancingRenderer(*_dx12));
 	auto cubeGeometryActor = std::make_shared<GeometryInstancingActor>(Geometry::Cube(), 2000);
 	cubeGeometryActor->GetTransform().SetPosition(-250.0f, 0.0f, -450.0f);
 	cubeGeometryActor->GetTransform().SetScale(0.8f, 4.0f, 0.8f);
@@ -119,9 +101,7 @@ bool Application::Init()
 	cubeGeometryActor->Initialize(*_dx12);
 	cubeGeometryActor->SetName("Cube");
 
-	ImguiManager::Instance().AddActor(cubeGeometryActor);
-
-	_InstancingRenderer->AddActor(cubeGeometryActor);
+	_render->AddGeometryInstancingActor(cubeGeometryActor);
 
 	bResult = MaterialManager::Instance().Init(*_dx12);
 	if (bResult == false)
@@ -136,12 +116,6 @@ bool Application::Init()
 	{
 		return false;
 	}
-
-	//bResult = LoadPMXFile(L"PMXModel\\«ß«¯ªµªó.pmx");
-	//	if (bResult == false)
-	//{
-	//	return false;
-	//}
 
 	return true;
 }
@@ -184,94 +158,24 @@ void Application::Run()
 
 		static FBXActor* selectedFbxActor = nullptr;
 
-		if (Input::Instance()->GetMouseDown(0) == true)
-		{
-			float mousePositionX = Input::Instance()->GetMousePositionX();
-			float mousePositionY = Input::Instance()->GetMousePositionY();
-			XMFLOAT3 cameraPosition = _dx12->GetCameraPosition();
-			XMMATRIX viewMatrix = _dx12->GetViewMatrix();
-			XMMATRIX projMatrix = _dx12->GetProjectionMatrix();
+		//if (Input::Instance()->GetMouseDown(0) == true)
+		//{
+		//	float mousePositionX = Input::Instance()->GetMousePositionX();
+		//	float mousePositionY = Input::Instance()->GetMousePositionY();
+		//	XMFLOAT3 cameraPosition = _dx12->GetCameraPosition();
+		//	XMMATRIX viewMatrix = _dx12->GetViewMatrix();
+		//	XMMATRIX projMatrix = _dx12->GetProjectionMatrix();
 
-			for (auto& actor : _fbxRenderer->GetActor())
-			{
-				if (actor->TestSelect(mousePositionX, mousePositionY, cameraPosition, viewMatrix, projMatrix) == true)
-				{
-					selectedFbxActor = actor.get();
-				}
-			}
-		}
+		//	for (auto& actor : _fbxRenderer->GetActor())
+		//	{
+		//		if (actor->TestSelect(mousePositionX, mousePositionY, cameraPosition, viewMatrix, projMatrix) == true)
+		//		{
+		//			selectedFbxActor = actor.get();
+		//		}
+		//	}
+		//}
 
-		// Update
-		_dx12->Update();
-		_pmxRenderer->Update();
-		_fbxRenderer->Update();
-		_InstancingRenderer->Update();
-
-		//Stencil Write
-		_fbxRenderer->BeforeWriteToStencil();
-		_dx12->PreDrawStencil();
-		_fbxRenderer->Draw();
-
-		//Reflection
-		_pmxRenderer->BeforeDrawReflection();
-		_dx12->PreDrawReflection();
-		_pmxRenderer->DrawReflection();
-
-		//Shadow Map
-		_pmxRenderer->BeforeDrawFromLight();
-
-		_dx12->PreDrawShadow();
-
-		_pmxRenderer->DrawFromLight();
-
-		_dx12->PreDrawToPera1();
-
-		// FBX
-		_fbxRenderer->BeforeDrawAtForwardPipeline();
-
-		_dx12->DrawToPera1ForFbx();
-
-		_fbxRenderer->Draw();
-
-		// PMX
-		_pmxRenderer->BeforeDrawAtDeferredPipeline();
-
-		_dx12->DrawToPera1();
-
-		_pmxRenderer->Draw();
-
-		// Instancing Geometry
-		_InstancingRenderer->BeforeDrawAtForwardPipeline();
-		_InstancingRenderer->Draw();
-
-		// PostProcess
-		_dx12->PostDrawToPera1();
-
-		_dx12->DrawAmbientOcclusion();
-
-		_dx12->DrawShrinkTextureForBlur();
-
-		// Draw Frame
-		_dx12->Clear();
-
-		_dx12->Draw();
-
-		_dx12->Update();
-
-		// Imgui
-		ImguiManager::Instance().StartUI();
-		ImguiManager::Instance().UpdateAndSetDrawData(_dx12);
-		ImguiManager::Instance().UpdatePostProcessMenu(_dx12, _pmxRenderer);
-		ImguiManager::Instance().UpdateSelectInspector(selectedFbxActor);
-		ImguiManager::Instance().UpdateSaveMenu(_dx12, _fbxRenderer);
-		ImguiManager::Instance().UpdateMaterialManagerWindow(_dx12);
-		ImguiManager::Instance().UpdateActorManager(_dx12);
-		ImguiManager::Instance().EndUI(_dx12);
-
-		_dx12->EndDraw();
-
-		// EndOfFrame
-		_InstancingRenderer->EndOfFrame();
+		_render->Frame();
 	}
 }
 
@@ -340,6 +244,11 @@ void Application::ReadSceneData()
 			}
 
 			std::string fbxFileName = fbxActorJson["ModelPath"];
+			std::string name = "";
+			if (fbxActorJson.contains("Name") == true)
+			{
+				name = fbxActorJson["Name"].get<std::string>();
+			}
 
 			json transformJson = fbxActorJson["Transform"];
 			if (transformJson.contains("Position") == false ||
@@ -388,7 +297,10 @@ void Application::ReadSceneData()
 				newActor->SetMaterialName(materialNameList);
 			}
 
-			_fbxRenderer->AddActor(newActor);
+			newActor->SetName(name);
+
+			//_fbxRenderer->AddActor(newActor);
+			_render->AddFBXActor(newActor);
 		}
 	}
 }

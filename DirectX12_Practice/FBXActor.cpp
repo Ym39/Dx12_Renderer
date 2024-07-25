@@ -130,6 +130,20 @@ bool FBXActor::TestSelect(int mouseX, int mouseY, DirectX::XMFLOAT3 cameraPositi
 	return _bounds->TestIntersectionBoundsBoxByMousePosition(mouseX, mouseY, worldPosition, cameraPosition, viewMatrix, projectionMatrix);
 }
 
+std::string FBXActor::GetName() const
+{
+	return _name;
+}
+
+void FBXActor::SetName(std::string name)
+{
+	_name = name;
+}
+
+void FBXActor::UpdateImGui(Dx12Wrapper& dx)
+{
+}
+
 const std::vector<std::string> FBXActor::GetMaterialNameList() const
 {
 	return _meshMaterialNameList;
@@ -160,6 +174,7 @@ void FBXActor::GetSerialize(json& j)
 	}
 
 	j["Material"] = materialNameJson;
+	j["Name"] = _name;
 }
 
 DirectX::XMFLOAT3 FBXActor::AiVector3ToXMFLOAT3(const aiVector3D& vec)

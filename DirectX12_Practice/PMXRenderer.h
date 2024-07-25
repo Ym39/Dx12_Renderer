@@ -46,7 +46,7 @@ public:
 	~PMXRenderer();
 	void Update();
 
-	void BeforeDrawFromLight();
+	void BeforeDrawFromLight() const;
 	void BeforeDrawAtForwardPipeline();
 	void BeforeDrawAtDeferredPipeline();
 	void BeforeDrawReflection();

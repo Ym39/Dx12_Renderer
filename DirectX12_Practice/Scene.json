@@ -19,6 +19,7 @@
                 "Gray"
             ],
             "ModelPath": "FBX/stage.fbx",
+            "Name": "Stage",
             "Transform": {
                 "Position": {
                     "x": 0.0,

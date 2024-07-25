@@ -235,7 +235,7 @@ void Dx12Wrapper::PreDrawStencil()
 	_cmdList->RSSetScissorRects(1, &rc);
 }
 
-void Dx12Wrapper::PreDrawReflection()
+void Dx12Wrapper::PreDrawReflection() const
 {
 	auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(_reflectionBuffer.Get(),
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
@@ -262,7 +262,7 @@ void Dx12Wrapper::PreDrawReflection()
 	_cmdList->SetGraphicsRootDescriptorTable(0, heapHandle);
 }
 
-void Dx12Wrapper::PreDrawShadow()
+void Dx12Wrapper::PreDrawShadow() const
 {
 	auto handle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
 	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
@@ -287,7 +287,7 @@ void Dx12Wrapper::PreDrawShadow()
 	_cmdList->RSSetScissorRects(1, &rc);
 }
 
-bool Dx12Wrapper::PreDrawToPera1()
+void Dx12Wrapper::PreDrawToPera1() const
 {
 	for (auto& resource : _pera1Resource)
 	{
@@ -328,8 +328,6 @@ bool Dx12Wrapper::PreDrawToPera1()
 	_cmdList->ClearRenderTargetView(rtvs[2], clearColorBlack, 0, nullptr);
 
 	_cmdList->ClearDepthStencilView(dsvHeapPointer, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-	return true;
 }
 
 void Dx12Wrapper::DrawToPera1()

@@ -21,6 +21,7 @@ class FBXRenderer;
 class InstancingRenderer;
 class ImguiManager;
 class MaterialManager;
+class Render;
 
 class Application
 {
@@ -29,10 +30,7 @@ private:
 	HWND _hwnd;
 	HINSTANCE _hInstance;
 	std::shared_ptr<Dx12Wrapper> _dx12;
-	std::shared_ptr<PMDRenderer> _pmdRenderer;
-	std::shared_ptr<PMXRenderer> _pmxRenderer;
-	std::shared_ptr<FBXRenderer> _fbxRenderer;
-	std::shared_ptr<InstancingRenderer> _InstancingRenderer;
+	std::shared_ptr<Render> _render = nullptr;
 
 	void CreateGameWindow(HWND& hwnd, WNDCLASSEX& windowClass);
 

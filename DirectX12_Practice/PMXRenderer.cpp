@@ -458,7 +458,7 @@ void PMXRenderer::Update()
 	}
 }
 
-void PMXRenderer::BeforeDrawFromLight()
+void PMXRenderer::BeforeDrawFromLight() const
 {
 	auto cmdList = _dx12.CommandList();
 	cmdList->SetPipelineState(_shadowPipeline.Get());

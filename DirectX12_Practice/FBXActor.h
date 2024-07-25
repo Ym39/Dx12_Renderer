@@ -13,6 +13,7 @@
 #include "ISelectable.h"
 #include "IType.h"
 #include "Serialize.h"
+#include "IActor.h"
 
 class Dx12Wrapper;
 class BoundsBox;
@@ -34,7 +35,8 @@ struct FBXMesh
 
 class FBXActor : public IGetTransform,
                  public ISelectable,
-                 public IType
+                 public IType,
+                 public IActor
 {
 public:
 	FBXActor();
@@ -47,6 +49,10 @@ public:
 	Transform& GetTransform() override;
 	TypeIdentity GetType() override;
 	bool TestSelect(int mouseX, int mouseY, DirectX::XMFLOAT3 cameraPosition, const DirectX::XMMATRIX& viewMatrix, const DirectX::XMMATRIX& projectionMatrix) override;
+
+	std::string GetName() const override;
+	void SetName(std::string name) override;
+	void UpdateImGui(Dx12Wrapper& dx) override;
 
 	const std::vector<std::string> GetMaterialNameList() const;
 	void GetSerialize(json& j);
@@ -84,6 +90,7 @@ private:
 	ComPtr<ID3D12DescriptorHeap> _transformHeap = nullptr;
 	DirectX::XMMATRIX* _mappedWorldTranform;
 	Transform _transform;
+	std::string _name;
 
 	BoundsBox* _bounds = nullptr;
 };

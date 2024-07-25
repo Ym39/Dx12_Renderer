@@ -22,9 +22,9 @@ public:
 
 	void SetCameraSetting();
 	void PreDrawStencil();
-	void PreDrawReflection();
-	void PreDrawShadow();
-	bool PreDrawToPera1();
+	void PreDrawReflection() const;
+	void PreDrawShadow() const;
+	void PreDrawToPera1() const;
 	void DrawToPera1();
 	void DrawToPera1ForFbx();
 	void PostDrawToPera1();

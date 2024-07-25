@@ -17,6 +17,7 @@
 #include "PhysicsManager.h"
 #include "IGetTransform.h"
 #include "Transform.h"
+#include "IActor.h"
 
 using namespace DirectX;
 
@@ -54,7 +55,8 @@ class NodeManager;
 class MorphManager;
 
 class Dx12Wrapper;
-class PMXActor : IGetTransform
+class PMXActor : public IGetTransform,
+                 public IActor
 {
 public:
 	PMXActor();
@@ -70,6 +72,9 @@ public:
 	void SetMaterials(const std::vector<LoadMaterial>& setMaterials);
 
 	Transform& GetTransform() override;
+	std::string GetName() const override;
+	void SetName(std::string name) override;
+	void UpdateImGui(Dx12Wrapper& dx) override;
 
 private:
 	HRESULT CreateVbAndIb(Dx12Wrapper& dx);
@@ -154,5 +159,7 @@ private:
 
 	std::vector<std::unique_ptr<RigidBody>> _rigidBodies;
 	std::vector<std::unique_ptr<Joint>> _joints;
+
+	std::string _name;
 };
 

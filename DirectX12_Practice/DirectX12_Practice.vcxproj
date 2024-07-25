@@ -176,6 +176,7 @@
     <ClCompile Include="PMXActor.cpp" />
     <ClCompile Include="PmxFileData.cpp" />
     <ClCompile Include="PMXRenderer.cpp" />
+    <ClCompile Include="Render.cpp" />
     <ClCompile Include="RigidBody.cpp" />
     <ClCompile Include="Serialize.cpp" />
     <ClCompile Include="Time.cpp" />
@@ -377,6 +378,7 @@
     <ClInclude Include="PMXActor.h" />
     <ClInclude Include="PmxFileData.h" />
     <ClInclude Include="PMXRenderer.h" />
+    <ClInclude Include="Render.h" />
     <ClInclude Include="RigidBody.h" />
     <ClInclude Include="Serialize.h" />
     <ClInclude Include="srtconv.h" />

@@ -240,6 +240,20 @@ Transform& PMXActor::GetTransform()
 	return _transformComp;
 }
 
+std::string PMXActor::GetName() const
+{
+	return _name;
+}
+
+void PMXActor::SetName(std::string name)
+{
+	_name = name;
+}
+
+void PMXActor::UpdateImGui(Dx12Wrapper& dx)
+{
+}
+
 HRESULT PMXActor::CreateVbAndIb(Dx12Wrapper& dx)
 {
 	D3D12_HEAP_PROPERTIES heapprop = {};

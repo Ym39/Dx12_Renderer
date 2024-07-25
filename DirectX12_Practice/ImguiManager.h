@@ -43,6 +43,7 @@ public:
 	void UpdateSaveMenu(std::shared_ptr<Dx12Wrapper> dx, std::shared_ptr<FBXRenderer> fbxRenderer);
 	void UpdateMaterialManagerWindow(std::shared_ptr<Dx12Wrapper> dx);
 	void UpdateActorManager(std::shared_ptr<Dx12Wrapper> dx);
+	void UpdateActorManager(std::shared_ptr<Dx12Wrapper>& dx, std::vector<std::shared_ptr<IActor>>& actorList);
 
 private:
 	void UpdatePmxActorDebugWindow();

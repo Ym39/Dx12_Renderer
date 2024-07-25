@@ -4,7 +4,7 @@
 #include <d3dcompiler.h>
 #include <d3dx12.h>
 #include "Dx12Wrapper.h"
-#include "IActor.h"
+#include "GeometryInstancingActor.h"
 
 InstancingRenderer::InstancingRenderer(Dx12Wrapper& dx):
 mDirectX(dx)
@@ -48,7 +48,7 @@ void InstancingRenderer::EndOfFrame()
 	}
 }
 
-void InstancingRenderer::AddActor(std::shared_ptr<IActor> actor)
+void InstancingRenderer::AddActor(std::shared_ptr<GeometryInstancingActor> actor)
 {
 	mActorList.push_back(actor);
 }

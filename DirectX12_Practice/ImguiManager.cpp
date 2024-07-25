@@ -540,3 +540,36 @@ void ImguiManager::UpdateActorManager(std::shared_ptr<Dx12Wrapper> dx)
 	ImGui::EndChild();
 	ImGui::End();
 }
+
+void ImguiManager::UpdateActorManager(std::shared_ptr<Dx12Wrapper>& dx, std::vector<std::shared_ptr<IActor>>& actorList)
+{
+	static std::shared_ptr<IActor> selectedActor = nullptr;
+
+	ImGui::Begin("Actor List", nullptr, ImGuiWindowFlags_MenuBar);
+
+	ImGui::BeginChild("##ActorList", ImVec2(ImGui::GetContentRegionAvail().x * 0.5f, 0), true);
+
+	for (int i = 0; i < actorList.size(); i++)
+	{
+		std::string indexString = std::to_string(i);
+		if (ImGui::Button((actorList[i]->GetName() + "##" + indexString).c_str()))
+		{
+			selectedActor = actorList[i];
+			break;
+		}
+	}
+
+	ImGui::EndChild();
+	ImGui::SameLine();
+	ImGui::BeginChild("Actor Inspector", ImVec2(0, 0), true);
+
+	if (selectedActor != nullptr)
+	{
+		ImGui::LabelText("Name ## Actor Name", selectedActor->GetName().c_str());
+
+		selectedActor->UpdateImGui(*dx);
+	}
+
+	ImGui::EndChild();
+	ImGui::End();
+}

@@ -5,7 +5,7 @@
 #include <memory>
 
 class Dx12Wrapper;
-class IActor;
+class GeometryInstancingActor;
 
 class InstancingRenderer
 {
@@ -17,7 +17,7 @@ public:
 	void BeforeDrawAtForwardPipeline();
 	void Draw();
 	void EndOfFrame();
-	void AddActor(std::shared_ptr<IActor> actor);
+	void AddActor(std::shared_ptr<GeometryInstancingActor> actor);
 
 private:
 	HRESULT CreateRootSignature();
@@ -33,6 +33,6 @@ private:
 	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
 	ComPtr<ID3D12PipelineState> mForwardPipeline = nullptr;
 
-	std::vector<std::shared_ptr<IActor>> mActorList = {};
+	std::vector<std::shared_ptr<GeometryInstancingActor>> mActorList = {};
 };
 

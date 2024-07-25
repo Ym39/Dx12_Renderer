@@ -17,15 +17,16 @@ public:
 	GeometryInstancingActor(const CubeGeometry& cube, unsigned int instancingCount);
 	virtual ~GeometryInstancingActor() override;
 
- 	// override
-	void Initialize(Dx12Wrapper& dx) override;
-	void Draw(Dx12Wrapper& dx, bool isShadow) const override;
-	void Update() override;
-	void EndOfFrame(Dx12Wrapper& dx) override;
+	void Initialize(Dx12Wrapper& dx);
+	void Draw(Dx12Wrapper& dx, bool isShadow) const;
+	void Update();
+	void EndOfFrame(Dx12Wrapper& dx);
+	int GetIndexCount() const;
+
+	// override
 	Transform& GetTransform() override;
-	int GetIndexCount() const override;
 	std::string GetName() const override;
-	void SetName(std::string name) override;
+	void SetName(std::string name)override;
 	void UpdateImGui(Dx12Wrapper& dx) override;
 
 private:
