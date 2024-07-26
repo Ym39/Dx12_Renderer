@@ -1,5 +1,4 @@
 #include "FBXActor.h"
-#include "FBXActor.h"
 
 #include <d3dx12.h>
 
@@ -7,6 +6,8 @@
 #include "Transform.h"
 #include "BoundBox.h"
 #include "MaterialManager.h"
+#include "ImguiManager.h"
+#include "Imgui/imgui.h"
 
 FBXActor::FBXActor() 
 {
@@ -142,6 +143,38 @@ void FBXActor::SetName(std::string name)
 
 void FBXActor::UpdateImGui(Dx12Wrapper& dx)
 {
+	ImguiManager::Instance().DrawTransformUI(_transform);
+	std::vector<std::string> selectNameList(_meshMaterialNameList);
+	const auto& materialNameList = MaterialManager::Instance().GetNameList();
+	const char** nameItems = new const char* [materialNameList.size()];
+
+	for (int i = 0; i < materialNameList.size(); i++)
+	{
+		nameItems[i] = materialNameList[i].c_str();
+	}
+
+	ImGui::Text("Material");
+	for (int i = 0; i < _meshMaterialNameList.size(); i++)
+	{
+		std::string comboName = "## fbxActorMaterialSelect" + std::to_string(i);
+
+		int selectIndex = -1;
+
+		for (int j = 0; j < materialNameList.size(); j++)
+		{
+			if (_meshMaterialNameList[i] == materialNameList[j])
+			{
+				selectIndex = j;
+				break;
+			}
+		}
+
+		if (ImGui::Combo(comboName.c_str(), &selectIndex, nameItems, materialNameList.size()))
+		{
+			selectNameList[i] = materialNameList[selectIndex];
+			SetMaterialName(selectNameList);
+		}
+	}
 }
 
 const std::vector<std::string> FBXActor::GetMaterialNameList() const

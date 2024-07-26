@@ -13,6 +13,7 @@ struct LoadMaterial;
 class FBXActor;
 class FBXRenderer;
 class IActor;
+class Transform;
 
 constexpr float pi = 3.141592653589f;
 
@@ -44,6 +45,7 @@ public:
 	void UpdateMaterialManagerWindow(std::shared_ptr<Dx12Wrapper> dx);
 	void UpdateActorManager(std::shared_ptr<Dx12Wrapper> dx);
 	void UpdateActorManager(std::shared_ptr<Dx12Wrapper>& dx, std::vector<std::shared_ptr<IActor>>& actorList);
+	void DrawTransformUI(Transform& transform);
 
 private:
 	void UpdatePmxActorDebugWindow();

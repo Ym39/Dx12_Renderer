@@ -1,11 +1,4 @@
 ﻿#include "PMXActor.h"
-#include "Dx12Wrapper.h"
-#include "PMXRenderer.h"
-#include "srtconv.h"
-#include "MathUtil.h"
-
-#include "RigidBody.h"
-#include "Joint.h"
 
 #include <array>
 #include <bitset>
@@ -13,8 +6,16 @@
 #include <d3dx12.h>
 #include <BulletDynamics/Dynamics/btRigidBody.h>
 
+#include "Dx12Wrapper.h"
+#include "PMXRenderer.h"
+#include "srtconv.h"
+#include "MathUtil.h"
+#include "RigidBody.h"
+#include "Joint.h"
 #include "Time.h"
 #include "UnicodeUtil.h"
+#include "ImguiManager.h"
+#include "Imgui/imgui.h"
 
 using namespace std;
 
@@ -252,6 +253,55 @@ void PMXActor::SetName(std::string name)
 
 void PMXActor::UpdateImGui(Dx12Wrapper& dx)
 {
+	ImguiManager::Instance().DrawTransformUI(_transformComp);
+
+	int i = 0;
+	for (LoadMaterial& curMat : _loadedMaterial)
+	{
+		float diffuseColor[4] = { curMat.diffuse.x,curMat.diffuse.y ,curMat.diffuse.z ,curMat.diffuse.w };
+		float specularColor[3] = { curMat.specular.x, curMat.specular.y , curMat.specular.z };
+		float specularPower = curMat.specularPower;
+		float ambientColor[3] = { curMat.ambient.x, curMat.ambient.y , curMat.ambient.z };
+		bool visible = curMat.visible;
+
+		std::string matIndexString = std::to_string(i);
+		if (ImGui::CollapsingHeader(curMat.name.c_str(), ImGuiTreeNodeFlags_Framed))
+		{
+			if (ImGui::Checkbox(("Visible ## mat" + matIndexString).c_str(), &visible) == true)
+			{
+				curMat.visible = visible;
+			}
+
+			if (ImGui::ColorEdit4(("Diffuse ## mat" + matIndexString).c_str(), diffuseColor) == true)
+			{
+				curMat.diffuse.x = diffuseColor[0];
+				curMat.diffuse.y = diffuseColor[1];
+				curMat.diffuse.z = diffuseColor[2];
+				curMat.diffuse.w = diffuseColor[3];
+			}
+
+			if (ImGui::ColorEdit3(("Specular ## mat" + matIndexString).c_str(), specularColor) == true)
+			{
+				curMat.specular.x = specularColor[0];
+				curMat.specular.y = specularColor[1];
+				curMat.specular.z = specularColor[2];
+			}
+
+			if (ImGui::InputFloat(("SpecularPower ## mat" + matIndexString).c_str(), &specularPower) == true)
+			{
+				curMat.specularPower = specularPower;
+			}
+
+			if (ImGui::ColorEdit3(("Ambient ## mat" + matIndexString).c_str(), ambientColor) == true)
+			{
+				curMat.ambient.x = ambientColor[0];
+				curMat.ambient.y = ambientColor[1];
+				curMat.ambient.z = ambientColor[2];
+			}
+		}
+
+		++i;
+	}
 }
 
 HRESULT PMXActor::CreateVbAndIb(Dx12Wrapper& dx)

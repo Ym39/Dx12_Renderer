@@ -105,8 +105,6 @@ void ImguiManager::UpdateAndSetDrawData(std::shared_ptr<Dx12Wrapper> dx)
 
 	ImGui::End();
 
-	UpdatePmxActorDebugWindow();
-
 	if (changed == true)
 	{
 		dx->SetFov(mFov);
@@ -572,4 +570,30 @@ void ImguiManager::UpdateActorManager(std::shared_ptr<Dx12Wrapper>& dx, std::vec
 
 	ImGui::EndChild();
 	ImGui::End();
+}
+
+void ImguiManager::DrawTransformUI(Transform& transform)
+{
+	DirectX::XMFLOAT3 position = transform.GetPosition();
+	DirectX::XMFLOAT3 rotation = transform.GetRotation();
+	DirectX::XMFLOAT3 scale = transform.GetScale();
+
+	float positionArray[] = { position.x, position.y, position.z };
+	float rotationArray[] = { rotation.x, rotation.y, rotation.z };
+	float scaleArray[] = { scale.x, scale.y, scale.z };
+
+	if (ImGui::DragFloat3("Position ## Inspector", positionArray, 0.01f))
+	{
+		transform.SetPosition(positionArray[0], positionArray[1], positionArray[2]);
+	}
+
+	if (ImGui::DragFloat3("Rotation ## Inspector", rotationArray, 0.01f))
+	{
+		transform.SetScale(scaleArray[0], scaleArray[1], scaleArray[2]);
+	}
+
+	if (ImGui::DragFloat3("Scale ## Inspector", scaleArray, 0.01f))
+	{
+		transform.SetScale(scaleArray[0], scaleArray[1], scaleArray[2]);
+	}
 }
