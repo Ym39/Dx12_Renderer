@@ -1001,6 +1001,8 @@ void PMXActor::MorphBone()
 
 void PMXActor::ResetPhysics()
 {
+	PhysicsManager::ActivePhysics(false);
+
 	for (auto& rigidBody : _rigidBodies)
 	{
 		rigidBody->SetActive(false);
@@ -1031,6 +1033,8 @@ void PMXActor::ResetPhysics()
 	{
 		rigidBody->Reset(world);
 	}
+
+	PhysicsManager::ActivePhysics(true);
 }
 
 void PMXActor::UpdatePhysicsAnimation(DWORD elapse)
