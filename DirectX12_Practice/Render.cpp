@@ -7,6 +7,7 @@
 #include "FBXActor.h"
 #include "InstancingRenderer.h"
 #include "GeometryInstancingActor.h"
+#include "GeometryActor.h"
 #include "ImguiManager.h"
 
 Render::Render(std::shared_ptr<Dx12Wrapper>& dx):
@@ -43,6 +44,12 @@ void Render::AddFBXActor(const std::shared_ptr<FBXActor>& actor)
 }
 
 void Render::AddGeometryInstancingActor(const std::shared_ptr<GeometryInstancingActor>& actor) 
+{
+	mInstancingRenderer->AddActor(actor);
+	mActorList.push_back(actor);
+}
+
+void Render::AddSSRActor(const std::shared_ptr<GeometryActor>& actor)
 {
 	mInstancingRenderer->AddActor(actor);
 	mActorList.push_back(actor);
@@ -91,12 +98,21 @@ void Render::DrawOpaque() const
 
 	mInstancingRenderer->BeforeDrawAtForwardPipeline();
 	mInstancingRenderer->Draw();
+
+	//Draw SSR Object
+	//mInstancingRenderer->BeforeDrawAtSSRPipeline();
+	//mInstancingRenderer->DrawSSR();
+
+	//Draw SSR Mask
+	mInstancingRenderer->BeforeDrawAtSSRMask();
+	mInstancingRenderer->DrawSSR();
 }
 
 void Render::PostProcess() const
 {
 	mDx12->PostDrawToPera1();
 	mDx12->DrawAmbientOcclusion();
+	mDx12->DrawScreenSpaceReflection();
 	mDx12->DrawShrinkTextureForBlur();
 }
 

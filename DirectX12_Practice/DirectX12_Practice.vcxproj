@@ -151,6 +151,7 @@
     <ClCompile Include="FBXActor.cpp" />
     <ClCompile Include="FBXRenderer.cpp" />
     <ClCompile Include="Geometry.cpp" />
+    <ClCompile Include="GeometryActor.cpp" />
     <ClCompile Include="GeometryInstancingActor.cpp" />
     <ClCompile Include="IKSolver.cpp" />
     <ClCompile Include="ImguiManager.cpp" />
@@ -323,6 +324,33 @@
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">SsaoPs</EntryPointName>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
     </FxCompile>
+    <FxCompile Include="SSRObjectPixelShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="SSRObjectVertexShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="SSRPixelShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="SSRVertexShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="BasicShaderHeader.hlsli" />
@@ -334,6 +362,8 @@
     <None Include="Math.hlsli" />
     <None Include="peraHeader.hlsli" />
     <None Include="PmxShaderHeader.hlsli" />
+    <None Include="SSRHeader.hlsli" />
+    <None Include="SSRObjectHeader.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -346,8 +376,10 @@
     <ClInclude Include="FBXActor.h" />
     <ClInclude Include="FBXRenderer.h" />
     <ClInclude Include="Geometry.h" />
+    <ClInclude Include="GeometryActor.h" />
     <ClInclude Include="GeometryInstancingActor.h" />
     <ClInclude Include="IActor.h" />
+    <ClInclude Include="IGeometry.h" />
     <ClInclude Include="IKSolver.h" />
     <ClInclude Include="ImguiManager.h" />
     <ClInclude Include="Imgui\imconfig.h" />
@@ -373,6 +405,7 @@
     <ClInclude Include="MySequentialImpulseConstraintSolverMt.h" />
     <ClInclude Include="NodeManager.h" />
     <ClInclude Include="PhysicsManager.h" />
+    <ClInclude Include="PlaneGeometry.h" />
     <ClInclude Include="PMDActor.h" />
     <ClInclude Include="PMDRenderer.h" />
     <ClInclude Include="PMXActor.h" />

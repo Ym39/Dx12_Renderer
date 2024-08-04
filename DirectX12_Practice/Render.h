@@ -9,6 +9,7 @@ class FBXRenderer;
 class FBXActor;
 class InstancingRenderer;
 class GeometryInstancingActor;
+class GeometryActor;
 class IActor;
 
 class Render
@@ -19,7 +20,8 @@ public:
 	void Frame();
 	void AddPMXActor(const std::shared_ptr<PMXActor>& actor);
 	void AddFBXActor(const std::shared_ptr<FBXActor>& actor);
-	void AddGeometryInstancingActor(const std::shared_ptr<GeometryInstancingActor>& actor) ;
+	void AddGeometryInstancingActor(const std::shared_ptr<GeometryInstancingActor>& actor);
+	void AddSSRActor(const std::shared_ptr<GeometryActor>& actor);
 
 private:
 	void Update() const;

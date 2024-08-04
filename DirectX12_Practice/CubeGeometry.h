@@ -1,8 +1,7 @@
 #pragma once
-#include "Vertex.h"
-#include <vector>
+#include "IGeometry.h"
 
-class CubeGeometry
+class CubeGeometry : public IGeometry
 {
 public:
     CubeGeometry()
@@ -10,15 +9,15 @@ public:
         CreateGeometry();
     }
 
-	const std::vector<Vertex>& GetVertices() const;
-	const std::vector<unsigned int>& GetIndices() const;
+	virtual const std::vector<Vertex>& GetVertices() const override;
+	virtual const std::vector<unsigned int>& GetIndices() const override;
 
 private:
 	void CreateGeometry();
 
 private:
-	std::vector<Vertex> mVertices;
-	std::vector<unsigned int> mIndices;
+	std::vector<Vertex> mVertices{};
+	std::vector<unsigned int> mIndices{};
 };
 
 inline const std::vector<Vertex>& CubeGeometry::GetVertices() const

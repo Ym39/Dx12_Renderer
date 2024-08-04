@@ -4,11 +4,11 @@ Texture2D<float4> texHighLum : register(t0);
 Texture2D<float4> texShrinkBlur : register(t1);
 SamplerState smp : register(s0);
 
-cbuffer BloomParameter : register(b0)
+cbuffer PostProcessParameter : register(b0)
 {
 	int iteration;
 	float intensity;
-	float2 padding;
+	float ssrStepSize;
 };
 
 struct Output

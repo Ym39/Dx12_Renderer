@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <d3dx12.h>
+#include <random>
 
 #include "Dx12Wrapper.h"
 #include "Transform.h"
@@ -134,11 +135,21 @@ void GeometryInstancingActor::InitializeInstanceData(unsigned int instanceCount)
 	int r = 0;
 	int c = 0;
 
+    std::random_device randomDevice;
+    std::mt19937 generator(randomDevice());
+    std::uniform_int_distribution<int> distribution(0, 2);
+
+	DirectX::XMFLOAT4 colors[] =
+	{
+		DirectX::XMFLOAT4(0.259f, 0.918f, 0.996f, 1.0f),
+		DirectX::XMFLOAT4(0.565f, 0.792f, 0.624f, 1.0f),
+		DirectX::XMFLOAT4(1.0f, 0.471f, 0.561f, 1.0f)
+	};
+
 	for (int i = 0; i < instanceCount; i++)
 	{
 		DirectX::XMVECTOR positionVector = DirectX::XMVectorAdd(rootPosition, DirectX::XMVectorSet(mInstanceUnit * r, 0.0f, mInstanceUnit * c, 0.0f));
-		DirectX::XMFLOAT4 color = DirectX::XMFLOAT4(0.0f, 1.0f, 0.886f, 1.0f);
-
+		DirectX::XMFLOAT4 color = colors[distribution(generator)];
 		DirectX::XMFLOAT3 position{};
 		DirectX::XMStoreFloat3(&position, positionVector);
 

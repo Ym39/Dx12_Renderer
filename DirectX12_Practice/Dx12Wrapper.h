@@ -30,17 +30,26 @@ public:
 	void PostDrawToPera1();
 	void DrawAmbientOcclusion();
 	void DrawShrinkTextureForBlur();
+	void DrawScreenSpaceReflection();
 	void Clear();
 	void Draw();
 	void Update();
 	void BeginDraw();
 	void EndDraw();
 
+	void SetRenderTargetByMainFrameBuffer() const;
+	void SetRenderTargetSSRMaskBuffer() const;
+	void SetShaderResourceSSRMaskBuffer(unsigned int rootParameterIndex) const;
+
 	void SetSceneBuffer(int rootParameterIndex) const;
 	void SetRSSetViewportsAndScissorRectsByScreenSize() const;
 
 	void SetResolutionDescriptorHeap(unsigned int rootParameterIndex) const;
 	void SetGlobalParameterBuffer(unsigned int rootParameterIndex) const;
+	void SetPostProcessParameterBuffer(unsigned int rootParameterIndex) const;
+
+	void ChangeToDepthWriteMainDepthBuffer() const;
+	void ChangeToShaderResourceMainDepthBuffer() const;
 
 	ComPtr<ID3D12Device> Device();
 	ComPtr<ID3D12GraphicsCommandList> CommandList();
@@ -57,6 +66,8 @@ public:
 	void SetBloomIteration(int iteration);
 	float GetBloomIntensity() const;
 	void SetBloomIntensity(float intensity);
+	float GetScreenSpaceReflectionStepSize() const;
+	void SetScreenSpaceReflectionStepSize(float stepSize);
 
 	void SetFov(float fov);
 	void SetDirectionalLightRotation(float vec[3]);
@@ -75,7 +86,7 @@ private:
 	{
 		int iteration;
 		float intensity;
-		DirectX::XMFLOAT2 padding;
+		float screenSpaceReflectionStepSize;
 	};
 
 	struct ResolutionBuffer
@@ -101,6 +112,7 @@ private:
 	HRESULT CreatePeraResource();
 	bool CreatePeraVertex();
 	bool CreatePeraPipeline();
+	bool CreateSSRPipeline();
 	bool CreateAmbientOcclusionBuffer();
 	bool CreateAmbientOcclusionDescriptorHeap();
 	void CreateTextureLoaderTable();
@@ -135,6 +147,11 @@ private:
 	D3D12_VERTEX_BUFFER_VIEW _peraVBV;
 	ComPtr<ID3D12RootSignature> _peraRS;
 
+	// SSR
+	ComPtr<ID3D12RootSignature> _ssrRootSignature = nullptr;
+	ComPtr<ID3D12PipelineState> _ssrPipeline = nullptr;
+	ComPtr<ID3D12Resource> _ssrTexture = nullptr;
+
 	// SceneBuffer(view, proj, shadow, camera ...)
 	ComPtr<ID3D12Resource> _sceneConstBuff = nullptr;
 	ComPtr<ID3D12DescriptorHeap> _sceneDescHeap = nullptr;
@@ -154,6 +171,7 @@ private:
 	std::array<ComPtr<ID3D12Resource>, 2> _pera1Resource; // frameTex, NormalTex
 	std::array<ComPtr<ID3D12Resource>, 2> _bloomBuffer; // texHighLum, texShrinkHighLum
 	ComPtr<ID3D12Resource> _reflectionBuffer;
+	ComPtr<ID3D12Resource> _ssrMaskBuffer;
 
 	ComPtr<ID3D12PipelineState> _aoPipeline;
 	ComPtr<ID3D12Resource> _aoBuffer; // texSSAO
@@ -163,9 +181,9 @@ private:
 	ComPtr<ID3D12PipelineState> _blurShrinkPipeline;
 	ComPtr<ID3D12Resource> _dofBuffer; // texShrink
 	ComPtr<ID3D12Resource> _bloomResultTexture; //offset 8
-	ComPtr<ID3D12Resource> _bloomResultParameterBuffer;
-	BloomParameter* _mappedBloomParameter = nullptr;
-	ComPtr<ID3D12DescriptorHeap> _bloomResultSRVHeap;
+	ComPtr<ID3D12Resource> _postProcessParameterBuffer;
+	BloomParameter* _mappedPostProcessParameter = nullptr;
+	ComPtr<ID3D12DescriptorHeap> _postProcessParameterSRVHeap;
 	ComPtr<ID3D12RootSignature> _blurResultRootSignature;
 	ComPtr<ID3D12PipelineState> _blurResultPipeline;
 	int mBloomIteration = 0;

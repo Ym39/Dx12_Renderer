@@ -7,10 +7,12 @@
 #include "ImguiManager.h"
 #include "InstancingRenderer.h"
 #include "GeometryInstancingActor.h"
+#include "GeometryActor.h"
 #include "FBXActor.h"
 #include "FBXRenderer.h"
 #include "MaterialManager.h"
 #include "Geometry.h"
+#include "PlaneGeometry.h"
 #include "Render.h"
 
 #include "Imgui/imgui.h"
@@ -24,6 +26,7 @@
 
 #include <iomanip>
 #include <fstream>
+
 
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
@@ -102,6 +105,14 @@ bool Application::Init()
 	cubeGeometryActor->SetName("Cube");
 
 	_render->AddGeometryInstancingActor(cubeGeometryActor);
+
+	auto ssrPlane = std::make_shared<GeometryActor>(Geometry::Plane());
+	ssrPlane->SetName("SSR Plane");
+	ssrPlane->Initialize(*_dx12);
+	ssrPlane->GetTransform().SetRotation(180.f, 0.f, 0.f);
+	ssrPlane->GetTransform().SetScale(112.f, 1.0f, 45.f);
+
+	_render->AddSSRActor(ssrPlane);
 
 	bResult = MaterialManager::Instance().Init(*_dx12);
 	if (bResult == false)

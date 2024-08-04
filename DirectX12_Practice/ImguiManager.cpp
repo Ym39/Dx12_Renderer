@@ -229,6 +229,12 @@ void ImguiManager::UpdatePostProcessMenu(std::shared_ptr<Dx12Wrapper> dx, std::s
 		changePP = true;
 	}
 
+	float stepSize = dx->GetScreenSpaceReflectionStepSize();
+	if (ImGui::DragFloat("SSR StepSize", &stepSize, 0.1f, 0.1f, 10.0f) == true)
+	{
+		dx->SetScreenSpaceReflectionStepSize(stepSize);
+	}
+
 	ImGui::End();
 
 	if (changePP == false)
@@ -589,7 +595,7 @@ void ImguiManager::DrawTransformUI(Transform& transform)
 
 	if (ImGui::DragFloat3("Rotation ## Inspector", rotationArray, 0.01f))
 	{
-		transform.SetScale(scaleArray[0], scaleArray[1], scaleArray[2]);
+		transform.SetRotation(rotationArray[0], rotationArray[1], rotationArray[2]);
 	}
 
 	if (ImGui::DragFloat3("Scale ## Inspector", scaleArray, 0.01f))

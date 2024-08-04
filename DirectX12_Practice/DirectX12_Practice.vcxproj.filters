@@ -153,6 +153,9 @@
     <ClCompile Include="Render.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="GeometryActor.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="peraPixel.hlsl">
@@ -206,6 +209,18 @@
     <FxCompile Include="GeometryInstancingPixelShader.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
+    <FxCompile Include="SSRObjectVertexShader.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="SSRObjectPixelShader.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="SSRPixelShader.hlsl">
+      <Filter>Shader\Postprocess</Filter>
+    </FxCompile>
+    <FxCompile Include="SSRVertexShader.hlsl">
+      <Filter>Shader\Postprocess</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="peraHeader.hlsli">
@@ -234,6 +249,12 @@
     </None>
     <None Include="Math.hlsli">
       <Filter>Shader</Filter>
+    </None>
+    <None Include="SSRObjectHeader.hlsli">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="SSRHeader.hlsli">
+      <Filter>Shader\Postprocess</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -392,6 +413,15 @@
     </ClInclude>
     <ClInclude Include="Render.h">
       <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="PlaneGeometry.h">
+      <Filter>헤더 파일\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="GeometryActor.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="IGeometry.h">
+      <Filter>헤더 파일\Components</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
