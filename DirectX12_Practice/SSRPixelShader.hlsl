@@ -58,6 +58,13 @@ float4 main(Output input) : SV_TARGET
 		return float4(0.0f, 0.0f, 0.0f, 1.0f);
 	}
 
+	float4 planerReflectionColor = texPlanerReflection.Sample(smp, input.uv);
+	float luminance = dot(planerReflectionColor.rgb, float3(0.299, 0.587, 0.114));
+	if (luminance > 0.0f)
+	{
+		return planerReflectionColor;
+	}
+
 	float depth = texDepth.Sample(smp, input.uv);
 
 	float4 viewPos = mul(invproj, float4(input.uv * float2(2, -2) + float2(-1, 1), depth, 1));

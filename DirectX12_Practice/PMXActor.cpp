@@ -214,6 +214,37 @@ void PMXActor::DrawReflection(Dx12Wrapper& dx) const
 	}
 }
 
+void PMXActor::DrawOpaque(Dx12Wrapper& dx) const
+{
+	dx.CommandList()->IASetVertexBuffers(0, 1, &_vbView);
+	dx.CommandList()->IASetIndexBuffer(&_ibView);
+	dx.CommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	dx.CommandList()->SetDescriptorHeaps(1, _transformHeap.GetAddressOf());
+	dx.CommandList()->SetGraphicsRootDescriptorTable(1, _transformHeap->GetGPUDescriptorHandleForHeapStart());
+
+	dx.CommandList()->SetDescriptorHeaps(1, _materialHeap.GetAddressOf());
+
+	auto cbvSrvIncSize = dx.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 4;
+
+	auto materialH = _materialHeap->GetGPUDescriptorHandleForHeapStart();
+	unsigned int idxOffset = 0;
+
+	for (int i = 0; i < _pmxFileData.materials.size(); i++)
+	{
+		unsigned int numFaceVertices = _pmxFileData.materials[i].numFaceVertices;
+
+		if (_loadedMaterial[i].isTransparent == false)
+		{
+			dx.CommandList()->SetGraphicsRootDescriptorTable(2, materialH);
+			dx.CommandList()->DrawIndexedInstanced(numFaceVertices, 1, idxOffset, 0, 0);
+		}
+
+		materialH.ptr += cbvSrvIncSize;
+		idxOffset += numFaceVertices;
+	}
+}
+
 const std::vector<LoadMaterial>& PMXActor::GetMaterials() const
 {
 	return _loadedMaterial;
@@ -297,6 +328,12 @@ void PMXActor::UpdateImGui(Dx12Wrapper& dx)
 				curMat.ambient.x = ambientColor[0];
 				curMat.ambient.y = ambientColor[1];
 				curMat.ambient.z = ambientColor[2];
+			}
+
+			bool isTransparent = curMat.isTransparent;
+			if (ImGui::Checkbox(("IsTransparent ## mat" + matIndexString).c_str(), &isTransparent) == true)
+			{
+				curMat.isTransparent = isTransparent;
 			}
 		}
 
@@ -539,6 +576,7 @@ HRESULT PMXActor::CreateMaterialData(Dx12Wrapper& dx)
 		_loadedMaterial[materialIndex].specular = material.specular;
 		_loadedMaterial[materialIndex].specularPower = material.specularPower;
 		_loadedMaterial[materialIndex].ambient = material.ambient;
+		_loadedMaterial[materialIndex].isTransparent = false;
 		materialIndex++;
 
 		MaterialForShader* uploadMat = reinterpret_cast<MaterialForShader*>(mappedMaterialPtr);

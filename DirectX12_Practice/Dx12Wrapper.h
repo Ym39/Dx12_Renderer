@@ -44,9 +44,16 @@ public:
 	void SetSceneBuffer(int rootParameterIndex) const;
 	void SetRSSetViewportsAndScissorRectsByScreenSize() const;
 
+	void SetLightDepthTexture(int rootParameterIndex) const;
+
 	void SetResolutionDescriptorHeap(unsigned int rootParameterIndex) const;
 	void SetGlobalParameterBuffer(unsigned int rootParameterIndex) const;
 	void SetPostProcessParameterBuffer(unsigned int rootParameterIndex) const;
+
+	void ChangeResourceBarrierFinalRenderTarget(D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) const;
+	void SetFinalRenderTarget() const;
+	void SetOnlyDepthBuffer() const;
+	void ClearFinalRenderTarget() const;
 
 	void ChangeToDepthWriteMainDepthBuffer() const;
 	void ChangeToShaderResourceMainDepthBuffer() const;

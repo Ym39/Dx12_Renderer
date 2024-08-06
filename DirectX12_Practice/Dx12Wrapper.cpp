@@ -295,47 +295,10 @@ void Dx12Wrapper::PreDrawShadow() const
 
 void Dx12Wrapper::PreDrawToPera1() const
 {
-	for (auto& resource : _pera1Resource)
-	{
-		auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(),
-			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-			D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-		_cmdList->ResourceBarrier(1, &barrier);
-	}
-
-	for (auto& resource : _bloomBuffer)
-	{
-		auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(),
-			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-			D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-		_cmdList->ResourceBarrier(1, &barrier);
-	}
-
+	ChangeResourceBarrierFinalRenderTarget(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	ChangeToDepthWriteMainDepthBuffer();
-
-	int rtvNum = 3;
-	D3D12_CPU_DESCRIPTOR_HANDLE* rtvs = new D3D12_CPU_DESCRIPTOR_HANDLE[rtvNum];
-	auto rtvHeapPointer = _peraRTVHeap->GetCPUDescriptorHandleForHeapStart();
-	for (int i = 0; i < rtvNum; i++)
-	{
-		rtvs[i] = rtvHeapPointer;
-		rtvHeapPointer.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	}
-
-	auto dsvHeapPointer = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
-
-	_cmdList->OMSetRenderTargets(3, rtvs, false, &dsvHeapPointer);
-
-	float clearColorGray[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
-	float clearColorBlack[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-
-	_cmdList->ClearRenderTargetView(rtvs[0], clearColorBlack, 0, nullptr);
-	_cmdList->ClearRenderTargetView(rtvs[1], clearColorBlack, 0, nullptr);
-	_cmdList->ClearRenderTargetView(rtvs[2], clearColorBlack, 0, nullptr);
-
-	_cmdList->ClearDepthStencilView(dsvHeapPointer, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	SetFinalRenderTarget();
+	ClearFinalRenderTarget();
 }
 
 void Dx12Wrapper::DrawToPera1()
@@ -378,14 +341,12 @@ void Dx12Wrapper::DrawToPera1ForFbx()
 	CD3DX12_RECT rc(0, 0, wsize.cx, wsize.cy);
 	_cmdList->RSSetScissorRects(1, &rc);
 
-	//Set Reflection RenderTexture;
-
 	ID3D12DescriptorHeap* renderTextureHeaps[] = { _peraSRVHeap.Get() };
 	_cmdList->SetDescriptorHeaps(1, renderTextureHeaps);
 
 	auto reflectionTextureHandle = _peraSRVHeap->GetGPUDescriptorHandleForHeapStart();
 	auto incSize = _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	reflectionTextureHandle.ptr += incSize * 6;
+	reflectionTextureHandle.ptr += incSize * 8;
 	_cmdList->SetGraphicsRootDescriptorTable(3, reflectionTextureHandle);
 }
 
@@ -568,6 +529,8 @@ void Dx12Wrapper::DrawShrinkTextureForBlur()
 
 void Dx12Wrapper::DrawScreenSpaceReflection()
 {
+	ChangeResourceBarrierFinalRenderTarget(D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
 	auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(_ssrTexture.Get(),
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -600,12 +563,11 @@ void Dx12Wrapper::DrawScreenSpaceReflection()
 	_cmdList->IASetVertexBuffers(0, 1, &_peraVBV);
 
 	auto rtvBaseHandle = _peraRTVHeap->GetCPUDescriptorHandleForHeapStart();
-	auto rtvIncSize = _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	rtvBaseHandle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV) * 8;
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandles = {};
-	rtvHandles.InitOffsetted(rtvBaseHandle, rtvIncSize * 8);
-
-	_cmdList->OMSetRenderTargets(1, &rtvHandles, false, nullptr);
+	float clearColor[4] = { 0.0,0.0,0.0,1.0 };
+	_cmdList->ClearRenderTargetView(rtvBaseHandle, clearColor, 0, nullptr);
+	_cmdList->OMSetRenderTargets(1, &rtvBaseHandle, false, nullptr);
 
 	_cmdList->SetDescriptorHeaps(1, _sceneDescHeap.GetAddressOf());
 	_cmdList->SetGraphicsRootDescriptorTable(0, _sceneDescHeap->GetGPUDescriptorHandleForHeapStart());
@@ -640,6 +602,9 @@ void Dx12Wrapper::DrawScreenSpaceReflection()
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	_cmdList->ResourceBarrier(1, &barrier);
+
+	ChangeToDepthWriteMainDepthBuffer();
+	ChangeResourceBarrierFinalRenderTarget(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 }
 
 void Dx12Wrapper::Clear()
@@ -842,6 +807,14 @@ void Dx12Wrapper::SetRSSetViewportsAndScissorRectsByScreenSize() const
 	_cmdList->RSSetScissorRects(1, &rc);
 }
 
+void Dx12Wrapper::SetLightDepthTexture(int rootParameterIndex) const
+{
+	_cmdList->SetDescriptorHeaps(1, _depthSRVHeap.GetAddressOf());
+	auto handle = _depthSRVHeap->GetGPUDescriptorHandleForHeapStart();
+	handle.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	_cmdList->SetGraphicsRootDescriptorTable(rootParameterIndex, handle);
+}
+
 void Dx12Wrapper::SetResolutionDescriptorHeap(unsigned rootParameterIndex) const
 {
 	ID3D12DescriptorHeap* heap[] = { _resolutionDescHeap.Get() };
@@ -859,6 +832,63 @@ void Dx12Wrapper::SetPostProcessParameterBuffer(unsigned rootParameterIndex) con
 	auto bloomParameterSrvHandle = _postProcessParameterSRVHeap->GetGPUDescriptorHandleForHeapStart();
 	_cmdList->SetDescriptorHeaps(1, _postProcessParameterSRVHeap.GetAddressOf());
 	_cmdList->SetGraphicsRootDescriptorTable(rootParameterIndex, bloomParameterSrvHandle);
+}
+
+void Dx12Wrapper::ChangeResourceBarrierFinalRenderTarget(D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) const
+{
+	for (auto& resource : _pera1Resource)
+	{
+		auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(), before, after);
+		_cmdList->ResourceBarrier(1, &barrier);
+	}
+
+	for (auto& resource : _bloomBuffer)
+	{
+		auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(), before, after);
+		_cmdList->ResourceBarrier(1, &barrier);
+	}
+}
+
+void Dx12Wrapper::SetFinalRenderTarget() const
+{
+	int rtvNum = 3;
+	D3D12_CPU_DESCRIPTOR_HANDLE* rtvs = new D3D12_CPU_DESCRIPTOR_HANDLE[rtvNum];
+	auto rtvHeapPointer = _peraRTVHeap->GetCPUDescriptorHandleForHeapStart();
+	for (int i = 0; i < rtvNum; i++)
+	{
+		rtvs[i] = rtvHeapPointer;
+		rtvHeapPointer.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	}
+
+	auto dsvHeapPointer = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
+
+	_cmdList->OMSetRenderTargets(3, rtvs, false, &dsvHeapPointer);
+}
+
+void Dx12Wrapper::SetOnlyDepthBuffer() const
+{
+	auto dsvHeapPointer = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
+	_cmdList->OMSetRenderTargets(0, nullptr, false, &dsvHeapPointer);
+}
+
+void Dx12Wrapper::ClearFinalRenderTarget() const
+{
+	int rtvNum = 3;
+	D3D12_CPU_DESCRIPTOR_HANDLE* rtvs = new D3D12_CPU_DESCRIPTOR_HANDLE[rtvNum];
+	auto rtvHeapPointer = _peraRTVHeap->GetCPUDescriptorHandleForHeapStart();
+	for (int i = 0; i < rtvNum; i++)
+	{
+		rtvs[i] = rtvHeapPointer;
+		rtvHeapPointer.ptr += _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	}
+
+	auto dsvHeapPointer = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
+
+	float clearColorBlack[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	_cmdList->ClearRenderTargetView(rtvs[0], clearColorBlack, 0, nullptr);
+	_cmdList->ClearRenderTargetView(rtvs[1], clearColorBlack, 0, nullptr);
+	_cmdList->ClearRenderTargetView(rtvs[2], clearColorBlack, 0, nullptr);
+	_cmdList->ClearDepthStencilView(dsvHeapPointer, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 }
 
 void Dx12Wrapper::ChangeToDepthWriteMainDepthBuffer() const

@@ -162,6 +162,27 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 		assert(SUCCEEDED(result));
 	}
 
+	gpipeline.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_EQUAL;
+	gpipeline.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(_notDepthWriteForwardPipeline.ReleaseAndGetAddressOf()));
+	if (FAILED(result))
+	{
+		assert(SUCCEEDED(result));
+	}
+
+	gpipeline.NumRenderTargets = 0;
+	gpipeline.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
+	gpipeline.RTVFormats[1] = DXGI_FORMAT_UNKNOWN;
+	gpipeline.RTVFormats[2] = DXGI_FORMAT_UNKNOWN;
+	gpipeline.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	gpipeline.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	gpipeline.PS = { nullptr, 0 };
+	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(_onlyDepthPipeline.ReleaseAndGetAddressOf()));
+	if (FAILED(result))
+	{
+		assert(SUCCEEDED(result));
+	}
+
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC reflectionPipelineDesc = {};
 
 	reflectionPipelineDesc.pRootSignature = _rootSignature.Get();
@@ -487,6 +508,8 @@ void PMXRenderer::BeforeDrawReflection()
 	auto cmdList = _dx12.CommandList();
 	cmdList->SetPipelineState(_reflectionPipeline.Get());
 	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+
+
 }
 
 void PMXRenderer::DrawFromLight() const
@@ -499,6 +522,45 @@ void PMXRenderer::DrawFromLight() const
 
 void PMXRenderer::Draw() const
 {
+	for (auto& actor : _actors)
+	{
+		actor->Draw(_dx12, false);
+	}
+}
+
+void PMXRenderer::DrawOnlyDepth() const
+{
+	auto cmdList = _dx12.CommandList();
+	cmdList->SetPipelineState(_onlyDepthPipeline.Get());
+	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+
+	_dx12.SetOnlyDepthBuffer();
+	_dx12.SetRSSetViewportsAndScissorRectsByScreenSize();
+
+	_dx12.SetSceneBuffer(0);
+
+	for (auto& actor : _actors)
+	{
+		actor->DrawOpaque(_dx12);
+	}
+}
+
+void PMXRenderer::DrawForwardNotDepthWrite() const
+{
+	_dx12.SetFinalRenderTarget();
+
+	auto cmdList = _dx12.CommandList();
+	cmdList->SetPipelineState(_notDepthWriteForwardPipeline.Get());
+	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+
+	_dx12.SetRSSetViewportsAndScissorRectsByScreenSize();
+
+	_dx12.SetSceneBuffer(0);
+	_dx12.SetLightDepthTexture(3);
+
+	cmdList->SetDescriptorHeaps(1, _parameterHeap.GetAddressOf());
+	cmdList->SetGraphicsRootDescriptorTable(4, _parameterHeap->GetGPUDescriptorHandleForHeapStart());
+
 	for (auto& actor : _actors)
 	{
 		actor->Draw(_dx12, false);

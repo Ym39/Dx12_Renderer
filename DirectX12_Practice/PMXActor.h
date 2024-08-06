@@ -49,6 +49,7 @@ struct LoadMaterial
 	XMFLOAT3 specular;
 	float specularPower;
 	XMFLOAT3 ambient;
+	bool isTransparent;
 };
 
 class NodeManager;
@@ -67,6 +68,7 @@ public:
 	void UpdateAnimation();
 	void Draw(Dx12Wrapper& dx, bool isShadow) const;
 	void DrawReflection(Dx12Wrapper& dx) const;
+	void DrawOpaque(Dx12Wrapper& dx) const;
 
 	const std::vector<LoadMaterial>& GetMaterials() const;
 	void SetMaterials(const std::vector<LoadMaterial>& setMaterials);

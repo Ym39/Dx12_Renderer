@@ -23,10 +23,8 @@ PixelOutput PS(Output input) : SV_TARGET
 	renderTextureUV.y = 1.0f - renderTextureUV.y;
 	float4 reflection = reflectionRenderTexture.Sample(smp, renderTextureUV);
 
-	float reflectionFactor = dot(reflection.rgb, reflection.rgb) * 0.1f;
-
 	PixelOutput output;
-	output.color = float4(lerp(finalColor.rgb, reflection.rgb, reflectionFactor), 1.0f);
+	output.color = float4(lerp(finalColor.rgb, reflection.rgb, 0.4), 1.0f);
 	output.highLum = diffuse * bloomFactor;
 	output.normal.rgb = float3((input.normal.xyz + 1.0f) / 2.0f);
 	output.normal.a = 1.0f;

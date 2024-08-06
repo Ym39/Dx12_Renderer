@@ -15,6 +15,8 @@ private:
 	using ComPtr = Microsoft::WRL::ComPtr<T>;
 
 	ComPtr<ID3D12PipelineState> _deferredPipeline = nullptr;
+	ComPtr<ID3D12PipelineState> _onlyDepthPipeline = nullptr;
+	ComPtr<ID3D12PipelineState> _notDepthWriteForwardPipeline = nullptr;
 	ComPtr<ID3D12PipelineState> _forwardPipeline = nullptr;
 	ComPtr<ID3D12PipelineState> _shadowPipeline = nullptr;
 	ComPtr<ID3D12PipelineState> _reflectionPipeline = nullptr;
@@ -53,6 +55,8 @@ public:
 
 	void DrawFromLight() const;
 	void Draw() const;
+	void DrawOnlyDepth() const;
+	void DrawForwardNotDepthWrite() const;
 	void DrawReflection() const;
 
 	void AddActor(std::shared_ptr<PMXActor> actor);

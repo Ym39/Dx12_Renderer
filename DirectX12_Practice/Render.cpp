@@ -92,27 +92,30 @@ void Render::DrawOpaque() const
 	mDx12->DrawToPera1ForFbx();
 	mFbxRenderer->Draw();
 
-	mPmxRenderer->BeforeDrawAtDeferredPipeline();
-	mDx12->DrawToPera1();
-	mPmxRenderer->Draw();
-
 	mInstancingRenderer->BeforeDrawAtForwardPipeline();
 	mInstancingRenderer->Draw();
+
+	//Draw SSR Mask
+	mInstancingRenderer->BeforeDrawAtSSRMask();
+	mInstancingRenderer->DrawSSR();
+
+	mDx12->DrawScreenSpaceReflection();
 
 	//Draw SSR Object
 	//mInstancingRenderer->BeforeDrawAtSSRPipeline();
 	//mInstancingRenderer->DrawSSR();
 
-	//Draw SSR Mask
-	mInstancingRenderer->BeforeDrawAtSSRMask();
-	mInstancingRenderer->DrawSSR();
+	mDx12->SetFinalRenderTarget();
+
+	mPmxRenderer->BeforeDrawAtDeferredPipeline();
+	mDx12->DrawToPera1();
+	mPmxRenderer->Draw();
 }
 
 void Render::PostProcess() const
 {
 	mDx12->PostDrawToPera1();
 	mDx12->DrawAmbientOcclusion();
-	mDx12->DrawScreenSpaceReflection();
 	mDx12->DrawShrinkTextureForBlur();
 }
 
