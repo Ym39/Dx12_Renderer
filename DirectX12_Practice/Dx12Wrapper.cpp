@@ -595,6 +595,7 @@ void Dx12Wrapper::DrawScreenSpaceReflection()
 	_cmdList->SetGraphicsRootDescriptorTable(5, depthHandle);
 
 	SetPostProcessParameterBuffer(6);
+	SetResolutionDescriptorHeap(7);
 
 	_cmdList->DrawInstanced(4, 1, 0, 0);
 
@@ -2032,7 +2033,14 @@ bool Dx12Wrapper::CreateSSRPipeline()
 	postProcessParameterDescriptorRange.BaseShaderRegister = 1;
 	postProcessParameterDescriptorRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	CD3DX12_ROOT_PARAMETER range[7] = {};
+	//Resolution Buffer
+	D3D12_DESCRIPTOR_RANGE resolutionBufferDescriptorRange = {};
+	resolutionBufferDescriptorRange.NumDescriptors = 1;
+	resolutionBufferDescriptorRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	resolutionBufferDescriptorRange.BaseShaderRegister = 2;
+	resolutionBufferDescriptorRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	CD3DX12_ROOT_PARAMETER range[8] = {};
 
 	range[0].InitAsDescriptorTable(1, &sceneBufferDescriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
 	range[1].InitAsDescriptorTable(1, &colorTexDescriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -2041,9 +2049,10 @@ bool Dx12Wrapper::CreateSSRPipeline()
 	range[4].InitAsDescriptorTable(1, &planerReflectionTexDescriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
 	range[5].InitAsDescriptorTable(1, &depthTexDescriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
 	range[6].InitAsDescriptorTable(1, &postProcessParameterDescriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
+	range[7].InitAsDescriptorTable(1, &resolutionBufferDescriptorRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	D3D12_ROOT_SIGNATURE_DESC rsDesc = {};
-	rsDesc.NumParameters = 7;
+	rsDesc.NumParameters = 8;
 	rsDesc.pParameters = range;
 
 	D3D12_STATIC_SAMPLER_DESC sampler = CD3DX12_STATIC_SAMPLER_DESC(0);

@@ -22,6 +22,12 @@ cbuffer PostProcessParameter : register(b1)
 	float ssrStepSize;
 };
 
+cbuffer Resolution : register(b2)
+{
+	float screenWidth;
+	float screenHeight;
+};
+
 struct Output
 {
 	float4 svpos: SV_POSITION;

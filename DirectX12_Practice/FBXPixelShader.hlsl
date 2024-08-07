@@ -1,6 +1,22 @@
 #include "FBXShaderHeader.hlsli"
 #include "BRDF.hlsli"
 
+float4 BoxBlur(float2 uv)
+{
+	float2 screenSize = float2(screenWidth, screenHeight);
+	float2 texelSize = 1.0 / screenSize;
+
+	float4 color = float4(0.0, 0.0, 0.0, 0.0);
+	for (int y = -2; y <= 2; ++y)
+	{
+		float2 offset = float2(0, y) * texelSize;
+		color += reflectionRenderTexture.Sample(smp, uv + offset);
+	}
+
+	color /= 3.0f;
+	return color;
+}
+
 PixelOutput PS(Output input) : SV_TARGET
 {
 	float3 normal = normalize(input.normal);
@@ -21,7 +37,7 @@ PixelOutput PS(Output input) : SV_TARGET
 
 	float2 renderTextureUV = ndc * 0.5f + 0.5f;
 	renderTextureUV.y = 1.0f - renderTextureUV.y;
-	float4 reflection = reflectionRenderTexture.Sample(smp, renderTextureUV);
+	float4 reflection = BoxBlur(renderTextureUV);
 
 	PixelOutput output;
 	output.color = float4(lerp(finalColor.rgb, reflection.rgb, 0.4), 1.0f);
