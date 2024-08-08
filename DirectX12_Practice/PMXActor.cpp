@@ -27,20 +27,20 @@ PMXActor::PMXActor()
 
 PMXActor::~PMXActor()
 {
-	_nodeManager.Dispose();
+	mNodeManager.Dispose();
 }
 
 bool PMXActor::Initialize(const std::wstring& filePath, Dx12Wrapper& dx)
 {
-	bool result = LoadPMXFile(filePath, _pmxFileData);
+	bool result = LoadPMXFile(filePath, mPmxFileData);
 	if (result == false)
 	{
 		return false;
 	}
 
-	LoadVertexData(_pmxFileData.vertices);
+	LoadVertexData(mPmxFileData.vertices);
 
-	result = LoadVMDFile(L"VMD\\ラビットホール.vmd", _vmdFileData);
+	result = LoadVMDFile(L"VMD\\ラビットホール.vmd", mVmdFileData);
 	if (result == false)
 	{
 		return false;
@@ -50,12 +50,12 @@ bool PMXActor::Initialize(const std::wstring& filePath, Dx12Wrapper& dx)
 
 	InitParallelVertexSkinningSetting();
 
-	_nodeManager.Init(_pmxFileData.bones);
-	_morphManager.Init(_pmxFileData.morphs, _vmdFileData.morphs, _pmxFileData.vertices.size(), _pmxFileData.materials.size(), _pmxFileData.bones.size());
+	mNodeManager.Init(mPmxFileData.bones);
+	mMorphManager.Init(mPmxFileData.morphs, mVmdFileData.morphs, mPmxFileData.vertices.size(), mPmxFileData.materials.size(), mPmxFileData.bones.size());
 
-	InitAnimation(_vmdFileData);
+	InitAnimation(mVmdFileData);
 
-	InitPhysics(_pmxFileData);
+	InitPhysics(mPmxFileData);
 
 	auto hResult = CreateVbAndIb(dx);
 	if (FAILED(hResult))
@@ -88,23 +88,23 @@ bool PMXActor::Initialize(const std::wstring& filePath, Dx12Wrapper& dx)
 
 void PMXActor::Update()
 {
-	_mappedMatrices[0] = _transformComp.GetTransformMatrix();
-	_mappedReflectionMatrices[0] = _transformComp.GetPlanarReflectionsTransform(XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT3(0.0f, 0.0f, 0.0f));
+	mMappedMatrices[0] = mTransform.GetTransformMatrix();
+	mMappedReflectionMatrices[0] = mTransform.GetPlanarReflectionsTransform(XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT3(0.0f, 0.0f, 0.0f));
 }
 
 void PMXActor::UpdateAnimation()
 {
-	if (_startTime <= 0)
+	if (mStartTime <= 0)
 	{
-		_startTime = Time::GetTime();
+		mStartTime = Time::GetTime();
 	}
 
-	unsigned int elapsedTime = Time::GetTime() - _startTime;
+	unsigned int elapsedTime = Time::GetTime() - mStartTime;
 	unsigned int frameNo = 30 * (elapsedTime / 1000.0f);
 
-	if (frameNo > _duration)
+	if (frameNo > mDuration)
 	{
-		_startTime = Time::GetTime();
+		mStartTime = Time::GetTime();
 		frameNo = 0;
 	}
 
@@ -115,55 +115,55 @@ void PMXActor::UpdateAnimation()
 
 	Time::RecordStartAnimationUpdateTime();
 
-	_nodeManager.BeforeUpdateAnimation();
+	mNodeManager.BeforeUpdateAnimation();
 
-	_morphManager.Animate(frameNo);
-	_nodeManager.EvaluateAnimation(frameNo);
+	mMorphManager.Animate(frameNo);
+	mNodeManager.EvaluateAnimation(frameNo);
 
-	_nodeManager.UpdateAnimation();
+	mNodeManager.UpdateAnimation();
 
 	UpdatePhysicsAnimation(elapsedTime);
 
-	_nodeManager.UpdateAnimationAfterPhysics();
+	mNodeManager.UpdateAnimationAfterPhysics();
 
 	Time::EndAnimationUpdate();
 
 	Time::RecordStartSkinningUpdateTime();
 	VertexSkinning();
-	std::copy(_uploadVertices.begin(), _uploadVertices.end(), _mappedVertex);
+	std::copy(mUploadVertices.begin(), mUploadVertices.end(), mMappedVertex);
 	Time::EndSkinningUpdate();
 }
 
 void PMXActor::Draw(Dx12Wrapper& dx, bool isShadow = false) const
 {
-	dx.CommandList()->IASetVertexBuffers(0, 1, &_vbView);
-	dx.CommandList()->IASetIndexBuffer(&_ibView);
+	dx.CommandList()->IASetVertexBuffers(0, 1, &mVertexBufferView);
+	dx.CommandList()->IASetIndexBuffer(&mIndexBufferView);
 	dx.CommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	ID3D12DescriptorHeap* transheap[] = { _transformHeap.Get() };
+	ID3D12DescriptorHeap* transheap[] = { mTransformHeap.Get() };
 	dx.CommandList()->SetDescriptorHeaps(1, transheap);
-	dx.CommandList()->SetGraphicsRootDescriptorTable(1, _transformHeap->GetGPUDescriptorHandleForHeapStart());
+	dx.CommandList()->SetGraphicsRootDescriptorTable(1, mTransformHeap->GetGPUDescriptorHandleForHeapStart());
 
-	ID3D12DescriptorHeap* mdh[] = { _materialHeap.Get() };
+	ID3D12DescriptorHeap* mdh[] = { mMaterialHeap.Get() };
 
 	dx.CommandList()->SetDescriptorHeaps(1, mdh);
 
 	if (isShadow == true)
 	{
-		dx.CommandList()->DrawIndexedInstanced(_pmxFileData.faces.size() * 3, 1, 0, 0, 0);
+		dx.CommandList()->DrawIndexedInstanced(mPmxFileData.faces.size() * 3, 1, 0, 0, 0);
 	}
 	else
 	{
 		auto cbvSrvIncSize = dx.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 4;
 
-		auto materialH = _materialHeap->GetGPUDescriptorHandleForHeapStart();
+		auto materialH = mMaterialHeap->GetGPUDescriptorHandleForHeapStart();
 		unsigned int idxOffset = 0;
 
-		for (int i = 0; i < _pmxFileData.materials.size(); i++)
+		for (int i = 0; i < mPmxFileData.materials.size(); i++)
 		{
-			unsigned int numFaceVertices = _pmxFileData.materials[i].numFaceVertices;
+			unsigned int numFaceVertices = mPmxFileData.materials[i].numFaceVertices;
 
-			if (_loadedMaterial[i].visible == true)
+			if (mLoadedMaterial[i].visible == true)
 			{
 				dx.CommandList()->SetGraphicsRootDescriptorTable(2, materialH);
 				dx.CommandList()->DrawIndexedInstanced(numFaceVertices, 1, idxOffset, 0, 0);
@@ -177,33 +177,33 @@ void PMXActor::Draw(Dx12Wrapper& dx, bool isShadow = false) const
 
 void PMXActor::DrawReflection(Dx12Wrapper& dx) const
 {
-	dx.CommandList()->IASetVertexBuffers(0, 1, &_vbView);
-	dx.CommandList()->IASetIndexBuffer(&_ibView);
+	dx.CommandList()->IASetVertexBuffers(0, 1, &mVertexBufferView);
+	dx.CommandList()->IASetIndexBuffer(&mIndexBufferView);
 	dx.CommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	ID3D12DescriptorHeap* transheap[] = { _transformHeap.Get() };
+	ID3D12DescriptorHeap* transheap[] = { mTransformHeap.Get() };
 	dx.CommandList()->SetDescriptorHeaps(1, transheap);
 
-	auto transformHandle = _transformHeap->GetGPUDescriptorHandleForHeapStart();
+	auto transformHandle = mTransformHeap->GetGPUDescriptorHandleForHeapStart();
 	auto incSize = dx.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	transformHandle.ptr += incSize;
 	dx.CommandList()->SetGraphicsRootDescriptorTable(1, transformHandle);
 
-	ID3D12DescriptorHeap* mdh[] = { _materialHeap.Get() };
+	ID3D12DescriptorHeap* mdh[] = { mMaterialHeap.Get() };
 
 	dx.CommandList()->SetDescriptorHeaps(1, mdh);
 
 	auto cbvSrvIncSize = dx.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 4;
 
-	auto materialH = _materialHeap->GetGPUDescriptorHandleForHeapStart();
+	auto materialH = mMaterialHeap->GetGPUDescriptorHandleForHeapStart();
 	unsigned int idxOffset = 0;
 
-	for (int i = 0; i < _pmxFileData.materials.size(); i++)
+	for (int i = 0; i < mPmxFileData.materials.size(); i++)
 	{
-		unsigned int numFaceVertices = _pmxFileData.materials[i].numFaceVertices;
+		unsigned int numFaceVertices = mPmxFileData.materials[i].numFaceVertices;
 
-		if (_loadedMaterial[i].visible == true)
+		if (mLoadedMaterial[i].visible == true)
 		{
 			dx.CommandList()->SetGraphicsRootDescriptorTable(2, materialH);
 			dx.CommandList()->DrawIndexedInstanced(numFaceVertices, 1, idxOffset, 0, 0);
@@ -216,25 +216,25 @@ void PMXActor::DrawReflection(Dx12Wrapper& dx) const
 
 void PMXActor::DrawOpaque(Dx12Wrapper& dx) const
 {
-	dx.CommandList()->IASetVertexBuffers(0, 1, &_vbView);
-	dx.CommandList()->IASetIndexBuffer(&_ibView);
+	dx.CommandList()->IASetVertexBuffers(0, 1, &mVertexBufferView);
+	dx.CommandList()->IASetIndexBuffer(&mIndexBufferView);
 	dx.CommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	dx.CommandList()->SetDescriptorHeaps(1, _transformHeap.GetAddressOf());
-	dx.CommandList()->SetGraphicsRootDescriptorTable(1, _transformHeap->GetGPUDescriptorHandleForHeapStart());
+	dx.CommandList()->SetDescriptorHeaps(1, mTransformHeap.GetAddressOf());
+	dx.CommandList()->SetGraphicsRootDescriptorTable(1, mTransformHeap->GetGPUDescriptorHandleForHeapStart());
 
-	dx.CommandList()->SetDescriptorHeaps(1, _materialHeap.GetAddressOf());
+	dx.CommandList()->SetDescriptorHeaps(1, mMaterialHeap.GetAddressOf());
 
 	auto cbvSrvIncSize = dx.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 4;
 
-	auto materialH = _materialHeap->GetGPUDescriptorHandleForHeapStart();
+	auto materialH = mMaterialHeap->GetGPUDescriptorHandleForHeapStart();
 	unsigned int idxOffset = 0;
 
-	for (int i = 0; i < _pmxFileData.materials.size(); i++)
+	for (int i = 0; i < mPmxFileData.materials.size(); i++)
 	{
-		unsigned int numFaceVertices = _pmxFileData.materials[i].numFaceVertices;
+		unsigned int numFaceVertices = mPmxFileData.materials[i].numFaceVertices;
 
-		if (_loadedMaterial[i].isTransparent == false)
+		if (mLoadedMaterial[i].isTransparent == false)
 		{
 			dx.CommandList()->SetGraphicsRootDescriptorTable(2, materialH);
 			dx.CommandList()->DrawIndexedInstanced(numFaceVertices, 1, idxOffset, 0, 0);
@@ -247,47 +247,47 @@ void PMXActor::DrawOpaque(Dx12Wrapper& dx) const
 
 const std::vector<LoadMaterial>& PMXActor::GetMaterials() const
 {
-	return _loadedMaterial;
+	return mLoadedMaterial;
 }
 
 void PMXActor::SetMaterials(const std::vector<LoadMaterial>& setMaterials)
 {
 	for (int i = 0; i < setMaterials.size(); i++)
 	{
-		if (_loadedMaterial.size() <= i)
+		if (mLoadedMaterial.size() <= i)
 		{
 			break;
 		}
 
-		_loadedMaterial[i].visible = setMaterials[i].visible;
-		_loadedMaterial[i].ambient = setMaterials[i].ambient;
-		_loadedMaterial[i].diffuse = setMaterials[i].diffuse;
-		_loadedMaterial[i].specular = setMaterials[i].specular;
-		_loadedMaterial[i].specularPower = setMaterials[i].specularPower;
+		mLoadedMaterial[i].visible = setMaterials[i].visible;
+		mLoadedMaterial[i].ambient = setMaterials[i].ambient;
+		mLoadedMaterial[i].diffuse = setMaterials[i].diffuse;
+		mLoadedMaterial[i].specular = setMaterials[i].specular;
+		mLoadedMaterial[i].specularPower = setMaterials[i].specularPower;
 	}
 }
 
 Transform& PMXActor::GetTransform()
 {
-	return _transformComp;
+	return mTransform;
 }
 
 std::string PMXActor::GetName() const
 {
-	return _name;
+	return mName;
 }
 
 void PMXActor::SetName(std::string name)
 {
-	_name = name;
+	mName = name;
 }
 
 void PMXActor::UpdateImGui(Dx12Wrapper& dx)
 {
-	ImguiManager::Instance().DrawTransformUI(_transformComp);
+	ImguiManager::Instance().DrawTransformUI(mTransform);
 
 	int i = 0;
-	for (LoadMaterial& curMat : _loadedMaterial)
+	for (LoadMaterial& curMat : mLoadedMaterial)
 	{
 		float diffuseColor[4] = { curMat.diffuse.x,curMat.diffuse.y ,curMat.diffuse.z ,curMat.diffuse.w };
 		float specularColor[3] = { curMat.specular.x, curMat.specular.y , curMat.specular.z };
@@ -354,7 +354,7 @@ HRESULT PMXActor::CreateVbAndIb(Dx12Wrapper& dx)
 	size_t vertexSize = sizeof(UploadVertex);
 
 	resdesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	resdesc.Width = _uploadVertices.size() * vertexSize;
+	resdesc.Width = mUploadVertices.size() * vertexSize;
 	resdesc.Height = 1;
 	resdesc.DepthOrArraySize = 1;
 	resdesc.MipLevels = 1;
@@ -363,29 +363,29 @@ HRESULT PMXActor::CreateVbAndIb(Dx12Wrapper& dx)
 	resdesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 	resdesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-	auto result = dx.Device()->CreateCommittedResource(&heapprop, D3D12_HEAP_FLAG_NONE, &resdesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(_vb.ReleaseAndGetAddressOf()));
+	auto result = dx.Device()->CreateCommittedResource(&heapprop, D3D12_HEAP_FLAG_NONE, &resdesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(mVertexBuffer.ReleaseAndGetAddressOf()));
 	if (FAILED(result)) {
 		assert(SUCCEEDED(result));
 		return result;
 	}
 
-	result = _vb->Map(0, nullptr, (void**)&_mappedVertex);
+	result = mVertexBuffer->Map(0, nullptr, (void**)&mMappedVertex);
 	if (FAILED(result)) {
 		assert(SUCCEEDED(result));
 		return result;
 	}
 
-	std::copy(std::begin(_uploadVertices), std::end(_uploadVertices), _mappedVertex);
-	//_vb->Unmap(0, nullptr);
+	std::copy(std::begin(mUploadVertices), std::end(mUploadVertices), mMappedVertex);
+	//mVertexBuffer->Unmap(0, nullptr);
 
-	_vbView.BufferLocation = _vb->GetGPUVirtualAddress();
-	_vbView.SizeInBytes = vertexSize * _uploadVertices.size();
-	_vbView.StrideInBytes = vertexSize;
+	mVertexBufferView.BufferLocation = mVertexBuffer->GetGPUVirtualAddress();
+	mVertexBufferView.SizeInBytes = vertexSize * mUploadVertices.size();
+	mVertexBufferView.StrideInBytes = vertexSize;
 
 	size_t faceSize = sizeof(PMXFace);
-	resdesc.Width = _pmxFileData.faces.size() * faceSize;
+	resdesc.Width = mPmxFileData.faces.size() * faceSize;
 
-	result = dx.Device()->CreateCommittedResource(&heapprop, D3D12_HEAP_FLAG_NONE, &resdesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(_ib.ReleaseAndGetAddressOf()));
+	result = dx.Device()->CreateCommittedResource(&heapprop, D3D12_HEAP_FLAG_NONE, &resdesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(mIndexBuffer.ReleaseAndGetAddressOf()));
 
 	if (FAILED(result)) {
 		assert(SUCCEEDED(result));
@@ -393,59 +393,59 @@ HRESULT PMXActor::CreateVbAndIb(Dx12Wrapper& dx)
 	}
 
 	PMXFace* mappedFace = nullptr;
-	_ib->Map(0, nullptr, (void**)&mappedFace);
-	std::copy(std::begin(_pmxFileData.faces), std::end(_pmxFileData.faces), mappedFace);
-	_ib->Unmap(0, nullptr);
+	mIndexBuffer->Map(0, nullptr, (void**)&mappedFace);
+	std::copy(std::begin(mPmxFileData.faces), std::end(mPmxFileData.faces), mappedFace);
+	mIndexBuffer->Unmap(0, nullptr);
 
-	_ibView.BufferLocation = _ib->GetGPUVirtualAddress();
-	_ibView.Format = DXGI_FORMAT_R32_UINT;
-	_ibView.SizeInBytes = _pmxFileData.faces.size() * faceSize;
+	mIndexBufferView.BufferLocation = mIndexBuffer->GetGPUVirtualAddress();
+	mIndexBufferView.Format = DXGI_FORMAT_R32_UINT;
+	mIndexBufferView.SizeInBytes = mPmxFileData.faces.size() * faceSize;
 
-	const size_t materialNum = _pmxFileData.materials.size();
-	_textureResources.resize(materialNum);
-	_toonResources.resize(materialNum);
-	_sphereTextureResources.resize(materialNum);
+	const size_t materialNum = mPmxFileData.materials.size();
+	mTextureResources.resize(materialNum);
+	mToonResources.resize(materialNum);
+	mSphereTextureResources.resize(materialNum);
 
 	wstring folderPath = L"PMXModel/";
 
 	for (int i = 0; i < materialNum; ++i)
 	{
-		PMXMaterial& curMaterial = _pmxFileData.materials[i];
+		PMXMaterial& curMaterial = mPmxFileData.materials[i];
 
-		_textureResources[i] = nullptr;
-		_toonResources[i] = nullptr;
-		_sphereTextureResources[i] = nullptr;
+		mTextureResources[i] = nullptr;
+		mToonResources[i] = nullptr;
+		mSphereTextureResources[i] = nullptr;
 
 		int textureIndex = curMaterial.textureIndex;
 
-		if (_pmxFileData.textures.size() - 1 >= textureIndex)
+		if (mPmxFileData.textures.size() - 1 >= textureIndex)
 		{
-			wstring textureFileName = _pmxFileData.textures[textureIndex].textureName;
+			wstring textureFileName = mPmxFileData.textures[textureIndex].textureName;
 			if (textureFileName.empty() == false)
 			{
-				_textureResources[i] = dx.GetTextureByPath(folderPath + textureFileName);
+				mTextureResources[i] = dx.GetTextureByPath(folderPath + textureFileName);
 			}
 		}
 
 		int toonIndex = curMaterial.toonTextureIndex;
 
-		if (toonIndex != 0 && _pmxFileData.textures.size() - 1 >= toonIndex)
+		if (toonIndex != 0 && mPmxFileData.textures.size() - 1 >= toonIndex)
 		{
-			wstring toonTextureFileName = _pmxFileData.textures[toonIndex].textureName;
+			wstring toonTextureFileName = mPmxFileData.textures[toonIndex].textureName;
 			if (toonTextureFileName.empty() == false)
 			{
-				_toonResources[i] = dx.GetTextureByPath(folderPath + toonTextureFileName);
+				mToonResources[i] = dx.GetTextureByPath(folderPath + toonTextureFileName);
 			}
 		}
 
 		int sphereTextureIndex = curMaterial.sphereTextureIndex;
 
-		if (sphereTextureIndex != 0 && _pmxFileData.textures.size() - 1 >= sphereTextureIndex)
+		if (sphereTextureIndex != 0 && mPmxFileData.textures.size() - 1 >= sphereTextureIndex)
 		{
-			wstring sphereTextureFileName = _pmxFileData.textures[sphereTextureIndex].textureName;
+			wstring sphereTextureFileName = mPmxFileData.textures[sphereTextureIndex].textureName;
 			if (sphereTextureFileName.empty() == false)
 			{
-				_sphereTextureResources[i] = dx.GetTextureByPath(folderPath + sphereTextureFileName);
+				mSphereTextureResources[i] = dx.GetTextureByPath(folderPath + sphereTextureFileName);
 			}
 		}
 	}
@@ -455,8 +455,8 @@ HRESULT PMXActor::CreateVbAndIb(Dx12Wrapper& dx)
 
 HRESULT PMXActor::CreateTransformView(Dx12Wrapper& dx)
 {
-	_boneMatrices.resize(_pmxFileData.bones.size());
-	std::fill(_boneMatrices.begin(), _boneMatrices.end(), XMMatrixIdentity());
+	mBoneMatrices.resize(mPmxFileData.bones.size());
+	std::fill(mBoneMatrices.begin(), mBoneMatrices.end(), XMMatrixIdentity());
 
 	auto buffSize = sizeof(XMMATRIX);
 	buffSize = (buffSize + 0xff) & ~0xff;
@@ -467,7 +467,7 @@ HRESULT PMXActor::CreateTransformView(Dx12Wrapper& dx)
 		&CD3DX12_RESOURCE_DESC::Buffer(buffSize),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(_transformBuff.ReleaseAndGetAddressOf())
+		IID_PPV_ARGS(mTransformBuff.ReleaseAndGetAddressOf())
 	);
 
 	if (FAILED(result)) {
@@ -475,14 +475,14 @@ HRESULT PMXActor::CreateTransformView(Dx12Wrapper& dx)
 		return result;
 	}
 
-	result = _transformBuff->Map(0, nullptr, (void**)&_mappedMatrices);
+	result = mTransformBuff->Map(0, nullptr, (void**)&mMappedMatrices);
 
 	if (FAILED(result)) {
 		assert(SUCCEEDED(result));
 		return result;
 	}
 
-	_mappedMatrices[0] = _transformComp.GetTransformMatrix();
+	mMappedMatrices[0] = mTransform.GetTransformMatrix();
 
 	result = dx.Device()->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
@@ -490,7 +490,7 @@ HRESULT PMXActor::CreateTransformView(Dx12Wrapper& dx)
 		&CD3DX12_RESOURCE_DESC::Buffer(buffSize),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(_reflectionTransformBuff.ReleaseAndGetAddressOf())
+		IID_PPV_ARGS(mReflectionTransformBuff.ReleaseAndGetAddressOf())
 	);
 
 	if (FAILED(result)) {
@@ -498,14 +498,14 @@ HRESULT PMXActor::CreateTransformView(Dx12Wrapper& dx)
 		return result;
 	}
 
-	result = _reflectionTransformBuff->Map(0, nullptr, (void**)&_mappedReflectionMatrices);
+	result = mReflectionTransformBuff->Map(0, nullptr, (void**)&mMappedReflectionMatrices);
 
 	if (FAILED(result)) {
 		assert(SUCCEEDED(result));
 		return result;
 	}
 
-	_mappedReflectionMatrices[0] = _transformComp.GetPlanarReflectionsTransform(XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT3(0.0f, 0.0f, 0.0f));
+	mMappedReflectionMatrices[0] = mTransform.GetPlanarReflectionsTransform(XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT3(0.0f, 0.0f, 0.0f));
 
 	D3D12_DESCRIPTOR_HEAP_DESC transformDescHeapDesc = {};
 
@@ -514,22 +514,22 @@ HRESULT PMXActor::CreateTransformView(Dx12Wrapper& dx)
 	transformDescHeapDesc.NumDescriptors = 2;
 	transformDescHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
-	result = dx.Device()->CreateDescriptorHeap(&transformDescHeapDesc, IID_PPV_ARGS(_transformHeap.ReleaseAndGetAddressOf()));
+	result = dx.Device()->CreateDescriptorHeap(&transformDescHeapDesc, IID_PPV_ARGS(mTransformHeap.ReleaseAndGetAddressOf()));
 	if (FAILED(result)) {
 		assert(SUCCEEDED(result));
 		return result;
 	}
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = _transformBuff->GetGPUVirtualAddress();
+	cbvDesc.BufferLocation = mTransformBuff->GetGPUVirtualAddress();
 	cbvDesc.SizeInBytes = buffSize;
 
-	auto handle = _transformHeap->GetCPUDescriptorHandleForHeapStart();
+	auto handle = mTransformHeap->GetCPUDescriptorHandleForHeapStart();
 	auto incSize = dx.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	dx.Device()->CreateConstantBufferView(&cbvDesc, handle);
 
-	cbvDesc.BufferLocation = _reflectionTransformBuff->GetGPUVirtualAddress();
+	cbvDesc.BufferLocation = mReflectionTransformBuff->GetGPUVirtualAddress();
 	handle.ptr+= incSize;
 
 	dx.Device()->CreateConstantBufferView(&cbvDesc, handle);
@@ -545,10 +545,10 @@ HRESULT PMXActor::CreateMaterialData(Dx12Wrapper& dx)
 	auto result = dx.Device()->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(materialBufferSize * _pmxFileData.materials.size()),
+		&CD3DX12_RESOURCE_DESC::Buffer(materialBufferSize * mPmxFileData.materials.size()),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(_materialBuff.ReleaseAndGetAddressOf())
+		IID_PPV_ARGS(mMaterialBuff.ReleaseAndGetAddressOf())
 	);
 	if (FAILED(result))
 	{
@@ -556,27 +556,27 @@ HRESULT PMXActor::CreateMaterialData(Dx12Wrapper& dx)
 		return result;
 	}
 
-	result = _materialBuff->Map(0, nullptr, (void**)&_mappedMaterial);
+	result = mMaterialBuff->Map(0, nullptr, (void**)&mMappedMaterial);
 	if (FAILED(result))
 	{
 		assert(SUCCEEDED(result));
 		return result;
 	}
 
-	_loadedMaterial.resize(_pmxFileData.materials.size());
+	mLoadedMaterial.resize(mPmxFileData.materials.size());
 
-	char* mappedMaterialPtr = _mappedMaterial;
+	char* mappedMaterialPtr = mMappedMaterial;
 
 	int materialIndex = 0;
-	for (const auto& material : _pmxFileData.materials)
+	for (const auto& material : mPmxFileData.materials)
 	{
-		_loadedMaterial[materialIndex].visible = true;
-		_loadedMaterial[materialIndex].name = UnicodeUtil::WstringToString(material.name);
-		_loadedMaterial[materialIndex].diffuse = material.diffuse;
-		_loadedMaterial[materialIndex].specular = material.specular;
-		_loadedMaterial[materialIndex].specularPower = material.specularPower;
-		_loadedMaterial[materialIndex].ambient = material.ambient;
-		_loadedMaterial[materialIndex].isTransparent = false;
+		mLoadedMaterial[materialIndex].visible = true;
+		mLoadedMaterial[materialIndex].name = UnicodeUtil::WstringToString(material.name);
+		mLoadedMaterial[materialIndex].diffuse = material.diffuse;
+		mLoadedMaterial[materialIndex].specular = material.specular;
+		mLoadedMaterial[materialIndex].specularPower = material.specularPower;
+		mLoadedMaterial[materialIndex].ambient = material.ambient;
+		mLoadedMaterial[materialIndex].isTransparent = false;
 		materialIndex++;
 
 		MaterialForShader* uploadMat = reinterpret_cast<MaterialForShader*>(mappedMaterialPtr);
@@ -588,7 +588,7 @@ HRESULT PMXActor::CreateMaterialData(Dx12Wrapper& dx)
 		mappedMaterialPtr += materialBufferSize;
 	}
 
-	//_materialBuff->Unmap(0, nullptr);
+	//mMaterialBuff->Unmap(0, nullptr);
 
 	return S_OK;
 }
@@ -598,10 +598,10 @@ HRESULT PMXActor::CreateMaterialAndTextureView(Dx12Wrapper& dx)
 	D3D12_DESCRIPTOR_HEAP_DESC matDescHeapDesc = {};
 	matDescHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	matDescHeapDesc.NodeMask = 0;
-	matDescHeapDesc.NumDescriptors = _pmxFileData.materials.size() * 4;
+	matDescHeapDesc.NumDescriptors = mPmxFileData.materials.size() * 4;
 	matDescHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
-	auto result = dx.Device()->CreateDescriptorHeap(&matDescHeapDesc, IID_PPV_ARGS(_materialHeap.ReleaseAndGetAddressOf()));
+	auto result = dx.Device()->CreateDescriptorHeap(&matDescHeapDesc, IID_PPV_ARGS(mMaterialHeap.ReleaseAndGetAddressOf()));
 	if (FAILED(result)) {
 		assert(SUCCEEDED(result));
 		return result;
@@ -611,7 +611,7 @@ HRESULT PMXActor::CreateMaterialAndTextureView(Dx12Wrapper& dx)
 	materialBuffSize = (materialBuffSize + 0xff) & ~0xff;
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC matCBVDesc = {};
-	matCBVDesc.BufferLocation = _materialBuff->GetGPUVirtualAddress();
+	matCBVDesc.BufferLocation = mMaterialBuff->GetGPUVirtualAddress();
 	matCBVDesc.SizeInBytes = materialBuffSize;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -619,17 +619,17 @@ HRESULT PMXActor::CreateMaterialAndTextureView(Dx12Wrapper& dx)
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
 
-	auto matDescHeapH = _materialHeap->GetCPUDescriptorHandleForHeapStart();
+	auto matDescHeapH = mMaterialHeap->GetCPUDescriptorHandleForHeapStart();
 	auto incSize = dx.Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	for (int i = 0; i < _pmxFileData.materials.size(); ++i)
+	for (int i = 0; i < mPmxFileData.materials.size(); ++i)
 	{
 		dx.Device()->CreateConstantBufferView(&matCBVDesc, matDescHeapH);
 
 		matDescHeapH.ptr += incSize;
 		matCBVDesc.BufferLocation += materialBuffSize;
 
-		if (_textureResources[i] == nullptr)
+		if (mTextureResources[i] == nullptr)
 		{
 			ComPtr<ID3D12Resource> whiteTexture = dx.GetWhiteTexture();
 			srvDesc.Format = whiteTexture->GetDesc().Format;
@@ -637,13 +637,13 @@ HRESULT PMXActor::CreateMaterialAndTextureView(Dx12Wrapper& dx)
 		}
 		else
 		{
-			srvDesc.Format = _textureResources[i]->GetDesc().Format;
-			dx.Device()->CreateShaderResourceView(_textureResources[i].Get(),&srvDesc,matDescHeapH);
+			srvDesc.Format = mTextureResources[i]->GetDesc().Format;
+			dx.Device()->CreateShaderResourceView(mTextureResources[i].Get(),&srvDesc,matDescHeapH);
 		}
 
 		matDescHeapH.ptr += incSize;
 
-		if (_toonResources[i] == nullptr)
+		if (mToonResources[i] == nullptr)
 		{
 			ComPtr<ID3D12Resource> gradTexture = dx.GetWhiteTexture();
 			srvDesc.Format = gradTexture->GetDesc().Format;
@@ -651,13 +651,13 @@ HRESULT PMXActor::CreateMaterialAndTextureView(Dx12Wrapper& dx)
 		}
 		else
 		{
-			srvDesc.Format = _toonResources[i]->GetDesc().Format;
-			dx.Device()->CreateShaderResourceView(_toonResources[i].Get(), &srvDesc, matDescHeapH);
+			srvDesc.Format = mToonResources[i]->GetDesc().Format;
+			dx.Device()->CreateShaderResourceView(mToonResources[i].Get(), &srvDesc, matDescHeapH);
 		}
 
 		matDescHeapH.ptr += incSize;
 
-		if (_sphereTextureResources[i] == nullptr)
+		if (mSphereTextureResources[i] == nullptr)
 		{
 			ComPtr<ID3D12Resource> whiteTexture = dx.GetWhiteTexture();
 			srvDesc.Format = whiteTexture->GetDesc().Format;
@@ -665,8 +665,8 @@ HRESULT PMXActor::CreateMaterialAndTextureView(Dx12Wrapper& dx)
 		}
 		else
 		{
-			srvDesc.Format = _sphereTextureResources[i]->GetDesc().Format;
-			dx.Device()->CreateShaderResourceView(_sphereTextureResources[i].Get(), &srvDesc, matDescHeapH);
+			srvDesc.Format = mSphereTextureResources[i]->GetDesc().Format;
+			dx.Device()->CreateShaderResourceView(mSphereTextureResources[i].Get(), &srvDesc, matDescHeapH);
 		}
 
 		matDescHeapH.ptr += incSize;
@@ -677,12 +677,12 @@ HRESULT PMXActor::CreateMaterialAndTextureView(Dx12Wrapper& dx)
 
 void PMXActor::LoadVertexData(const std::vector<PMXVertex>& vertices)
 {
-	_uploadVertices.resize(vertices.size());
+	mUploadVertices.resize(vertices.size());
 
 	for (int index = 0; index < vertices.size(); ++index)
 	{
 		const PMXVertex& currentPmxVertex = vertices[index];
-		UploadVertex& currentUploadVertex = _uploadVertices[index];
+		UploadVertex& currentUploadVertex = mUploadVertices[index];
 
 		currentUploadVertex.position = currentPmxVertex.position;
 		currentUploadVertex.normal = currentPmxVertex.normal;
@@ -694,7 +694,7 @@ void PMXActor::InitAnimation(VMDFileData& vmdFileData)
 {
 	for (auto& motion : vmdFileData.motions)
 	{
-		auto boneNode = _nodeManager.GetBoneNodeByName(motion.boneName);
+		auto boneNode = mNodeManager.GetBoneNodeByName(motion.boneName);
 		if (boneNode == nullptr)
 		{
 			continue;
@@ -711,7 +711,7 @@ void PMXActor::InitAnimation(VMDFileData& vmdFileData)
 	{
 		for (VMDIKInfo& ikInfo : ik.ikInfos)
 		{
-			auto boneNode = _nodeManager.GetBoneNodeByName(ikInfo.name);
+			auto boneNode = mNodeManager.GetBoneNodeByName(ikInfo.name);
 			if (boneNode == nullptr)
 			{
 				continue;
@@ -722,9 +722,9 @@ void PMXActor::InitAnimation(VMDFileData& vmdFileData)
 		}
 	}
 
-	_nodeManager.SortKey();
+	mNodeManager.SortKey();
 
-	_nodeManager.InitAnimation();
+	mNodeManager.InitAnimation();
 }
 
 void PMXActor::InitPhysics(const PMXFileData& pmxFileData)
@@ -734,15 +734,15 @@ void PMXActor::InitPhysics(const PMXFileData& pmxFileData)
 	for (const PMXRigidBody& pmxRigidBody : pmxFileData.rigidBodies)
 	{
 		RigidBody* rigidBody = new RigidBody();
-		_rigidBodies.emplace_back(std::move(rigidBody));
+		mRigidBodies.emplace_back(std::move(rigidBody));
 
 		BoneNode* boneNode = nullptr;
 		if (pmxRigidBody.boneIndex != -1)
 		{
-			boneNode = _nodeManager.GetBoneNodeByIndex(pmxRigidBody.boneIndex);
+			boneNode = mNodeManager.GetBoneNodeByIndex(pmxRigidBody.boneIndex);
 		}
 
-		if (rigidBody->Init(pmxRigidBody, &_nodeManager, boneNode) == false)
+		if (rigidBody->Init(pmxRigidBody, &mNodeManager, boneNode) == false)
 		{
 			OutputDebugStringA("Create Rigid Body Fail");
 			continue;
@@ -757,25 +757,25 @@ void PMXActor::InitPhysics(const PMXFileData& pmxFileData)
 			pmxJoint.rigidBodyAIndex != pmxJoint.rigidBodyBIndex)
 		{
 			Joint* joint = new Joint();
-			_joints.emplace_back(std::move(joint));
+			mJoints.emplace_back(std::move(joint));
 
 			RigidBody* rigidBodyA = nullptr;
-			if (_rigidBodies.size() <= pmxJoint.rigidBodyAIndex)
+			if (mRigidBodies.size() <= pmxJoint.rigidBodyAIndex)
 			{
 				OutputDebugStringA("Create Joint Fail");
 				continue;
 			}
 
-			rigidBodyA = _rigidBodies[pmxJoint.rigidBodyAIndex].get();
+			rigidBodyA = mRigidBodies[pmxJoint.rigidBodyAIndex].get();
 
 			RigidBody* rigidBodyB = nullptr;
-			if (_rigidBodies.size() <= pmxJoint.rigidBodyBIndex)
+			if (mRigidBodies.size() <= pmxJoint.rigidBodyBIndex)
 			{
 				OutputDebugStringA("Create Joint Fail");
 				continue;
 			}
 
-			rigidBodyB = _rigidBodies[pmxJoint.rigidBodyBIndex].get();
+			rigidBodyB = mRigidBodies[pmxJoint.rigidBodyBIndex].get();
 
 			if (rigidBodyA->GetRigidBody()->isStaticOrKinematicObject() == true &&
 				rigidBodyB->GetRigidBody()->isStaticOrKinematicObject() == true)
@@ -801,39 +801,39 @@ void PMXActor::InitParallelVertexSkinningSetting()
 	unsigned int threadCount = std::thread::hardware_concurrency() * 2 + 1;
 	unsigned int divNum = threadCount - 1;
 
-	_skinningRanges.resize(threadCount);
-	_parallelUpdateFutures.resize(threadCount);
+	mSkinningRanges.resize(threadCount);
+	mParallelUpdateFutures.resize(threadCount);
 
-	unsigned int divVertexCount = _pmxFileData.vertices.size() / divNum;
-	unsigned int remainder = _pmxFileData.vertices.size() % divNum;
+	unsigned int divVertexCount = mPmxFileData.vertices.size() / divNum;
+	unsigned int remainder = mPmxFileData.vertices.size() % divNum;
 
 	int startIndex = 0;
-	for (int i = 0; i < _skinningRanges.size() - 1; i++)
+	for (int i = 0; i < mSkinningRanges.size() - 1; i++)
 	{
-		_skinningRanges[i].startIndex = startIndex;
-		_skinningRanges[i].vertexCount = divVertexCount;
+		mSkinningRanges[i].startIndex = startIndex;
+		mSkinningRanges[i].vertexCount = divVertexCount;
 
-		startIndex += _skinningRanges[i].vertexCount;
+		startIndex += mSkinningRanges[i].vertexCount;
 	}
 
-	_skinningRanges[_skinningRanges.size() - 1].startIndex = startIndex;
-	_skinningRanges[_skinningRanges.size() - 1].vertexCount = remainder;
+	mSkinningRanges[mSkinningRanges.size() - 1].startIndex = startIndex;
+	mSkinningRanges[mSkinningRanges.size() - 1].vertexCount = remainder;
 }
 
 void PMXActor::VertexSkinning()
 {
-	const int futureCount = _parallelUpdateFutures.size();
+	const int futureCount = mParallelUpdateFutures.size();
 
 	for (int i = 0; i < futureCount; i++)
 	{
-		const SkinningRange& currentRange = _skinningRanges[i];
-		_parallelUpdateFutures[i] = std::async(std::launch::async, [this, currentRange]()
+		const SkinningRange& currentRange = mSkinningRanges[i];
+		mParallelUpdateFutures[i] = std::async(std::launch::async, [this, currentRange]()
 			{
 				this->VertexSkinningByRange(currentRange);
 			});
 	}
 
-	for (const std::future<void>& future : _parallelUpdateFutures)
+	for (const std::future<void>& future : mParallelUpdateFutures)
 	{
 		future.wait();
 	}
@@ -843,15 +843,15 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 {
 	for (unsigned int i = range.startIndex; i < range.startIndex + range.vertexCount; ++i)
 	{
-		const PMXVertex& currentVertexData = _pmxFileData.vertices[i];
+		const PMXVertex& currentVertexData = mPmxFileData.vertices[i];
 		XMVECTOR position = XMLoadFloat3(&currentVertexData.position);
-		XMVECTOR morphPosition = XMLoadFloat3(&_morphManager.GetMorphVertexPosition(i));
+		XMVECTOR morphPosition = XMLoadFloat3(&mMorphManager.GetMorphVertexPosition(i));
 
 		switch (currentVertexData.weightType)
 		{
 		case PMXVertexWeight::BDEF1:
 		{
-			BoneNode* bone0 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[0]);
+			BoneNode* bone0 = mNodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[0]);
 			XMMATRIX m0 = XMMatrixMultiply(bone0->GetInitInverseTransform(), bone0->GetGlobalTransform());
 			position += morphPosition;
 			position = XMVector3Transform(position, m0);
@@ -862,8 +862,8 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 			float weight0 = currentVertexData.boneWeights[0];
 			float weight1 = 1.0f - weight0;
 
-			BoneNode* bone0 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[0]);
-			BoneNode* bone1 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[1]);
+			BoneNode* bone0 = mNodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[0]);
+			BoneNode* bone1 = mNodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[1]);
 
 			XMMATRIX m0 = XMMatrixMultiply(bone0->GetInitInverseTransform(), bone0->GetGlobalTransform());
 			XMMATRIX m1 = XMMatrixMultiply(bone1->GetInitInverseTransform(), bone1->GetGlobalTransform());
@@ -880,10 +880,10 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 			float weight2 = currentVertexData.boneWeights[2];
 			float weight3 = currentVertexData.boneWeights[3];
 
-			BoneNode* bone0 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[0]);
-			BoneNode* bone1 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[1]);
-			BoneNode* bone2 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[2]);
-			BoneNode* bone3 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[3]);
+			BoneNode* bone0 = mNodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[0]);
+			BoneNode* bone1 = mNodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[1]);
+			BoneNode* bone2 = mNodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[2]);
+			BoneNode* bone3 = mNodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[3]);
 
 			XMMATRIX m0 = XMMatrixMultiply(bone0->GetInitInverseTransform(), bone0->GetGlobalTransform());
 			XMMATRIX m1 = XMMatrixMultiply(bone1->GetInitInverseTransform(), bone1->GetGlobalTransform());
@@ -918,8 +918,8 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 			XMVECTOR cr0 = XMVectorAdd(sdefc, r0) * 0.5f;
 			XMVECTOR cr1 = XMVectorAdd(sdefc, r1) * 0.5f;
 
-			BoneNode* bone0 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[0]);
-			BoneNode* bone1 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[1]);
+			BoneNode* bone0 = mNodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[0]);
+			BoneNode* bone1 = mNodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[1]);
 
 			XMVECTOR q0 = XMQuaternionRotationMatrix(bone0->GetGlobalTransform());
 			XMVECTOR q1 = XMQuaternionRotationMatrix(bone1->GetGlobalTransform());
@@ -940,12 +940,12 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 			position = XMVectorAdd(XMVectorAdd(a, b), c);
 			XMVECTOR normal = XMLoadFloat3(&currentVertexData.normal);
 			normal = XMVector3Transform(normal, rotation);
-			XMStoreFloat3(&_uploadVertices[i].normal, normal);
+			XMStoreFloat3(&mUploadVertices[i].normal, normal);
 			break;
 		}
 		case PMXVertexWeight::QDEF:
 		{
-			BoneNode* bone0 = _nodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[0]);
+			BoneNode* bone0 = mNodeManager.GetBoneNodeByIndex(currentVertexData.boneIndices[0]);
 			XMMATRIX m0 = XMMatrixMultiply(bone0->GetInitInverseTransform(), bone0->GetGlobalTransform());
 			position += morphPosition;
 
@@ -957,11 +957,11 @@ void PMXActor::VertexSkinningByRange(const SkinningRange& range)
 			break;
 		}
 
-		XMStoreFloat3(&_uploadVertices[i].position, position);
+		XMStoreFloat3(&mUploadVertices[i].position, position);
 
-		const XMFLOAT4& morphUV = _morphManager.GetMorphUV(i);
-		const XMFLOAT2& originalUV = _uploadVertices[i].uv;
-		_uploadVertices[i].uv = XMFLOAT2(originalUV.x + morphUV.x, originalUV.y + morphUV.y);
+		const XMFLOAT4& morphUV = mMorphManager.GetMorphUV(i);
+		const XMFLOAT2& originalUV = mUploadVertices[i].uv;
+		mUploadVertices[i].uv = XMFLOAT2(originalUV.x + morphUV.x, originalUV.y + morphUV.y);
 	}
 }
 
@@ -970,11 +970,11 @@ void PMXActor::MorphMaterial()
 	size_t bufferSize = sizeof(MaterialForShader);
 	bufferSize = (bufferSize + 0xff) & ~0xff;
 
-	char* mappedMaterialPtr = _mappedMaterial;
+	char* mappedMaterialPtr = mMappedMaterial;
 
-	for (int i = 0; i < _loadedMaterial.size(); i++)
+	for (int i = 0; i < mLoadedMaterial.size(); i++)
 	{
-		LoadMaterial& material = _loadedMaterial[i];
+		LoadMaterial& material = mLoadedMaterial[i];
 
 		MaterialForShader* uploadMat = reinterpret_cast<MaterialForShader*>(mappedMaterialPtr);
 
@@ -982,7 +982,7 @@ void PMXActor::MorphMaterial()
 		XMVECTOR specular = XMLoadFloat3(&material.specular);
 		XMVECTOR ambient = XMLoadFloat3(&material.ambient);
 
-		const MaterialMorphData& morphMaterial = _morphManager.GetMorphMaterial(i);
+		const MaterialMorphData& morphMaterial = mMorphManager.GetMorphMaterial(i);
 		float weight = morphMaterial.weight;
 
 		XMVECTOR morphDiffuse = XMLoadFloat4(&morphMaterial.diffuse);
@@ -1022,11 +1022,11 @@ void PMXActor::MorphMaterial()
 
 void PMXActor::MorphBone()
 {
-	const std::vector<BoneNode*>& allNodes = _nodeManager.GetAllNodes();
+	const std::vector<BoneNode*>& allNodes = mNodeManager.GetAllNodes();
 
 	for (BoneNode* boneNode : allNodes)
 	{
-		BoneMorphData morph = _morphManager.GetMorphBone(boneNode->GetBoneIndex());
+		BoneMorphData morph = mMorphManager.GetMorphBone(boneNode->GetBoneIndex());
 		boneNode->SetMorphPosition(MathUtil::Lerp(XMFLOAT3(0.f, 0.f, 0.f), morph.position, morph.weight));
 
 		XMVECTOR animateRotation = XMQuaternionRotationMatrix(boneNode->GetAnimateRotation());
@@ -1041,23 +1041,23 @@ void PMXActor::ResetPhysics()
 {
 	PhysicsManager::ActivePhysics(false);
 
-	for (auto& rigidBody : _rigidBodies)
+	for (auto& rigidBody : mRigidBodies)
 	{
 		rigidBody->SetActive(false);
 		rigidBody->ResetTransform();
 	}
 
-	for (auto& rigidBody : _rigidBodies)
+	for (auto& rigidBody : mRigidBodies)
 	{
 		rigidBody->ReflectGlobalTransform();
 	}
 
-	for (auto& rigidBody : _rigidBodies)
+	for (auto& rigidBody : mRigidBodies)
 	{
 		rigidBody->CalcLocalTransform();
 	}
 
-	const auto& nodes = _nodeManager.GetAllNodes();
+	const auto& nodes = mNodeManager.GetAllNodes();
 	for (const auto& node : nodes)
 	{
 		if (node->GetParentBoneNode() == nullptr)
@@ -1067,7 +1067,7 @@ void PMXActor::ResetPhysics()
 	}
 
 	btDiscreteDynamicsWorld* world = PhysicsManager::GetDynamicsWorld();
-	for (auto& rigidBody : _rigidBodies)
+	for (auto& rigidBody : mRigidBodies)
 	{
 		rigidBody->Reset(world);
 	}
@@ -1077,24 +1077,24 @@ void PMXActor::ResetPhysics()
 
 void PMXActor::UpdatePhysicsAnimation(DWORD elapse)
 {
-	for (auto& rigidBody : _rigidBodies)
+	for (auto& rigidBody : mRigidBodies)
 	{
 		rigidBody->SetActive(true);
 	}
 
 	//_physicsManager.Update(elapse);
 
-	for (auto& rigidBody : _rigidBodies)
+	for (auto& rigidBody : mRigidBodies)
 	{
 		rigidBody->ReflectGlobalTransform();
 	}
 
-	for (auto& rigidBody : _rigidBodies)
+	for (auto& rigidBody : mRigidBodies)
 	{
 		rigidBody->CalcLocalTransform();
 	}
 
-	const auto& nodes = _nodeManager.GetAllNodes();
+	const auto& nodes = mNodeManager.GetAllNodes();
 	for (const auto& node : nodes)
 	{
 		if (node->GetParentBoneNode() == nullptr)

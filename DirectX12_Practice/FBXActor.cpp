@@ -15,7 +15,7 @@ FBXActor::FBXActor()
 
 bool FBXActor::Initialize(const std::string& path, Dx12Wrapper& dx)
 {
-	_modelPath = path;
+	mModelPath = path;
 
 	Assimp::Importer importer;
 
@@ -36,7 +36,7 @@ bool FBXActor::Initialize(const std::string& path, Dx12Wrapper& dx)
 	}
 
 	ReadNode(scene->mRootNode, scene);
-	_meshMaterialNameList.resize(_meshes.size());
+	mMeshMaterialNameList.resize(mMeshes.size());
 
 	auto hResult = CreateVertexBufferAndIndexBuffer(dx);
 	if (FAILED(hResult))
@@ -51,67 +51,67 @@ bool FBXActor::Initialize(const std::string& path, Dx12Wrapper& dx)
 	}
 
 	std::vector<DirectX::XMFLOAT3> vertexPositionList;
-	vertexPositionList.reserve(_vertices.size());
+	vertexPositionList.reserve(mVertices.size());
 
-	for (const auto& vertex : _vertices)
+	for (const auto& vertex : mVertices)
 	{
 		vertexPositionList.push_back(vertex.position);
 	}
 
-	_bounds = BoundsBox::CreateBoundsBox(vertexPositionList);
+	mBounds = BoundsBox::CreateBoundsBox(vertexPositionList);
 
 	return true;
 }
 
 void FBXActor::SetMaterialName(const std::vector<std::string> materialNameList)
 {
-	for (int i = 0; i < _meshMaterialNameList.size(); i++)
+	for (int i = 0; i < mMeshMaterialNameList.size(); i++)
 	{
 		if (materialNameList.size() <= i)
 		{
 			continue;
 		}
 
-		_meshMaterialNameList[i] = materialNameList[i];
+		mMeshMaterialNameList[i] = materialNameList[i];
 	}
 }
 
 void FBXActor::Draw(Dx12Wrapper& dx, bool isShadow) const
 {
-	dx.CommandList()->IASetVertexBuffers(0, 1, &_vertexBufferView);
-	dx.CommandList()->IASetIndexBuffer(&_indexBufferView);
+	dx.CommandList()->IASetVertexBuffers(0, 1, &mVertexBufferView);
+	dx.CommandList()->IASetIndexBuffer(&mIndexBufferView);
 	dx.CommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	ID3D12DescriptorHeap* transformHeap[] = { _transformHeap.Get() };
+	ID3D12DescriptorHeap* transformHeap[] = { mTransformHeap.Get() };
 	dx.CommandList()->SetDescriptorHeaps(1, transformHeap);
-	dx.CommandList()->SetGraphicsRootDescriptorTable(1, _transformHeap->GetGPUDescriptorHandleForHeapStart());
+	dx.CommandList()->SetGraphicsRootDescriptorTable(1, mTransformHeap->GetGPUDescriptorHandleForHeapStart());
 
 	MaterialManager::Instance().SetMaterialDescriptorHeaps(dx);
 
 	unsigned int indexOffset = 0;
 
-	for (int i = 0; i < _meshes.size(); i++)
+	for (int i = 0; i < mMeshes.size(); i++)
 	{
-		MaterialManager::Instance().SetGraphicsRootDescriptorTableMaterial(dx, 2, _meshMaterialNameList[i]);
+		MaterialManager::Instance().SetGraphicsRootDescriptorTableMaterial(dx, 2, mMeshMaterialNameList[i]);
 
-		unsigned int indexCount = _meshes[i].indexCount;
+		unsigned int indexCount = mMeshes[i].indexCount;
 
 		dx.CommandList()->DrawIndexedInstanced(indexCount, 1, indexOffset, 0, 0);
 
 		indexOffset += indexCount;
 	}
 
-	//dx.CommandList()->DrawIndexedInstanced(_indexCount, 1, indexOffset, 0, 0);
+	//dx.CommandList()->DrawIndexedInstanced(mIndexCount, 1, indexOffset, 0, 0);
 }
 
 void FBXActor::Update()
 {
-	_mappedWorldTranform[0] = _transform.GetTransformMatrix();
+	mMappedWorldTransform[0] = mTransform.GetTransformMatrix();
 }
 
 Transform& FBXActor::GetTransform()
 {
-	return _transform;
+	return mTransform;
 }
 
 TypeIdentity FBXActor::GetType()
@@ -121,30 +121,30 @@ TypeIdentity FBXActor::GetType()
 
 bool FBXActor::TestSelect(int mouseX, int mouseY, DirectX::XMFLOAT3 cameraPosition, const DirectX::XMMATRIX& viewMatrix, const DirectX::XMMATRIX& projectionMatrix)
 {
-	if (_bounds == nullptr)
+	if (mBounds == nullptr)
 	{
 		return false;
 	}
 
-	DirectX::XMFLOAT3 worldPosition = _transform.GetPosition();
+	DirectX::XMFLOAT3 worldPosition = mTransform.GetPosition();
 
-	return _bounds->TestIntersectionBoundsBoxByMousePosition(mouseX, mouseY, worldPosition, cameraPosition, viewMatrix, projectionMatrix);
+	return mBounds->TestIntersectionBoundsBoxByMousePosition(mouseX, mouseY, worldPosition, cameraPosition, viewMatrix, projectionMatrix);
 }
 
 std::string FBXActor::GetName() const
 {
-	return _name;
+	return mName;
 }
 
 void FBXActor::SetName(std::string name)
 {
-	_name = name;
+	mName = name;
 }
 
 void FBXActor::UpdateImGui(Dx12Wrapper& dx)
 {
-	ImguiManager::Instance().DrawTransformUI(_transform);
-	std::vector<std::string> selectNameList(_meshMaterialNameList);
+	ImguiManager::Instance().DrawTransformUI(mTransform);
+	std::vector<std::string> selectNameList(mMeshMaterialNameList);
 	const auto& materialNameList = MaterialManager::Instance().GetNameList();
 	const char** nameItems = new const char* [materialNameList.size()];
 
@@ -154,7 +154,7 @@ void FBXActor::UpdateImGui(Dx12Wrapper& dx)
 	}
 
 	ImGui::Text("Material");
-	for (int i = 0; i < _meshMaterialNameList.size(); i++)
+	for (int i = 0; i < mMeshMaterialNameList.size(); i++)
 	{
 		std::string comboName = "## fbxActorMaterialSelect" + std::to_string(i);
 
@@ -162,7 +162,7 @@ void FBXActor::UpdateImGui(Dx12Wrapper& dx)
 
 		for (int j = 0; j < materialNameList.size(); j++)
 		{
-			if (_meshMaterialNameList[i] == materialNameList[j])
+			if (mMeshMaterialNameList[i] == materialNameList[j])
 			{
 				selectIndex = j;
 				break;
@@ -179,19 +179,19 @@ void FBXActor::UpdateImGui(Dx12Wrapper& dx)
 
 const std::vector<std::string> FBXActor::GetMaterialNameList() const
 {
-	return _meshMaterialNameList;
+	return mMeshMaterialNameList;
 }
 
 void FBXActor::GetSerialize(json& j)
 {
 	json positionJson;
-	Serialize::Float3ToJson(positionJson, _transform.GetPosition());
+	Serialize::Float3ToJson(positionJson, mTransform.GetPosition());
 	json rotationJson;
-	Serialize::Float3ToJson(rotationJson, _transform.GetRotation());
+	Serialize::Float3ToJson(rotationJson, mTransform.GetRotation());
 	json scaleJson;
-	Serialize::Float3ToJson(scaleJson, _transform.GetScale());
+	Serialize::Float3ToJson(scaleJson, mTransform.GetScale());
 
-	j["ModelPath"] = _modelPath;
+	j["ModelPath"] = mModelPath;
 
 	json transformJson;
 	transformJson["Position"] = positionJson;
@@ -201,13 +201,13 @@ void FBXActor::GetSerialize(json& j)
 	j["Transform"] = transformJson;
 
 	json materialNameJson;
-	for (int i = 0; i < _meshMaterialNameList.size(); i++)
+	for (int i = 0; i < mMeshMaterialNameList.size(); i++)
 	{
-		materialNameJson[i] = _meshMaterialNameList[i];
+		materialNameJson[i] = mMeshMaterialNameList[i];
 	}
 
 	j["Material"] = materialNameJson;
-	j["Name"] = _name;
+	j["Name"] = mName;
 }
 
 DirectX::XMFLOAT3 FBXActor::AiVector3ToXMFLOAT3(const aiVector3D& vec)
@@ -253,7 +253,7 @@ void FBXActor::ReadMesh(aiMesh* mesh, const aiScene* scene)
 			vertex.uv = DirectX::XMFLOAT2(0.f, 0.f);
 		}
 
-		_vertices.push_back(vertex);
+		mVertices.push_back(vertex);
 		vertexCount++;
 	}
 
@@ -263,20 +263,20 @@ void FBXActor::ReadMesh(aiMesh* mesh, const aiScene* scene)
 		aiFace face = mesh->mFaces[i];
 		for (unsigned int j = 0; j < face.mNumIndices; j++)
 		{
-			_indices.push_back(face.mIndices[j] + _vertexCount);
+			mIndices.push_back(face.mIndices[j] + mVertexCount);
 			indexCount++;
 		}
 	}
 
 	auto meshInfo = FBXMesh();
-	meshInfo.startVertex = _vertexCount;
+	meshInfo.startVertex = mVertexCount;
 	meshInfo.vertexCount = vertexCount;
-	meshInfo.startIndex = _indexCount;
+	meshInfo.startIndex = mIndexCount;
 	meshInfo.indexCount = indexCount;
-	_meshes.push_back(meshInfo);
+	mMeshes.push_back(meshInfo);
 
-	_vertexCount += vertexCount;
-	_indexCount += indexCount;
+	mVertexCount += vertexCount;
+	mIndexCount += indexCount;
 }
 
 HRESULT FBXActor::CreateVertexBufferAndIndexBuffer(Dx12Wrapper& dx)
@@ -289,7 +289,7 @@ HRESULT FBXActor::CreateVertexBufferAndIndexBuffer(Dx12Wrapper& dx)
 	size_t vertexSize = sizeof(FBXVertex);
 	D3D12_RESOURCE_DESC resourceDesc = {};
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	resourceDesc.Width = _vertexCount * vertexSize;
+	resourceDesc.Width = mVertexCount * vertexSize;
 	resourceDesc.Height = 1;
 	resourceDesc.DepthOrArraySize = 1;
 	resourceDesc.MipLevels = 1;
@@ -303,7 +303,7 @@ HRESULT FBXActor::CreateVertexBufferAndIndexBuffer(Dx12Wrapper& dx)
 		&resourceDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(_vertexBuffer.ReleaseAndGetAddressOf()));
+		IID_PPV_ARGS(mVertexBuffer.ReleaseAndGetAddressOf()));
 
 	if (FAILED(result))
 	{
@@ -311,21 +311,21 @@ HRESULT FBXActor::CreateVertexBufferAndIndexBuffer(Dx12Wrapper& dx)
 		return result;
 	}
 
-	result = _vertexBuffer->Map(0, nullptr, (void**)&_mappedVertex);
+	result = mVertexBuffer->Map(0, nullptr, (void**)&mMappedVertex);
 	if (FAILED(result))
 	{
 		assert(SUCCEEDED(result));
 		return result;
 	}
 
-	std::copy(std::begin(_vertices), std::end(_vertices), _mappedVertex);
-	_vertexBuffer->Unmap(0, nullptr);
+	std::copy(std::begin(mVertices), std::end(mVertices), mMappedVertex);
+	mVertexBuffer->Unmap(0, nullptr);
 
-	_vertexBufferView.BufferLocation = _vertexBuffer->GetGPUVirtualAddress();
-	_vertexBufferView.SizeInBytes = vertexSize * _vertexCount;
-	_vertexBufferView.StrideInBytes = vertexSize;
+	mVertexBufferView.BufferLocation = mVertexBuffer->GetGPUVirtualAddress();
+	mVertexBufferView.SizeInBytes = vertexSize * mVertexCount;
+	mVertexBufferView.StrideInBytes = vertexSize;
 
-	resourceDesc.Width = sizeof(unsigned int) * _indexCount;
+	resourceDesc.Width = sizeof(unsigned int) * mIndexCount;
 
 	result = dx.Device()->CreateCommittedResource(
 		&heapProperties,
@@ -333,7 +333,7 @@ HRESULT FBXActor::CreateVertexBufferAndIndexBuffer(Dx12Wrapper& dx)
 		&resourceDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(_indexBuffer.ReleaseAndGetAddressOf()));
+		IID_PPV_ARGS(mIndexBuffer.ReleaseAndGetAddressOf()));
 
 	if (FAILED(result))
 	{
@@ -341,19 +341,19 @@ HRESULT FBXActor::CreateVertexBufferAndIndexBuffer(Dx12Wrapper& dx)
 		return result;
 	}
 
-	result = _indexBuffer->Map(0, nullptr, (void**)&_mappedIndex);
+	result = mIndexBuffer->Map(0, nullptr, (void**)&mMappedIndex);
 	if (FAILED(result))
 	{
 		assert(SUCCEEDED(result));
 		return result;
 	}
 
-	std::copy(std::begin(_indices), std::end(_indices), _mappedIndex);
-	_indexBuffer->Unmap(0, nullptr);
+	std::copy(std::begin(mIndices), std::end(mIndices), mMappedIndex);
+	mIndexBuffer->Unmap(0, nullptr);
 
-	_indexBufferView.BufferLocation = _indexBuffer->GetGPUVirtualAddress();
-	_indexBufferView.Format = DXGI_FORMAT_R32_UINT;
-	_indexBufferView.SizeInBytes = sizeof(unsigned int) * _indexCount;
+	mIndexBufferView.BufferLocation = mIndexBuffer->GetGPUVirtualAddress();
+	mIndexBufferView.Format = DXGI_FORMAT_R32_UINT;
+	mIndexBufferView.SizeInBytes = sizeof(unsigned int) * mIndexCount;
 
 	return S_OK;
 }
@@ -370,7 +370,7 @@ HRESULT FBXActor::CreateTransformView(Dx12Wrapper& dx)
 		&CD3DX12_RESOURCE_DESC::Buffer(buffSize),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(_transformBuffer.ReleaseAndGetAddressOf())
+		IID_PPV_ARGS(mTransformBuffer.ReleaseAndGetAddressOf())
 	);
 
 	if (FAILED(result))
@@ -379,7 +379,7 @@ HRESULT FBXActor::CreateTransformView(Dx12Wrapper& dx)
 		return result;
 	}
 
-	result = _transformBuffer->Map(0, nullptr, (void**)&_mappedWorldTranform);
+	result = mTransformBuffer->Map(0, nullptr, (void**)&mMappedWorldTransform);
 
 	if (FAILED(result))
 	{
@@ -387,7 +387,7 @@ HRESULT FBXActor::CreateTransformView(Dx12Wrapper& dx)
 		return result;
 	}
 
-	_mappedWorldTranform[0] = DirectX::XMMatrixIdentity() * DirectX::XMMatrixScaling(100.0f, 100.0f, 100.0f);
+	mMappedWorldTransform[0] = DirectX::XMMatrixIdentity() * DirectX::XMMatrixScaling(100.0f, 100.0f, 100.0f);
 
 	D3D12_DESCRIPTOR_HEAP_DESC transformDescHeapDesc = {};
 	transformDescHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -397,7 +397,7 @@ HRESULT FBXActor::CreateTransformView(Dx12Wrapper& dx)
 
 	result = dx.Device()->CreateDescriptorHeap(
 		&transformDescHeapDesc,
-		IID_PPV_ARGS(_transformHeap.ReleaseAndGetAddressOf()));
+		IID_PPV_ARGS(mTransformHeap.ReleaseAndGetAddressOf()));
 
 	if (FAILED(result))
 	{
@@ -406,10 +406,10 @@ HRESULT FBXActor::CreateTransformView(Dx12Wrapper& dx)
 	}
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = _transformBuffer->GetGPUVirtualAddress();
+	cbvDesc.BufferLocation = mTransformBuffer->GetGPUVirtualAddress();
 	cbvDesc.SizeInBytes = buffSize;
 
-	dx.Device()->CreateConstantBufferView(&cbvDesc, _transformHeap->GetCPUDescriptorHandleForHeapStart());
+	dx.Device()->CreateConstantBufferView(&cbvDesc, mTransformHeap->GetCPUDescriptorHandleForHeapStart());
 
 	return S_OK;
 }

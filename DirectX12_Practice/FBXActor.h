@@ -70,28 +70,28 @@ private:
 	template<typename T>
 	using ComPtr = Microsoft::WRL::ComPtr<T>;
 
-	std::string _modelPath;
+	std::string mModelPath;
 
-	std::vector<FBXVertex> _vertices;
-	std::vector<unsigned int> _indices;
-	std::vector<FBXMesh> _meshes;
-	std::vector<std::string> _meshMaterialNameList;
-	unsigned int _vertexCount = 0;
-	unsigned int _indexCount = 0;
+	std::vector<FBXVertex> mVertices;
+	std::vector<unsigned int> mIndices;
+	std::vector<FBXMesh> mMeshes;
+	std::vector<std::string> mMeshMaterialNameList;
+	unsigned int mVertexCount = 0;
+	unsigned int mIndexCount = 0;
 
-	ComPtr<ID3D12Resource> _vertexBuffer = nullptr;
-	ComPtr<ID3D12Resource> _indexBuffer = nullptr;
-	D3D12_VERTEX_BUFFER_VIEW _vertexBufferView = {};
-	D3D12_INDEX_BUFFER_VIEW _indexBufferView = {};
-	FBXVertex* _mappedVertex;
-	unsigned int* _mappedIndex;
+	ComPtr<ID3D12Resource> mVertexBuffer = nullptr;
+	ComPtr<ID3D12Resource> mIndexBuffer = nullptr;
+	D3D12_VERTEX_BUFFER_VIEW mVertexBufferView = {};
+	D3D12_INDEX_BUFFER_VIEW mIndexBufferView = {};
+	FBXVertex* mMappedVertex;
+	unsigned int* mMappedIndex;
 
-	ComPtr<ID3D12Resource> _transformBuffer = nullptr;
-	ComPtr<ID3D12DescriptorHeap> _transformHeap = nullptr;
-	DirectX::XMMATRIX* _mappedWorldTranform;
-	Transform _transform;
-	std::string _name;
+	ComPtr<ID3D12Resource> mTransformBuffer = nullptr;
+	ComPtr<ID3D12DescriptorHeap> mTransformHeap = nullptr;
+	DirectX::XMMATRIX* mMappedWorldTransform;
+	Transform mTransform;
+	std::string mName;
 
-	BoundsBox* _bounds = nullptr;
+	BoundsBox* mBounds = nullptr;
 };
 

@@ -14,13 +14,13 @@ private:
 	template<typename T>
 	using ComPtr = Microsoft::WRL::ComPtr<T>;
 
-	ComPtr<ID3D12PipelineState> _deferredPipeline = nullptr;
-	ComPtr<ID3D12PipelineState> _onlyDepthPipeline = nullptr;
-	ComPtr<ID3D12PipelineState> _notDepthWriteForwardPipeline = nullptr;
-	ComPtr<ID3D12PipelineState> _forwardPipeline = nullptr;
-	ComPtr<ID3D12PipelineState> _shadowPipeline = nullptr;
-	ComPtr<ID3D12PipelineState> _reflectionPipeline = nullptr;
-	ComPtr<ID3D12RootSignature> _rootSignature = nullptr;
+	ComPtr<ID3D12PipelineState> mDeferredPipeline = nullptr;
+	ComPtr<ID3D12PipelineState> mOnlyDepthPipeline = nullptr;
+	ComPtr<ID3D12PipelineState> mNotDepthWriteForwardPipeline = nullptr;
+	ComPtr<ID3D12PipelineState> mForwardPipeline = nullptr;
+	ComPtr<ID3D12PipelineState> mShadowPipeline = nullptr;
+	ComPtr<ID3D12PipelineState> mReflectionPipeline = nullptr;
+	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
 
 	struct ParameterBuffer
 	{
@@ -28,9 +28,9 @@ private:
 		DirectX::XMFLOAT3 padding;
 	};
 
-	ComPtr<ID3D12Resource> _parameterBuffer = nullptr;
-	ComPtr<ID3D12DescriptorHeap> _parameterHeap = nullptr;
-	ParameterBuffer* _mappedParameterBuffer = nullptr;
+	ComPtr<ID3D12Resource> mParameterBuffer = nullptr;
+	ComPtr<ID3D12DescriptorHeap> mParameterHeap = nullptr;
+	ParameterBuffer* mMappedParameterBuffer = nullptr;
 
 	HRESULT CreateGraphicsPipelineForPMX();
 
@@ -40,7 +40,7 @@ private:
 
 	bool CheckShaderCompileResult(HRESULT result, ID3DBlob* error = nullptr);
 
-	std::vector<std::shared_ptr<PMXActor>> _actors;
+	std::vector<std::shared_ptr<PMXActor>> mActors;
 
 
 public:

@@ -50,7 +50,7 @@ LRESULT WindowProcedure(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 void Application::CreateGameWindow(HWND& hwnd, WNDCLASSEX& windowClass)
 {
-	_hInstance = GetModuleHandle(nullptr);
+	mhInstance = GetModuleHandle(nullptr);
 
 	windowClass.cbSize = sizeof(WNDCLASSEX);
 	windowClass.lpfnWndProc = (WNDPROC)WindowProcedure;
@@ -79,42 +79,42 @@ void Application::CreateGameWindow(HWND& hwnd, WNDCLASSEX& windowClass)
 bool Application::Init()
 {
 	auto result = CoInitializeEx(0, COINIT_MULTITHREADED);
-	CreateGameWindow(_hwnd, _windowClass);
+	CreateGameWindow(mHwnd, mWindowClass);
 
-	_dx12.reset(new Dx12Wrapper(_hwnd));
-	_render.reset(new Render(_dx12));
+	mDx12.reset(new Dx12Wrapper(mHwnd));
+	mRender.reset(new Render(mDx12));
 
 	PhysicsManager::Create();
 	PhysicsManager::ActivePhysics(true);
 
 	auto pmxMiku = std::make_shared<PMXActor>();
-	bool bResult = pmxMiku.get()->Initialize(L"PMXModel\\«ß«¯ªµªó.pmx", *_dx12);
+	bool bResult = pmxMiku.get()->Initialize(L"PMXModel\\«ß«¯ªµªó.pmx", *mDx12);
 	if (bResult == false)
 	{
 		return false;
 	}
 
 	pmxMiku->SetName("Miku");
-	_render->AddPMXActor(pmxMiku);
+	mRender->AddPMXActor(pmxMiku);
 
 	auto cubeGeometryActor = std::make_shared<GeometryInstancingActor>(Geometry::Cube(), 2000);
 	cubeGeometryActor->GetTransform().SetPosition(-250.0f, 0.0f, -450.0f);
 	cubeGeometryActor->GetTransform().SetScale(0.8f, 4.0f, 0.8f);
 
-	cubeGeometryActor->Initialize(*_dx12);
+	cubeGeometryActor->Initialize(*mDx12);
 	cubeGeometryActor->SetName("Cube");
 
-	_render->AddGeometryInstancingActor(cubeGeometryActor);
+	mRender->AddGeometryInstancingActor(cubeGeometryActor);
 
 	auto ssrPlane = std::make_shared<GeometryActor>(Geometry::Plane());
 	ssrPlane->SetName("SSR Plane");
-	ssrPlane->Initialize(*_dx12);
+	ssrPlane->Initialize(*mDx12);
 	ssrPlane->GetTransform().SetRotation(180.f, 0.f, 0.f);
 	ssrPlane->GetTransform().SetScale(112.f, 1.0f, 45.f);
 
-	_render->AddSSRActor(ssrPlane);
+	mRender->AddSSRActor(ssrPlane);
 
-	bResult = MaterialManager::Instance().Init(*_dx12);
+	bResult = MaterialManager::Instance().Init(*mDx12);
 	if (bResult == false)
 	{
 		return false;
@@ -122,7 +122,7 @@ bool Application::Init()
 
 	ReadSceneData();
 
-	bResult = ImguiManager::Instance().Initialize(_hwnd, _dx12);
+	bResult = ImguiManager::Instance().Initialize(mHwnd, mDx12);
 	if (bResult == false)
 	{
 		return false;
@@ -133,13 +133,13 @@ bool Application::Init()
 
 void Application::Run()
 {
-	ShowWindow(_hwnd, SW_SHOW);
+	ShowWindow(mHwnd, SW_SHOW);
 	float angle = 0.0f;
 	MSG msg = {};
 	unsigned int frame = 0;
 	Time::Init();
 
-	if (Input::Instance()->Initialize(_hInstance, _hwnd) == false)
+	if (Input::Instance()->Initialize(mhInstance, mHwnd) == false)
 	{
 		OutputDebugStringA("Fail Input Initialize");
 		return;
@@ -165,7 +165,7 @@ void Application::Run()
 			break;
 		}
 
-		_dx12->SetCameraSetting();
+		mDx12->SetCameraSetting();
 
 		static FBXActor* selectedFbxActor = nullptr;
 
@@ -173,9 +173,9 @@ void Application::Run()
 		//{
 		//	float mousePositionX = Input::Instance()->GetMousePositionX();
 		//	float mousePositionY = Input::Instance()->GetMousePositionY();
-		//	XMFLOAT3 cameraPosition = _dx12->GetCameraPosition();
-		//	XMMATRIX viewMatrix = _dx12->GetViewMatrix();
-		//	XMMATRIX projMatrix = _dx12->GetProjectionMatrix();
+		//	XMFLOAT3 cameraPosition = mDx12->GetCameraPosition();
+		//	XMMATRIX viewMatrix = mDx12->GetViewMatrix();
+		//	XMMATRIX projMatrix = mDx12->GetProjectionMatrix();
 
 		//	for (auto& actor : _fbxRenderer->GetActor())
 		//	{
@@ -186,7 +186,7 @@ void Application::Run()
 		//	}
 		//}
 
-		_render->Frame();
+		mRender->Frame();
 	}
 }
 
@@ -194,7 +194,7 @@ void Application::Terminate()
 {
 	PhysicsManager::Destroy();
 
-	UnregisterClass(_windowClass.lpszClassName, _windowClass.hInstance);
+	UnregisterClass(mWindowClass.lpszClassName, mWindowClass.hInstance);
 }
 
 SIZE Application::GetWindowSize() const
@@ -241,7 +241,7 @@ void Application::ReadSceneData()
 			sceneData["Directional Light"]["z"]
 		};
 
-		_dx12->SetDirectionalLightRotation(lightDirection);
+		mDx12->SetDirectionalLightRotation(lightDirection);
 	}
 
 	if (sceneData.contains("FbxActor") == true)
@@ -285,7 +285,7 @@ void Application::ReadSceneData()
 			scale.z = transformJson["Scale"]["z"];
 
 			std::shared_ptr<FBXActor> newActor = std::make_shared<FBXActor>();
-			if (newActor->Initialize(fbxFileName, *_dx12) == false)
+			if (newActor->Initialize(fbxFileName, *mDx12) == false)
 			{
 				continue;
 			}
@@ -311,7 +311,7 @@ void Application::ReadSceneData()
 			newActor->SetName(name);
 
 			//_fbxRenderer->AddActor(newActor);
-			_render->AddFBXActor(newActor);
+			mRender->AddFBXActor(newActor);
 		}
 	}
 }

@@ -32,14 +32,14 @@ private:
 	bool CheckShaderCompileResult(HRESULT result, ID3DBlob* error = nullptr);
 
 private:
-	Dx12Wrapper& _dx;
+	Dx12Wrapper& mDx;
 	template<typename T>
 	using ComPtr = Microsoft::WRL::ComPtr<T>;
 
-	ComPtr<ID3D12RootSignature> _rootSignature = nullptr;
-	ComPtr<ID3D12PipelineState> _forwardPipeline = nullptr;
-	ComPtr<ID3D12PipelineState> _stencilWritePipeline = nullptr;
+	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
+	ComPtr<ID3D12PipelineState> mForwardPipeline = nullptr;
+	ComPtr<ID3D12PipelineState> mStencilWritePipeline = nullptr;
 
-	std::vector<std::shared_ptr<FBXActor>> _actors;
+	std::vector<std::shared_ptr<FBXActor>> mActors;
 };
 

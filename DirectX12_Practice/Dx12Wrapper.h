@@ -60,7 +60,7 @@ public:
 
 	ComPtr<ID3D12Device> Device();
 	ComPtr<ID3D12GraphicsCommandList> CommandList();
-	ComPtr<IDXGISwapChain4> Swapchain();
+	ComPtr<IDXGISwapChain4> SwapChain();
 	ComPtr<ID3D12DescriptorHeap> GetHeapForImgui();
 
 	ComPtr<ID3D12Resource> GetTextureByPath(const char* texpath);
@@ -135,77 +135,77 @@ private:
 
 	void UpdateGlobalParameterBuffer() const; 
 
-	SIZE _winSize;
+	SIZE mWindowSize;
 
-	ComPtr<IDXGIFactory6> _dxgiFactory = nullptr;
-	ComPtr<ID3D12Device> _dev = nullptr;
-	ComPtr<ID3D12CommandAllocator> _cmdAllocator = nullptr;
-	ComPtr<ID3D12GraphicsCommandList> _cmdList = nullptr;
-	ComPtr<ID3D12CommandQueue> _cmdQueue = nullptr;
-	ComPtr<IDXGISwapChain4> _swapChain = nullptr;
-	ComPtr<ID3D12DescriptorHeap> _rtvHeaps = nullptr;
-	std::vector<ID3D12Resource*> _backBuffers;
-	std::unique_ptr<D3D12_VIEWPORT> _viewport;
-	std::unique_ptr<D3D12_RECT> _scissorrect;
+	ComPtr<IDXGIFactory6> mDXGIFactory = nullptr;
+	ComPtr<ID3D12Device> mDevice = nullptr;
+	ComPtr<ID3D12CommandAllocator> mCmdAllocator = nullptr;
+	ComPtr<ID3D12GraphicsCommandList> mCmdList = nullptr;
+	ComPtr<ID3D12CommandQueue> mCmdQueue = nullptr;
+	ComPtr<IDXGISwapChain4> mSwapChain = nullptr;
+	ComPtr<ID3D12DescriptorHeap> mRtvHeaps = nullptr;
+	std::vector<ID3D12Resource*> mBackBuffers;
+	std::unique_ptr<D3D12_VIEWPORT> mViewport;
+	std::unique_ptr<D3D12_RECT> mScissorRect;
 
-	ComPtr<ID3D12DescriptorHeap> _peraRTVHeap = nullptr;
-	ComPtr<ID3D12DescriptorHeap> _peraSRVHeap = nullptr;
-	ComPtr<ID3D12Resource> _peraVB;
-	D3D12_VERTEX_BUFFER_VIEW _peraVBV;
-	ComPtr<ID3D12RootSignature> _peraRS;
+	ComPtr<ID3D12DescriptorHeap> mPeraRTVHeap = nullptr;
+	ComPtr<ID3D12DescriptorHeap> mPeraSRVHeap = nullptr;
+	ComPtr<ID3D12Resource> mPeraVB;
+	D3D12_VERTEX_BUFFER_VIEW mPeraVertexBufferView;
+	ComPtr<ID3D12RootSignature> mPeraRootSignature;
 
 	// SSR
-	ComPtr<ID3D12RootSignature> _ssrRootSignature = nullptr;
-	ComPtr<ID3D12PipelineState> _ssrPipeline = nullptr;
-	ComPtr<ID3D12Resource> _ssrTexture = nullptr;
+	ComPtr<ID3D12RootSignature> mSsrRootSignature = nullptr;
+	ComPtr<ID3D12PipelineState> mSsrPipeline = nullptr;
+	ComPtr<ID3D12Resource> mSsrTexture = nullptr;
 
 	// SceneBuffer(view, proj, shadow, camera ...)
-	ComPtr<ID3D12Resource> _sceneConstBuff = nullptr;
-	ComPtr<ID3D12DescriptorHeap> _sceneDescHeap = nullptr;
+	ComPtr<ID3D12Resource> mSceneConstBuff = nullptr;
+	ComPtr<ID3D12DescriptorHeap> mSceneDescHeap = nullptr;
 
-	ComPtr<ID3D12Resource> _globalParameterBuffer = nullptr;
+	ComPtr<ID3D12Resource> mGlobalParameterBuffer = nullptr;
 
-	ComPtr<ID3D12Resource> _resolutionConstBuffer = nullptr;
-	ComPtr<ID3D12DescriptorHeap> _resolutionDescHeap = nullptr;
-	ResolutionBuffer* _mappedResolutionBuffer = nullptr;
+	ComPtr<ID3D12Resource> mResolutionConstBuffer = nullptr;
+	ComPtr<ID3D12DescriptorHeap> mResolutionDescHeap = nullptr;
+	ResolutionBuffer* mMappedResolutionBuffer = nullptr;
 
-	ComPtr<ID3D12DescriptorHeap> _dsvHeap = nullptr;
-	ComPtr<ID3D12DescriptorHeap> _depthSRVHeap = nullptr;
-	ComPtr<ID3D12Resource> _depthBuffer = nullptr;
-	ComPtr<ID3D12Resource> _lightDepthBuffer = nullptr;
-	ComPtr<ID3D12Resource> _stencilBuffer = nullptr;
+	ComPtr<ID3D12DescriptorHeap> mDepthStencilViewHeap = nullptr;
+	ComPtr<ID3D12DescriptorHeap> mDepthSRVHeap = nullptr;
+	ComPtr<ID3D12Resource> mDepthBuffer = nullptr;
+	ComPtr<ID3D12Resource> mLightDepthBuffer = nullptr;
+	ComPtr<ID3D12Resource> mStencilBuffer = nullptr;
 
-	std::array<ComPtr<ID3D12Resource>, 2> _pera1Resource; // frameTex, NormalTex
-	std::array<ComPtr<ID3D12Resource>, 2> _bloomBuffer; // texHighLum, texShrinkHighLum
-	ComPtr<ID3D12Resource> _reflectionBuffer;
-	ComPtr<ID3D12Resource> _ssrMaskBuffer;
+	std::array<ComPtr<ID3D12Resource>, 2> mPera1Resource; // frameTex, NormalTex
+	std::array<ComPtr<ID3D12Resource>, 2> mBloomBuffer; // texHighLum, texShrinkHighLum
+	ComPtr<ID3D12Resource> mReflectionBuffer;
+	ComPtr<ID3D12Resource> mSsrMaskBuffer;
 
-	ComPtr<ID3D12PipelineState> _aoPipeline;
-	ComPtr<ID3D12Resource> _aoBuffer; // texSSAO
-	ComPtr<ID3D12DescriptorHeap> _aoRTVDH;
-	ComPtr<ID3D12DescriptorHeap> _aoSRVDH;
+	ComPtr<ID3D12PipelineState> mAoPipeline;
+	ComPtr<ID3D12Resource> mAoBuffer; // texSSAO
+	ComPtr<ID3D12DescriptorHeap> mAoRenderTargetViewDescriptorHeap;
+	ComPtr<ID3D12DescriptorHeap> mAoSRVDescriptorHeap;
 
-	ComPtr<ID3D12PipelineState> _blurShrinkPipeline;
-	ComPtr<ID3D12Resource> _dofBuffer; // texShrink
-	ComPtr<ID3D12Resource> _bloomResultTexture; //offset 8
-	ComPtr<ID3D12Resource> _postProcessParameterBuffer;
-	BloomParameter* _mappedPostProcessParameter = nullptr;
-	ComPtr<ID3D12DescriptorHeap> _postProcessParameterSRVHeap;
-	ComPtr<ID3D12RootSignature> _blurResultRootSignature;
-	ComPtr<ID3D12PipelineState> _blurResultPipeline;
+	ComPtr<ID3D12PipelineState> mBlurShrinkPipeline;
+	ComPtr<ID3D12Resource> mDofBuffer; // texShrink
+	ComPtr<ID3D12Resource> mBloomResultTexture; //offset 8
+	ComPtr<ID3D12Resource> mPostProcessParameterBuffer;
+	BloomParameter* mMappedPostProcessParameter = nullptr;
+	ComPtr<ID3D12DescriptorHeap> mPostProcessParameterSRVHeap;
+	ComPtr<ID3D12RootSignature> mBlurResultRootSignature;
+	ComPtr<ID3D12PipelineState> mBlurResultPipeline;
 	int mBloomIteration = 0;
 
-	ComPtr<ID3D12PipelineState> _screenPipelineDefault;
-	ComPtr<ID3D12PipelineState> _screenPipelineBloom;
-	ComPtr<ID3D12PipelineState> _screenPipelineSSAO;
-	ComPtr<ID3D12PipelineState> _screenPipelineBloomSSAO;
+	ComPtr<ID3D12PipelineState> mScreenPipelineDefault;
+	ComPtr<ID3D12PipelineState> mScreenPipelineBloom;
+	ComPtr<ID3D12PipelineState> mScreenPipelineSSAO;
+	ComPtr<ID3D12PipelineState> mScreenPipelineBloomSSAO;
 
-	Transform* _cameraTransform;
-	Transform* _directionalLightTransform;
+	Transform* mCameraTransform;
+	Transform* mDirectionalLightTransform;
 
 	//Setting Value
-	float _fov;
-	float _lightVector[3];
+	float mFov;
+	float mLightVector[3];
 
 	struct SceneMatricesData
 	{
@@ -218,22 +218,22 @@ private:
 		DirectX::XMFLOAT3 eye;
 	};
 
-	SceneMatricesData* _mappedSceneMatricesData;
-	ComPtr<ID3D12Fence> _fence = nullptr;
-	UINT64 _fenceVal = 0;
+	SceneMatricesData* mMappedSceneMatricesData;
+	ComPtr<ID3D12Fence> mFence = nullptr;
+	UINT64 mFenceVal = 0;
 
 	using LoadLambda_t = std::function<HRESULT(const std::wstring& path, DirectX::TexMetadata*, DirectX::ScratchImage&)>;
-	std::map<std::string, LoadLambda_t> _loadLambdaTable;
+	std::map<std::string, LoadLambda_t> mLoadLambdaTable;
 
-	std::map<std::string, ComPtr<ID3D12Resource>> _resourceTable;
-	std::map<std::wstring, ComPtr<ID3D12Resource>> _resourceTableW;
+	std::map<std::string, ComPtr<ID3D12Resource>> mResourceTable;
+	std::map<std::wstring, ComPtr<ID3D12Resource>> mResourceTableW;
 
-	ComPtr<ID3D12Resource> _whiteTex = nullptr;
-	ComPtr<ID3D12Resource> _blackTex = nullptr;
-	ComPtr<ID3D12Resource> _gradTex = nullptr;
+	ComPtr<ID3D12Resource> mWhiteTex = nullptr;
+	ComPtr<ID3D12Resource> mBlackTex = nullptr;
+	ComPtr<ID3D12Resource> mGradTex = nullptr;
 
-	ComPtr<ID3D12DescriptorHeap> _heapForImgui;
+	ComPtr<ID3D12DescriptorHeap> mHeapForImgui;
 
-	int _currentPPFlag;
+	int mCurrentPPFlag;
 };
 

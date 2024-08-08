@@ -53,23 +53,23 @@ private:
 	static void UpdateByThread();
 
 private:
-	static std::unique_ptr<btDiscreteDynamicsWorld> _world;
-	static std::unique_ptr<btBroadphaseInterface> _broadPhase;
-	static std::unique_ptr<btDefaultCollisionConfiguration> _collisionConfig;
-	static std::unique_ptr<btCollisionDispatcher> _dispatcher;
-	static std::unique_ptr<btSequentialImpulseConstraintSolver> _solver;
-	static std::unique_ptr<btCollisionShape> _groundShape;
-	static std::unique_ptr<btMotionState> _groundMS;
-	static std::unique_ptr<btRigidBody> _groundRB;
-	static std::unique_ptr<btOverlapFilterCallback> _filterCB;
+	static std::unique_ptr<btDiscreteDynamicsWorld> mWorld;
+	static std::unique_ptr<btBroadphaseInterface> mBroadPhase;
+	static std::unique_ptr<btDefaultCollisionConfiguration> mCollisionConfig;
+	static std::unique_ptr<btCollisionDispatcher> mDispatcher;
+	static std::unique_ptr<btSequentialImpulseConstraintSolver> mSolver;
+	static std::unique_ptr<btCollisionShape> mGroundShape;
+	static std::unique_ptr<btMotionState> mGroundMS;
+	static std::unique_ptr<btRigidBody> mGroundRB;
+	static std::unique_ptr<btOverlapFilterCallback> mFilterCB;
 
-	static float _fixedTimeStep;
-	static int _maxSubStepCount;
+	static float mFixedTimeStep;
+	static int mMaxSubStepCount;
 
-	static std::thread _physicsUpdateThread;
-	static bool _threadFlag;
+	static std::thread mPhysicsUpdateThread;
+	static bool mThreadFlag;
 
-	static std::atomic<bool> _stopFlag;
-	static std::atomic<bool> _endFlag;
+	static std::atomic<bool> mStopFlag;
+	static std::atomic<bool> mEndFlag;
 };
 

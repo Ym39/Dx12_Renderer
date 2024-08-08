@@ -6,7 +6,7 @@
 #include "FBXActor.h"
 
 FBXRenderer::FBXRenderer(Dx12Wrapper& dx):
-_dx(dx)
+mDx(dx)
 {
 	auto result = CreateRootSignature();
 	if (FAILED(result))
@@ -27,7 +27,7 @@ FBXRenderer::~FBXRenderer()
 
 void FBXRenderer::Update()
 {
-	for (auto& actor : _actors)
+	for (auto& actor : mActors)
 	{
 		actor->Update();
 	}
@@ -35,46 +35,46 @@ void FBXRenderer::Update()
 
 void FBXRenderer::BeforeWriteToStencil()
 {
-	auto cmdList = _dx.CommandList();
-	cmdList->SetPipelineState(_stencilWritePipeline.Get());
-	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+	auto cmdList = mDx.CommandList();
+	cmdList->SetPipelineState(mStencilWritePipeline.Get());
+	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
 }
 
 void FBXRenderer::BeforeDrawAtForwardPipeline()
 {
-	auto cmdList = _dx.CommandList();
-	cmdList->SetPipelineState(_forwardPipeline.Get());
-	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+	auto cmdList = mDx.CommandList();
+	cmdList->SetPipelineState(mForwardPipeline.Get());
+	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
 }
 
 void FBXRenderer::Draw()
 {
-	_dx.SetResolutionDescriptorHeap(4);
+	mDx.SetResolutionDescriptorHeap(4);
 
-	for (auto& actor : _actors)
+	for (auto& actor : mActors)
 	{
-		actor->Draw(_dx, false);
+		actor->Draw(mDx, false);
 	}
 }
 
 ID3D12PipelineState* FBXRenderer::GetPipelineState() const
 {
-	return _forwardPipeline.Get();
+	return mForwardPipeline.Get();
 }
 
 ID3D12RootSignature* FBXRenderer::GetRootSignature() const
 {
-	return _rootSignature.Get();
+	return mRootSignature.Get();
 }
 
 void FBXRenderer::AddActor(std::shared_ptr<FBXActor> actor)
 {
-	_actors.push_back(actor);
+	mActors.push_back(actor);
 }
 
 std::vector<std::shared_ptr<FBXActor>>& FBXRenderer::GetActor()
 {
-	return _actors;
+	return mActors;
 }
 
 HRESULT FBXRenderer::CreateRootSignature()
@@ -148,7 +148,7 @@ HRESULT FBXRenderer::CreateRootSignature()
 		return result;
 	}
 
-	result = _dx.Device()->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(_rootSignature.ReleaseAndGetAddressOf()));
+	result = mDx.Device()->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(mRootSignature.ReleaseAndGetAddressOf()));
 	if (FAILED(result) == true)
 	{
 		assert(SUCCEEDED(result));
@@ -187,7 +187,7 @@ HRESULT FBXRenderer::CreateGraphicsPipeline()
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineDesc = {};
 
-	graphicsPipelineDesc.pRootSignature = _rootSignature.Get();
+	graphicsPipelineDesc.pRootSignature = mRootSignature.Get();
 	graphicsPipelineDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 	graphicsPipelineDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	graphicsPipelineDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
@@ -248,7 +248,7 @@ HRESULT FBXRenderer::CreateGraphicsPipeline()
 	graphicsPipelineDesc.VS = CD3DX12_SHADER_BYTECODE(vs.Get());
 	graphicsPipelineDesc.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
 
-	result = _dx.Device()->CreateGraphicsPipelineState(&graphicsPipelineDesc, IID_PPV_ARGS(_forwardPipeline.ReleaseAndGetAddressOf()));
+	result = mDx.Device()->CreateGraphicsPipelineState(&graphicsPipelineDesc, IID_PPV_ARGS(mForwardPipeline.ReleaseAndGetAddressOf()));
 	if (FAILED(result))
 	{
 		assert(SUCCEEDED(result));
@@ -277,7 +277,7 @@ HRESULT FBXRenderer::CreateGraphicsPipeline()
 	graphicsPipelineDesc.DepthStencilState.BackFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
 	graphicsPipelineDesc.DepthStencilState.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
 
-	result = _dx.Device()->CreateGraphicsPipelineState(&graphicsPipelineDesc, IID_PPV_ARGS(_stencilWritePipeline.ReleaseAndGetAddressOf()));
+	result = mDx.Device()->CreateGraphicsPipelineState(&graphicsPipelineDesc, IID_PPV_ARGS(mStencilWritePipeline.ReleaseAndGetAddressOf()));
 	if (FAILED(result))
 	{
 		assert(SUCCEEDED(result));

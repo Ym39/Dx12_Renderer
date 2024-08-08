@@ -9,24 +9,24 @@
 #include "BulletDynamics/Dynamics/btDiscreteDynamicsWorldMt.h"
 #include "BulletDynamics/ConstraintSolver/btContactSolverInfo.h"
 
-std::unique_ptr<btDiscreteDynamicsWorld> PhysicsManager::_world = nullptr;
-std::unique_ptr<btBroadphaseInterface> PhysicsManager::_broadPhase = nullptr;
-std::unique_ptr<btDefaultCollisionConfiguration> PhysicsManager::_collisionConfig = nullptr;
-std::unique_ptr<btCollisionDispatcher> PhysicsManager::_dispatcher = nullptr;
-std::unique_ptr<btSequentialImpulseConstraintSolver> PhysicsManager::_solver = nullptr;
-std::unique_ptr<btCollisionShape> PhysicsManager::_groundShape = nullptr;
-std::unique_ptr<btMotionState> PhysicsManager::_groundMS = nullptr;
-std::unique_ptr<btRigidBody> PhysicsManager::_groundRB = nullptr;
-std::unique_ptr<btOverlapFilterCallback> PhysicsManager::_filterCB = nullptr;
+std::unique_ptr<btDiscreteDynamicsWorld> PhysicsManager::mWorld = nullptr;
+std::unique_ptr<btBroadphaseInterface> PhysicsManager::mBroadPhase = nullptr;
+std::unique_ptr<btDefaultCollisionConfiguration> PhysicsManager::mCollisionConfig = nullptr;
+std::unique_ptr<btCollisionDispatcher> PhysicsManager::mDispatcher = nullptr;
+std::unique_ptr<btSequentialImpulseConstraintSolver> PhysicsManager::mSolver = nullptr;
+std::unique_ptr<btCollisionShape> PhysicsManager::mGroundShape = nullptr;
+std::unique_ptr<btMotionState> PhysicsManager::mGroundMS = nullptr;
+std::unique_ptr<btRigidBody> PhysicsManager::mGroundRB = nullptr;
+std::unique_ptr<btOverlapFilterCallback> PhysicsManager::mFilterCB = nullptr;
 
-float PhysicsManager::_fixedTimeStep = 0.033333f;
-int PhysicsManager::_maxSubStepCount = 4;
+float PhysicsManager::mFixedTimeStep = 0.033333f;
+int PhysicsManager::mMaxSubStepCount = 4;
 
-std::thread PhysicsManager::_physicsUpdateThread = std::thread();
-bool PhysicsManager::_threadFlag = false;
+std::thread PhysicsManager::mPhysicsUpdateThread = std::thread();
+bool PhysicsManager::mThreadFlag = false;
 
-std::atomic<bool> PhysicsManager::_stopFlag(false);
-std::atomic<bool> PhysicsManager::_endFlag(false);
+std::atomic<bool> PhysicsManager::mStopFlag(false);
+std::atomic<bool> PhysicsManager::mEndFlag(false);
 
 PhysicsManager::PhysicsManager()
 {
@@ -40,32 +40,32 @@ PhysicsManager::~PhysicsManager()
 
 bool PhysicsManager::Create()
 {
-	_broadPhase = std::make_unique<btDbvtBroadphase>();
-	_collisionConfig = std::make_unique<btDefaultCollisionConfiguration>();
-	_dispatcher = std::make_unique<btCollisionDispatcher>(_collisionConfig.get());
-	_solver = std::make_unique<btSequentialImpulseConstraintSolver>();
+	mBroadPhase = std::make_unique<btDbvtBroadphase>();
+	mCollisionConfig = std::make_unique<btDefaultCollisionConfiguration>();
+	mDispatcher = std::make_unique<btCollisionDispatcher>(mCollisionConfig.get());
+	mSolver = std::make_unique<btSequentialImpulseConstraintSolver>();
 
-	_world = std::make_unique<btDiscreteDynamicsWorld>(_dispatcher.get(), _broadPhase.get(), _solver.get(), _collisionConfig.get());
-	_world->setGravity(btVector3(0, -9.8f * 10.0f, 0));
+	mWorld = std::make_unique<btDiscreteDynamicsWorld>(mDispatcher.get(), mBroadPhase.get(), mSolver.get(), mCollisionConfig.get());
+	mWorld->setGravity(btVector3(0, -9.8f * 10.0f, 0));
 
-	_groundShape = std::make_unique<btStaticPlaneShape>(btVector3(0.f, 1.f, 0.f), 0.f);
+	mGroundShape = std::make_unique<btStaticPlaneShape>(btVector3(0.f, 1.f, 0.f), 0.f);
 
 	btTransform groundTransform;
 	groundTransform.setIdentity();
 
-	_groundMS = std::make_unique<btDefaultMotionState>(groundTransform);
+	mGroundMS = std::make_unique<btDefaultMotionState>(groundTransform);
 
-	btRigidBody::btRigidBodyConstructionInfo groundInfo(0.f, _groundMS.get(), _groundShape.get(), btVector3(0.f, 0.f, 0.f));
-	_groundRB = std::make_unique<btRigidBody>(groundInfo);
+	btRigidBody::btRigidBodyConstructionInfo groundInfo(0.f, mGroundMS.get(), mGroundShape.get(), btVector3(0.f, 0.f, 0.f));
+	mGroundRB = std::make_unique<btRigidBody>(groundInfo);
 
-	_world->addRigidBody(_groundRB.get());
+	mWorld->addRigidBody(mGroundRB.get());
 
 	auto filterCB = std::make_unique<FilterCallback>();
-	filterCB->NonFilterProxy.push_back(_groundRB->getBroadphaseProxy());
-	_world->getPairCache()->setOverlapFilterCallback(filterCB.get());
-	_filterCB = std::move(filterCB);
+	filterCB->NonFilterProxy.push_back(mGroundRB->getBroadphaseProxy());
+	mWorld->getPairCache()->setOverlapFilterCallback(filterCB.get());
+	mFilterCB = std::move(filterCB);
 
-	btContactSolverInfo& info = _world->getSolverInfo();
+	btContactSolverInfo& info = mWorld->getSolverInfo();
 	info.m_numIterations = 10;
 	info.m_solverMode = SOLVER_SIMD;
 
@@ -74,79 +74,79 @@ bool PhysicsManager::Create()
 
 void PhysicsManager::Destroy()
 {
-	if (_threadFlag == true)
+	if (mThreadFlag == true)
 	{
-		_stopFlag.store(true);
+		mStopFlag.store(true);
 
-		while (_endFlag.load() == false);
+		while (mEndFlag.load() == false);
 	}
 
-	if (_world != nullptr && _groundRB != nullptr)
+	if (mWorld != nullptr && mGroundRB != nullptr)
 	{
-		_world->removeRigidBody(_groundRB.get());
+		mWorld->removeRigidBody(mGroundRB.get());
 	}
 
-	_world = nullptr;
-	_broadPhase = nullptr;
-	_collisionConfig = nullptr;
-	_dispatcher = nullptr;
-	_solver = nullptr;
-	_groundShape = nullptr;
-	_groundMS = nullptr;
-	_groundRB = nullptr;
+	mWorld = nullptr;
+	mBroadPhase = nullptr;
+	mCollisionConfig = nullptr;
+	mDispatcher = nullptr;
+	mSolver = nullptr;
+	mGroundShape = nullptr;
+	mGroundMS = nullptr;
+	mGroundRB = nullptr;
 }
 
 void PhysicsManager::SetMaxSubStepCount(int numSteps)
 {
-	_maxSubStepCount = numSteps;
+	mMaxSubStepCount = numSteps;
 }
 
 int PhysicsManager::GetMaxSubStepCount()
 {
-	return _maxSubStepCount;
+	return mMaxSubStepCount;
 }
 
 void PhysicsManager::SetFixedTimeStep(float fixedTimeStep)
 {
-	_fixedTimeStep = fixedTimeStep;
+	mFixedTimeStep = fixedTimeStep;
 }
 
 float PhysicsManager::GetFixedTimeStep()
 {
-	return _fixedTimeStep;
+	return mFixedTimeStep;
 }
 
 void PhysicsManager::ActivePhysics(bool active)
 {
 	if (active == true)
 	{
-		_stopFlag.store(false);
-		_endFlag.store(false);
-		_threadFlag = true;
-		_physicsUpdateThread = std::thread(UpdateByThread);
-		_physicsUpdateThread.detach();
+		mStopFlag.store(false);
+		mEndFlag.store(false);
+		mThreadFlag = true;
+		mPhysicsUpdateThread = std::thread(UpdateByThread);
+		mPhysicsUpdateThread.detach();
 	}
 	else
 	{
-		_stopFlag.store(true);
-		while (_endFlag.load() == false);
-		_threadFlag = false;
+		mStopFlag.store(true);
+		while (mEndFlag.load() == false);
+		mThreadFlag = false;
 	}
 }
 
 void PhysicsManager::ForceUpdatePhysics()
 {
-	_world->stepSimulation(_fixedTimeStep, _maxSubStepCount, _fixedTimeStep);
+	mWorld->stepSimulation(mFixedTimeStep, mMaxSubStepCount, mFixedTimeStep);
 }
 
 void PhysicsManager::AddRigidBody(RigidBody* rigidBody)
 {
-	_world->addRigidBody(rigidBody->GetRigidBody(), 1 << rigidBody->GetGroup(), rigidBody->GetGroupMask());
+	mWorld->addRigidBody(rigidBody->GetRigidBody(), 1 << rigidBody->GetGroup(), rigidBody->GetGroupMask());
 }
 
 void PhysicsManager::RemoveRigidBody(RigidBody* rigidBody)
 {
-	_world->removeRigidBody(rigidBody->GetRigidBody());
+	mWorld->removeRigidBody(rigidBody->GetRigidBody());
 }
 
 void PhysicsManager::AddJoint(Joint* joint)
@@ -156,7 +156,7 @@ void PhysicsManager::AddJoint(Joint* joint)
 		return;
 	}
 
-	_world->addConstraint(joint->GetConstraint());
+	mWorld->addConstraint(joint->GetConstraint());
 }
 
 void PhysicsManager::RemoveJoint(Joint* joint)
@@ -166,12 +166,12 @@ void PhysicsManager::RemoveJoint(Joint* joint)
 		return;
 	}
 
-	_world->removeConstraint(joint->GetConstraint());
+	mWorld->removeConstraint(joint->GetConstraint());
 }
 
 btDiscreteDynamicsWorld* PhysicsManager::GetDynamicsWorld()
 {
-	return _world.get();
+	return mWorld.get();
 }
 
 void PhysicsManager::UpdateByThread()
@@ -180,7 +180,7 @@ void PhysicsManager::UpdateByThread()
 
 	while (true)
 	{
-		if (_stopFlag.load() == true)
+		if (mStopFlag.load() == true)
 		{
 			break;
 		}
@@ -189,10 +189,10 @@ void PhysicsManager::UpdateByThread()
 		unsigned long deltaTime = currentTime - prevTime;
 		prevTime = currentTime;
 
-		_world->stepSimulation(deltaTime * 0.001f, _maxSubStepCount, _fixedTimeStep);
+		mWorld->stepSimulation(deltaTime * 0.001f, mMaxSubStepCount, mFixedTimeStep);
 	}
 
-	_endFlag.store(true);
+	mEndFlag.store(true);
 }
 
 

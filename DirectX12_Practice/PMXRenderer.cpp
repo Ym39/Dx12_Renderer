@@ -60,7 +60,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpipeline = {};
 
-	gpipeline.pRootSignature = _rootSignature.Get();
+	gpipeline.pRootSignature = mRootSignature.Get();
 
 	gpipeline.VS.pShaderBytecode = vsBlob->GetBufferPointer();
 	gpipeline.VS.BytecodeLength = vsBlob->GetBufferSize();
@@ -130,7 +130,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 
 	gpipeline.NumRenderTargets = 1;
 	gpipeline.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
-	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(_forwardPipeline.ReleaseAndGetAddressOf()));
+	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(mForwardPipeline.ReleaseAndGetAddressOf()));
 	if (FAILED(result)) {
 		assert(SUCCEEDED(result));
 	}
@@ -156,7 +156,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 
 	gpipeline.NumRenderTargets = 3;
 	gpipeline.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
-	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(_deferredPipeline.ReleaseAndGetAddressOf()));
+	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(mDeferredPipeline.ReleaseAndGetAddressOf()));
 	if (FAILED(result)) 
 	{
 		assert(SUCCEEDED(result));
@@ -164,7 +164,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 
 	gpipeline.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_EQUAL;
 	gpipeline.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(_notDepthWriteForwardPipeline.ReleaseAndGetAddressOf()));
+	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(mNotDepthWriteForwardPipeline.ReleaseAndGetAddressOf()));
 	if (FAILED(result))
 	{
 		assert(SUCCEEDED(result));
@@ -177,7 +177,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 	gpipeline.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
 	gpipeline.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 	gpipeline.PS = { nullptr, 0 };
-	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(_onlyDepthPipeline.ReleaseAndGetAddressOf()));
+	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(mOnlyDepthPipeline.ReleaseAndGetAddressOf()));
 	if (FAILED(result))
 	{
 		assert(SUCCEEDED(result));
@@ -185,7 +185,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC reflectionPipelineDesc = {};
 
-	reflectionPipelineDesc.pRootSignature = _rootSignature.Get();
+	reflectionPipelineDesc.pRootSignature = mRootSignature.Get();
 	reflectionPipelineDesc.VS.pShaderBytecode = vsBlob->GetBufferPointer();
 	reflectionPipelineDesc.VS.BytecodeLength = vsBlob->GetBufferSize();
 	reflectionPipelineDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
@@ -236,7 +236,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 
 	reflectionPipelineDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
 
-	result = _dx12.Device()->CreateGraphicsPipelineState(&reflectionPipelineDesc, IID_PPV_ARGS(_reflectionPipeline.ReleaseAndGetAddressOf()));
+	result = _dx12.Device()->CreateGraphicsPipelineState(&reflectionPipelineDesc, IID_PPV_ARGS(mReflectionPipeline.ReleaseAndGetAddressOf()));
 	if (FAILED(result))
 	{
 		assert(SUCCEEDED(result));
@@ -262,7 +262,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 	gpipeline.PS.BytecodeLength = 0;
 	gpipeline.PS.pShaderBytecode = nullptr;
 	gpipeline.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
-	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(_shadowPipeline.ReleaseAndGetAddressOf()));
+	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(mShadowPipeline.ReleaseAndGetAddressOf()));
 	if (FAILED(result)) {
 		assert(SUCCEEDED(result));
 	}
@@ -375,7 +375,7 @@ HRESULT PMXRenderer::CreateRootSignature()
 		return result;
 	}
 
-	result = _dx12.Device()->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(_rootSignature.ReleaseAndGetAddressOf()));
+	result = _dx12.Device()->CreateRootSignature(0, rootSigBlob->GetBufferPointer(), rootSigBlob->GetBufferSize(), IID_PPV_ARGS(mRootSignature.ReleaseAndGetAddressOf()));
 	if (FAILED(result) == true)
 	{
 		assert(SUCCEEDED(result));
@@ -396,7 +396,7 @@ HRESULT PMXRenderer::CreateParameterBufferAndHeap()
 		&CD3DX12_RESOURCE_DESC::Buffer(parameterBufferSize),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(_parameterBuffer.ReleaseAndGetAddressOf())
+		IID_PPV_ARGS(mParameterBuffer.ReleaseAndGetAddressOf())
 	);
 
 	if (FAILED(result))
@@ -405,7 +405,7 @@ HRESULT PMXRenderer::CreateParameterBufferAndHeap()
 		return result;
 	}
 
-	result = _parameterBuffer->Map(0, nullptr, (void**)&_mappedParameterBuffer);
+	result = mParameterBuffer->Map(0, nullptr, (void**)&mMappedParameterBuffer);
 
 	if (FAILED(result))
 	{
@@ -413,7 +413,7 @@ HRESULT PMXRenderer::CreateParameterBufferAndHeap()
 		return result;
 	}
 
-	_mappedParameterBuffer->bloomThreshold = 1.0f;
+	mMappedParameterBuffer->bloomThreshold = 1.0f;
 
 	D3D12_DESCRIPTOR_HEAP_DESC parameterDescHeapDesc = {};
 	parameterDescHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -421,17 +421,17 @@ HRESULT PMXRenderer::CreateParameterBufferAndHeap()
 	parameterDescHeapDesc.NumDescriptors = 1;
 	parameterDescHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
-	result = _dx12.Device()->CreateDescriptorHeap(&parameterDescHeapDesc, IID_PPV_ARGS(_parameterHeap.ReleaseAndGetAddressOf()));
+	result = _dx12.Device()->CreateDescriptorHeap(&parameterDescHeapDesc, IID_PPV_ARGS(mParameterHeap.ReleaseAndGetAddressOf()));
 	if (FAILED(result)) {
 		assert(SUCCEEDED(result));
 		return result;
 	}
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC parameterConstantBufferViewDesc = {};
-	parameterConstantBufferViewDesc.BufferLocation = _parameterBuffer->GetGPUVirtualAddress();
+	parameterConstantBufferViewDesc.BufferLocation = mParameterBuffer->GetGPUVirtualAddress();
 	parameterConstantBufferViewDesc.SizeInBytes = parameterBufferSize;
 
-	auto parameterDescHeapHandle = _parameterHeap->GetCPUDescriptorHandleForHeapStart();
+	auto parameterDescHeapHandle = mParameterHeap->GetCPUDescriptorHandleForHeapStart();
 
 	_dx12.Device()->CreateConstantBufferView(&parameterConstantBufferViewDesc, parameterDescHeapHandle);
 
@@ -472,7 +472,7 @@ PMXRenderer::~PMXRenderer()
 
 void PMXRenderer::Update()
 {
-	for (auto& actor : _actors)
+	for (auto& actor : mActors)
 	{
 		actor -> Update();
 		actor-> UpdateAnimation();
@@ -482,39 +482,39 @@ void PMXRenderer::Update()
 void PMXRenderer::BeforeDrawFromLight() const
 {
 	auto cmdList = _dx12.CommandList();
-	cmdList->SetPipelineState(_shadowPipeline.Get());
-	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+	cmdList->SetPipelineState(mShadowPipeline.Get());
+	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
 }
 
 void PMXRenderer::BeforeDrawAtForwardPipeline()
 {
 	auto cmdList = _dx12.CommandList();
-	cmdList->SetPipelineState(_forwardPipeline.Get());
-	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+	cmdList->SetPipelineState(mForwardPipeline.Get());
+	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
 }
 
 void PMXRenderer::BeforeDrawAtDeferredPipeline()
 {
 	auto cmdList = _dx12.CommandList();
-	cmdList->SetPipelineState(_deferredPipeline.Get());
-	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+	cmdList->SetPipelineState(mDeferredPipeline.Get());
+	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
 
-	cmdList->SetDescriptorHeaps(1, _parameterHeap.GetAddressOf());
-	cmdList->SetGraphicsRootDescriptorTable(4, _parameterHeap->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetDescriptorHeaps(1, mParameterHeap.GetAddressOf());
+	cmdList->SetGraphicsRootDescriptorTable(4, mParameterHeap->GetGPUDescriptorHandleForHeapStart());
 }
 
 void PMXRenderer::BeforeDrawReflection()
 {
 	auto cmdList = _dx12.CommandList();
-	cmdList->SetPipelineState(_reflectionPipeline.Get());
-	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+	cmdList->SetPipelineState(mReflectionPipeline.Get());
+	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
 
 
 }
 
 void PMXRenderer::DrawFromLight() const
 {
-	for (auto& actor : _actors)
+	for (auto& actor : mActors)
 	{
 		actor->Draw(_dx12, true);
 	}
@@ -522,7 +522,7 @@ void PMXRenderer::DrawFromLight() const
 
 void PMXRenderer::Draw() const
 {
-	for (auto& actor : _actors)
+	for (auto& actor : mActors)
 	{
 		actor->Draw(_dx12, false);
 	}
@@ -531,15 +531,15 @@ void PMXRenderer::Draw() const
 void PMXRenderer::DrawOnlyDepth() const
 {
 	auto cmdList = _dx12.CommandList();
-	cmdList->SetPipelineState(_onlyDepthPipeline.Get());
-	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+	cmdList->SetPipelineState(mOnlyDepthPipeline.Get());
+	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
 
 	_dx12.SetOnlyDepthBuffer();
 	_dx12.SetRSSetViewportsAndScissorRectsByScreenSize();
 
 	_dx12.SetSceneBuffer(0);
 
-	for (auto& actor : _actors)
+	for (auto& actor : mActors)
 	{
 		actor->DrawOpaque(_dx12);
 	}
@@ -550,18 +550,18 @@ void PMXRenderer::DrawForwardNotDepthWrite() const
 	_dx12.SetFinalRenderTarget();
 
 	auto cmdList = _dx12.CommandList();
-	cmdList->SetPipelineState(_notDepthWriteForwardPipeline.Get());
-	cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+	cmdList->SetPipelineState(mNotDepthWriteForwardPipeline.Get());
+	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
 
 	_dx12.SetRSSetViewportsAndScissorRectsByScreenSize();
 
 	_dx12.SetSceneBuffer(0);
 	_dx12.SetLightDepthTexture(3);
 
-	cmdList->SetDescriptorHeaps(1, _parameterHeap.GetAddressOf());
-	cmdList->SetGraphicsRootDescriptorTable(4, _parameterHeap->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetDescriptorHeaps(1, mParameterHeap.GetAddressOf());
+	cmdList->SetGraphicsRootDescriptorTable(4, mParameterHeap->GetGPUDescriptorHandleForHeapStart());
 
-	for (auto& actor : _actors)
+	for (auto& actor : mActors)
 	{
 		actor->Draw(_dx12, false);
 	}
@@ -569,7 +569,7 @@ void PMXRenderer::DrawForwardNotDepthWrite() const
 
 void PMXRenderer::DrawReflection() const
 {
-	for (auto& actor : _actors)
+	for (auto& actor : mActors)
 	{
 		actor->DrawReflection(_dx12);
 	}
@@ -577,44 +577,44 @@ void PMXRenderer::DrawReflection() const
 
 void PMXRenderer::AddActor(std::shared_ptr<PMXActor> actor)
 {
-	_actors.push_back(actor);
+	mActors.push_back(actor);
 
 	ImguiManager::Instance().SetPmxActor(actor.get());
 }
 
 const PMXActor* PMXRenderer::GetActor()
 {
-	return _actors[0].get();
+	return mActors[0].get();
 }
 
 void PMXRenderer::SetBloomThreshold(float threshold)
 {
-	if (_mappedParameterBuffer == nullptr)
+	if (mMappedParameterBuffer == nullptr)
 	{
 		return;
 	}
 
-	_mappedParameterBuffer->bloomThreshold = threshold;
+	mMappedParameterBuffer->bloomThreshold = threshold;
 }
 
 float PMXRenderer::GetBloomThreshold() const
 {
-	if (_mappedParameterBuffer == nullptr)
+	if (mMappedParameterBuffer == nullptr)
 	{
 		return 1.0f;
 	}
 
-	return _mappedParameterBuffer->bloomThreshold;
+	return mMappedParameterBuffer->bloomThreshold;
 }
 
 ID3D12PipelineState* PMXRenderer::GetPipelineState()
 {
-    return _deferredPipeline.Get();
+    return mDeferredPipeline.Get();
 }
 
 ID3D12RootSignature* PMXRenderer::GetRootSignature()
 {
-    return _rootSignature.Get();
+    return mRootSignature.Get();
 }
 
 Dx12Wrapper& PMXRenderer::GetDirect() const

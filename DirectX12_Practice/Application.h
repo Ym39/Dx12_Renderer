@@ -26,11 +26,11 @@ class Render;
 class Application
 {
 private:
-	WNDCLASSEX _windowClass;
-	HWND _hwnd;
-	HINSTANCE _hInstance;
-	std::shared_ptr<Dx12Wrapper> _dx12;
-	std::shared_ptr<Render> _render = nullptr;
+	WNDCLASSEX mWindowClass;
+	HWND mHwnd;
+	HINSTANCE mhInstance;
+	std::shared_ptr<Dx12Wrapper> mDx12;
+	std::shared_ptr<Render> mRender = nullptr;
 
 	void CreateGameWindow(HWND& hwnd, WNDCLASSEX& windowClass);
 

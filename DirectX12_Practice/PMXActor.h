@@ -105,39 +105,39 @@ private:
 	template<typename T>
 	using ComPtr = Microsoft::WRL::ComPtr<T>;
 
-	PMXFileData _pmxFileData;
-	VMDFileData _vmdFileData;
+	PMXFileData mPmxFileData;
+	VMDFileData mVmdFileData;
 
-	NodeManager _nodeManager;
-	MorphManager _morphManager;
+	NodeManager mNodeManager;
+	MorphManager mMorphManager;
 
-	ComPtr<ID3D12Resource> _vb = nullptr;
-	ComPtr<ID3D12Resource> _ib = nullptr;
-	D3D12_VERTEX_BUFFER_VIEW _vbView = {};
-	D3D12_INDEX_BUFFER_VIEW _ibView = {};
+	ComPtr<ID3D12Resource> mVertexBuffer = nullptr;
+	ComPtr<ID3D12Resource> mIndexBuffer = nullptr;
+	D3D12_VERTEX_BUFFER_VIEW mVertexBufferView = {};
+	D3D12_INDEX_BUFFER_VIEW mIndexBufferView = {};
 
-	UploadVertex* _mappedVertex;
-	std::vector<UploadVertex> _uploadVertices;
+	UploadVertex* mMappedVertex;
+	std::vector<UploadVertex> mUploadVertices;
 
-	std::vector<ComPtr<ID3D12Resource>> _textureResources;
-	std::vector<ComPtr<ID3D12Resource>> _toonResources;
-	std::vector<ComPtr<ID3D12Resource>> _sphereTextureResources;
+	std::vector<ComPtr<ID3D12Resource>> mTextureResources;
+	std::vector<ComPtr<ID3D12Resource>> mToonResources;
+	std::vector<ComPtr<ID3D12Resource>> mSphereTextureResources;
 
-	Transform _transformComp;
-	ComPtr<ID3D12Resource> _transformMat = nullptr;
-	ComPtr<ID3D12DescriptorHeap> _transformHeap = nullptr;
-	std::vector<XMMATRIX> _boneMatrices;
-	std::vector<XMMATRIX> _boneLocalMatrices;
+	Transform mTransform;
+	ComPtr<ID3D12Resource> mTransformMat = nullptr;
+	ComPtr<ID3D12DescriptorHeap> mTransformHeap = nullptr;
+	std::vector<XMMATRIX> mBoneMatrices;
+	std::vector<XMMATRIX> mBoneLocalMatrices;
 
-	DirectX::XMMATRIX* _mappedMatrices;
-	DirectX::XMMATRIX* _mappedReflectionMatrices;
-	ComPtr<ID3D12Resource> _transformBuff = nullptr;
-	ComPtr<ID3D12Resource> _reflectionTransformBuff = nullptr;
+	DirectX::XMMATRIX* mMappedMatrices;
+	DirectX::XMMATRIX* mMappedReflectionMatrices;
+	ComPtr<ID3D12Resource> mTransformBuff = nullptr;
+	ComPtr<ID3D12Resource> mReflectionTransformBuff = nullptr;
 
-	ComPtr<ID3D12Resource> _materialBuff = nullptr;
-	ComPtr<ID3D12DescriptorHeap> _materialHeap = nullptr;
-	char* _mappedMaterial = nullptr;
-	std::vector<LoadMaterial> _loadedMaterial;
+	ComPtr<ID3D12Resource> mMaterialBuff = nullptr;
+	ComPtr<ID3D12DescriptorHeap> mMaterialHeap = nullptr;
+	char* mMappedMaterial = nullptr;
+	std::vector<LoadMaterial> mLoadedMaterial;
 
 	struct MaterialForShader
 	{
@@ -147,21 +147,21 @@ private:
 		XMFLOAT3 ambient;
 	};
 
-	unsigned int _duration;
-	unsigned int _startTime = 0;
+	unsigned int mDuration;
+	unsigned int mStartTime = 0;
 
-	std::vector<SkinningRange> _skinningRanges;
-	std::vector<std::future<void>> _parallelUpdateFutures;
+	std::vector<SkinningRange> mSkinningRanges;
+	std::vector<std::future<void>> mParallelUpdateFutures;
 
-	std::vector<UpdateRange> _morphMaterialRanges;
-	std::vector<std::future<void>> _parallelMorphMaterialUpdateFutures;
+	std::vector<UpdateRange> mMorphMaterialRanges;
+	std::vector<std::future<void>> mParallelMorphMaterialUpdateFutures;
 
-	std::vector<UpdateRange> _morphBoneRanges;
-	std::vector<std::future<void>> _parallelMorphBoneUpdateFutures;
+	std::vector<UpdateRange> mMorphBoneRanges;
+	std::vector<std::future<void>> mParallelMorphBoneUpdateFutures;
 
-	std::vector<std::unique_ptr<RigidBody>> _rigidBodies;
-	std::vector<std::unique_ptr<Joint>> _joints;
+	std::vector<std::unique_ptr<RigidBody>> mRigidBodies;
+	std::vector<std::unique_ptr<Joint>> mJoints;
 
-	std::string _name;
+	std::string mName;
 };
 
