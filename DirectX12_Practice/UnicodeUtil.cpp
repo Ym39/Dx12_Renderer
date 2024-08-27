@@ -96,6 +96,7 @@ namespace UnicodeUtil
 		_file.read(reinterpret_cast<char*>(charStr), length);
 		std::string jisString = charStr;
 		output = multi_to_wide_capi(jisString);
+		delete[] charStr;
 	}
 
 	bool GetPMXStringUTF8(std::ifstream& _file, std::string& output)
