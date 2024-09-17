@@ -84,8 +84,6 @@ public:
 	void SetPostProcessingFlag(int flag);
 
 	DirectX::XMFLOAT3 GetCameraPosition() const;
-	DirectX::XMMATRIX GetViewMatrix() const;
-	DirectX::XMMATRIX GetProjectionMatrix() const;
 
 private:
 
@@ -218,7 +216,6 @@ private:
 		DirectX::XMFLOAT3 eye;
 	};
 
-	SceneMatricesData* mMappedSceneMatricesData;
 	ComPtr<ID3D12Fence> mFence = nullptr;
 	UINT64 mFenceVal = 0;
 

@@ -201,21 +201,26 @@ void Dx12Wrapper::SetCameraSetting()
 
 	XMMATRIX projectionMatrix = XMMatrixPerspectiveFovLH(mFov, static_cast<float>(wsize.cx) / static_cast<float>(wsize.cy), 0.1f, 1000.0f);
 
+	SceneMatricesData* mappedSceneMatricesData;
+	mSceneConstBuff->Map(0, nullptr, (void**)&mappedSceneMatricesData);
+
 	XMVECTOR det;
-	mMappedSceneMatricesData->view = mCameraTransform->GetViewMatrix();
-	mMappedSceneMatricesData->proj = projectionMatrix;
-	mMappedSceneMatricesData->invProj = XMMatrixInverse(&det, projectionMatrix);
-	mMappedSceneMatricesData->eye = mCameraTransform->GetPosition();
+	mappedSceneMatricesData->view = mCameraTransform->GetViewMatrix();
+	mappedSceneMatricesData->proj = projectionMatrix;
+	mappedSceneMatricesData->invProj = XMMatrixInverse(&det, projectionMatrix);
+	mappedSceneMatricesData->eye = mCameraTransform->GetPosition();
 
 	XMFLOAT4 planeVec(0, 1, 0, 0);
 	XMFLOAT3 lightPosition = mDirectionalLightTransform->GetPosition();
-	mMappedSceneMatricesData->shadow = XMMatrixShadow(XMLoadFloat4(&planeVec), -XMLoadFloat3(&lightPosition));
+	mappedSceneMatricesData->shadow = XMMatrixShadow(XMLoadFloat4(&planeVec), -XMLoadFloat3(&lightPosition));
 
 	XMFLOAT3 lightDirection = mDirectionalLightTransform->GetForward();
-	mMappedSceneMatricesData->light = XMFLOAT4(lightDirection.x, lightDirection.y, lightDirection.z, 0);
+	mappedSceneMatricesData->light = XMFLOAT4(lightDirection.x, lightDirection.y, lightDirection.z, 0);
 
 	XMMATRIX lightMatrix = mDirectionalLightTransform->GetViewMatrix();
-	mMappedSceneMatricesData->lightCamera = lightMatrix * XMMatrixOrthographicLH(40, 40, 1.0f, 100.0f);
+	mappedSceneMatricesData->lightCamera = lightMatrix * XMMatrixOrthographicLH(40, 40, 1.0f, 100.0f);
+
+	mSceneConstBuff->Unmap(0, nullptr);
 }
 
 void Dx12Wrapper::PreDrawStencil()
@@ -1046,16 +1051,6 @@ DirectX::XMFLOAT3 Dx12Wrapper::GetCameraPosition() const
 	return mCameraTransform->GetPosition();
 }
 
-DirectX::XMMATRIX Dx12Wrapper::GetViewMatrix() const
-{
-	return mMappedSceneMatricesData->view;
-}
-
-DirectX::XMMATRIX Dx12Wrapper::GetProjectionMatrix() const
-{
-	return mMappedSceneMatricesData->proj;
-}
-
 HRESULT Dx12Wrapper::InitializeDXGIDevice()
 {
 #ifdef _DEBUG
@@ -1228,8 +1223,8 @@ HRESULT Dx12Wrapper::CreateSceneView()
 		return result;
 	}
 
-	mMappedSceneMatricesData = nullptr;
-	result = mSceneConstBuff->Map(0, nullptr, (void**)&mMappedSceneMatricesData);
+	SceneMatricesData* mappedSceneMatricesData;
+	mSceneConstBuff->Map(0, nullptr, (void**)&mappedSceneMatricesData);
 	if (FAILED(result))
 	{
 		assert(SUCCEEDED(result));
@@ -1243,12 +1238,14 @@ HRESULT Dx12Wrapper::CreateSceneView()
 	XMMATRIX lookMatrix = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&up));
 	XMMATRIX projectionMatrix = XMMatrixPerspectiveFovLH(mFov, static_cast<float>(desc.Width) / static_cast<float>(desc.Height), 0.1f, 1000.0f);
 
-	mMappedSceneMatricesData->view = lookMatrix;
-	mMappedSceneMatricesData->proj = projectionMatrix;
-	mMappedSceneMatricesData->eye = eye;
+	mappedSceneMatricesData->view = lookMatrix;
+	mappedSceneMatricesData->proj = projectionMatrix;
+	mappedSceneMatricesData->eye = eye;
 
 	XMFLOAT4 planeVec(0, 1, 0, 0);
-	mMappedSceneMatricesData->shadow = XMMatrixShadow(XMLoadFloat4(&planeVec), -XMLoadFloat3(&eye));
+	mappedSceneMatricesData->shadow = XMMatrixShadow(XMLoadFloat4(&planeVec), -XMLoadFloat3(&eye));
+
+	mSceneConstBuff->Unmap(0, nullptr);
 
 	D3D12_DESCRIPTOR_HEAP_DESC descHeapDesc = {};
 	descHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
