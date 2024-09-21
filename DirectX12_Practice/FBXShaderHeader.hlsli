@@ -3,6 +3,7 @@ struct Output
 	float4 svpos : SV_POSITION;
 	float4 pos : POSITION;
 	float3 normal : NORMAL;
+	float4 tpos : TPOS;
 };
 
 struct PixelOutput
@@ -12,9 +13,11 @@ struct PixelOutput
 	float4 highLum : SV_TARGET2;
 };
 
-Texture2D<float4> reflectionRenderTexture: register(t0);
+Texture2D<float4> shadowDepthTexture: register(t0);
+Texture2D<float4> reflectionRenderTexture: register(t1);
 
 SamplerState smp : register(s0);
+SamplerComparisonState shadowSmp : register(s1);
 
 cbuffer SceneBuffer : register(b0)
 {

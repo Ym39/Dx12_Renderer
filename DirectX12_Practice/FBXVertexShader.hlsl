@@ -12,6 +12,7 @@ Output VS(
 	output.pos = pos;
 	output.svpos = mul(mul(proj, view), output.pos);
 	output.normal = mul((float3x3)world, normal);
+	output.tpos = mul(lightCamera, output.pos);
 
 	return output;
 }

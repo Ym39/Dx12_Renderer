@@ -218,7 +218,7 @@ void Dx12Wrapper::SetCameraSetting()
 	mappedSceneMatricesData->light = XMFLOAT4(lightDirection.x, lightDirection.y, lightDirection.z, 0);
 
 	XMMATRIX lightMatrix = mDirectionalLightTransform->GetViewMatrix();
-	mappedSceneMatricesData->lightCamera = lightMatrix * XMMatrixOrthographicLH(40, 40, 1.0f, 100.0f);
+	mappedSceneMatricesData->lightCamera = lightMatrix * XMMatrixOrthographicLH(40, 40, 1.0f, 1000.0f);
 
 	mSceneConstBuff->Unmap(0, nullptr);
 }
@@ -346,13 +346,17 @@ void Dx12Wrapper::DrawToPera1ForFbx()
 	CD3DX12_RECT rc(0, 0, wsize.cx, wsize.cy);
 	mCmdList->RSSetScissorRects(1, &rc);
 
-	ID3D12DescriptorHeap* renderTextureHeaps[] = { mPeraSRVHeap.Get() };
-	mCmdList->SetDescriptorHeaps(1, renderTextureHeaps);
+	mCmdList->SetDescriptorHeaps(1, mDepthSRVHeap.GetAddressOf());
+	auto handle = mDepthSRVHeap->GetGPUDescriptorHandleForHeapStart();
+	handle.ptr += mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	mCmdList->SetGraphicsRootDescriptorTable(3, handle);
+
+	mCmdList->SetDescriptorHeaps(1, mPeraSRVHeap.GetAddressOf());
 
 	auto reflectionTextureHandle = mPeraSRVHeap->GetGPUDescriptorHandleForHeapStart();
 	auto incSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	reflectionTextureHandle.ptr += incSize * 8;
-	mCmdList->SetGraphicsRootDescriptorTable(3, reflectionTextureHandle);
+	mCmdList->SetGraphicsRootDescriptorTable(4, reflectionTextureHandle);
 }
 
 void Dx12Wrapper::PostDrawToPera1()
@@ -1024,7 +1028,7 @@ void Dx12Wrapper::SetDirectionalLightRotation(float vec[3])
 	DirectX::XMVECTOR lightDirection = DirectX::XMLoadFloat3(&storeVector);
 	DirectX::XMVECTOR sceneCenter = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
 
-	float shadowDistance = 50.0f;
+	float shadowDistance = 300.0f;
 	DirectX::XMVECTOR lightPosition = DirectX::XMVectorMultiplyAdd(lightDirection, XMVectorReplicate(-shadowDistance), sceneCenter);
 	DirectX::XMStoreFloat3(&storeVector, lightPosition);
 

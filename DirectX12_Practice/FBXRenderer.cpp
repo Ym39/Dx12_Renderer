@@ -49,7 +49,7 @@ void FBXRenderer::BeforeDrawAtForwardPipeline()
 
 void FBXRenderer::Draw()
 {
-	mDx.SetResolutionDescriptorHeap(4);
+	mDx.SetResolutionDescriptorHeap(5);
 
 	for (auto& actor : mActors)
 	{
@@ -79,7 +79,7 @@ std::vector<std::shared_ptr<FBXActor>>& FBXRenderer::GetActor()
 
 HRESULT FBXRenderer::CreateRootSignature()
 {
-	D3D12_DESCRIPTOR_RANGE descriptorRange[5] = {};
+	D3D12_DESCRIPTOR_RANGE descriptorRange[6] = {};
 
 	//Scene Buffer
 	descriptorRange[0].NumDescriptors = 1;
@@ -99,27 +99,34 @@ HRESULT FBXRenderer::CreateRootSignature()
 	descriptorRange[2].BaseShaderRegister = 2;
 	descriptorRange[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	//Reflection Render Texture
+	//Shadow Depth Texture
 	descriptorRange[3].NumDescriptors = 1;
 	descriptorRange[3].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	descriptorRange[3].BaseShaderRegister = 0;
 	descriptorRange[3].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	//Resolution Buffer
+	//Reflection Render Texture
 	descriptorRange[4].NumDescriptors = 1;
-	descriptorRange[4].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	descriptorRange[4].BaseShaderRegister = 3;
+	descriptorRange[4].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange[4].BaseShaderRegister = 1;
 	descriptorRange[4].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	CD3DX12_ROOT_PARAMETER rootParam[5] = {};
+	//Resolution Buffer
+	descriptorRange[5].NumDescriptors = 1;
+	descriptorRange[5].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	descriptorRange[5].BaseShaderRegister = 3;
+	descriptorRange[5].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	CD3DX12_ROOT_PARAMETER rootParam[6] = {};
 
 	rootParam[0].InitAsDescriptorTable(1, &descriptorRange[0], D3D12_SHADER_VISIBILITY_ALL);
 	rootParam[1].InitAsDescriptorTable(1, &descriptorRange[1], D3D12_SHADER_VISIBILITY_ALL);
 	rootParam[2].InitAsDescriptorTable(1, &descriptorRange[2], D3D12_SHADER_VISIBILITY_ALL);
 	rootParam[3].InitAsDescriptorTable(1, &descriptorRange[3], D3D12_SHADER_VISIBILITY_ALL);
 	rootParam[4].InitAsDescriptorTable(1, &descriptorRange[4], D3D12_SHADER_VISIBILITY_ALL);
+	rootParam[5].InitAsDescriptorTable(1, &descriptorRange[5], D3D12_SHADER_VISIBILITY_ALL);
 
-	CD3DX12_STATIC_SAMPLER_DESC samplerDesc[1] = {};
+	CD3DX12_STATIC_SAMPLER_DESC samplerDesc[2] = {};
 	samplerDesc[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	samplerDesc[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	samplerDesc[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -130,6 +137,15 @@ HRESULT FBXRenderer::CreateRootSignature()
 	samplerDesc[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	samplerDesc[0].ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
 	samplerDesc[0].ShaderRegister = 0;
+
+	samplerDesc[1] = samplerDesc[0];
+	samplerDesc[1].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc[1].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc[1].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc[1].ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	samplerDesc[1].MaxAnisotropy = 1;
+	samplerDesc[1].Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+	samplerDesc[1].ShaderRegister = 1;
 
 	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
 	rootSignatureDesc.Init(_countof(rootParam), 

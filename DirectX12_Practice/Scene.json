@@ -1,8 +1,8 @@
 {
     "Directional Light": {
-        "x": 0.0,
+        "x": 21.176000595092773,
         "y": 10.588000297546387,
-        "z": 7.693128569143246e-43
+        "z": 8.001414231294705e-43
     },
     "FbxActor": [
         {
@@ -10,12 +10,6 @@
                 "Sky",
                 "Gray",
                 "Sky",
-                "Gray",
-                "Gray",
-                "Gray",
-                "Gray",
-                "Gray",
-                "Gray",
                 "Gray"
             ],
             "ModelPath": "FBX/stage.fbx",
