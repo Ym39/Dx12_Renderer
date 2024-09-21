@@ -2,7 +2,7 @@
 
 Output VS(
 	float4 pos : POSITION,
-	float4 normal : NORMAL,
+	float3 normal : NORMAL,
 	float2 uv : TEXCOORD) 
 {
 	Output output;
@@ -11,7 +11,7 @@ Output VS(
 
 	output.pos = pos;
 	output.svpos = mul(mul(proj, view), output.pos);
-	output.normal = mul(world, normal);
+	output.normal = mul((float3x3)world, normal);
 
 	return output;
 }

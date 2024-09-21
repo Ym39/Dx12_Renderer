@@ -2,7 +2,7 @@
 
 Output VS(
 	float4 pos : POSITION,
-	float4 normal : NORMAL,
+	float3 normal : NORMAL,
 	float2 uv : TEXCOORD,
 	uint instNo : SV_InstanceID)
 {
@@ -13,8 +13,7 @@ Output VS(
 	output.pos = pos;
 	output.svpos = mul(mul(proj, view), output.pos);
 	output.tpos = mul(lightCamera, output.pos);
-	normal.w = 0;
-	output.normal = mul(world, normal);
+	output.normal = mul((float3x3)world, normal);
 	output.vnormal = mul(view, output.normal);
 	output.uv = uv;
 	output.ray = normalize(pos.xyz - eye);
