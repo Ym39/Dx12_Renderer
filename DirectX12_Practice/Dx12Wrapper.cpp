@@ -218,7 +218,7 @@ void Dx12Wrapper::SetCameraSetting()
 	mappedSceneMatricesData->light = XMFLOAT4(lightDirection.x, lightDirection.y, lightDirection.z, 0);
 
 	XMMATRIX lightMatrix = mDirectionalLightTransform->GetViewMatrix();
-	mappedSceneMatricesData->lightCamera = lightMatrix * XMMatrixOrthographicLH(40, 40, 1.0f, 1000.0f);
+	mappedSceneMatricesData->lightCamera = lightMatrix * XMMatrixOrthographicLH(60, 60, 1.0f, 1000.0f);
 
 	mSceneConstBuff->Unmap(0, nullptr);
 }
@@ -1028,7 +1028,7 @@ void Dx12Wrapper::SetDirectionalLightRotation(float vec[3])
 	DirectX::XMVECTOR lightDirection = DirectX::XMLoadFloat3(&storeVector);
 	DirectX::XMVECTOR sceneCenter = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
 
-	float shadowDistance = 300.0f;
+	float shadowDistance = 100.0f;
 	DirectX::XMVECTOR lightPosition = DirectX::XMVectorMultiplyAdd(lightDirection, XMVectorReplicate(-shadowDistance), sceneCenter);
 	DirectX::XMStoreFloat3(&storeVector, lightPosition);
 
