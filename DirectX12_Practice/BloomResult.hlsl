@@ -29,7 +29,7 @@ float4 ps(Output input) : SV_TARGET
 	float2 uvSize = float2(1, 0.5);
 	float2 uvOffset = float2(0, 0);
 
-	for (int i = 0; i < iteration - 1; ++i)
+	for (int i = 0; i < iteration; ++i)
 	{
 		bloomAccum += Get5x5GaussianBlur(texShrinkBlur, smp, input.uv * uvSize + uvOffset, dx, dy, float4(uvOffset, uvOffset + uvSize));
 		uvOffset.y += uvSize.y;
