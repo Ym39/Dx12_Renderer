@@ -12,14 +12,14 @@
 
 HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 {
-	ComPtr<ID3DBlob> vsBlob = nullptr;
-	ComPtr<ID3DBlob> psBlob = nullptr;
 	ComPtr<ID3DBlob> errorBlob = nullptr;
 
 	UINT flags = 0;
 #if defined( DEBUG ) || defined( _DEBUG )
 	flags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
+
+	ComPtr<ID3DBlob> vertexShader = nullptr;
 
 	auto result = D3DCompileFromFile(L"PMXVertexShader.hlsl",
 		nullptr,
@@ -28,7 +28,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 		"vs_5_0",
 		flags,
 		0,
-		&vsBlob,
+		&vertexShader,
 		&errorBlob);
 
 	if (!CheckShaderCompileResult(result, errorBlob.Get()))
@@ -62,8 +62,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 
 	gpipeline.pRootSignature = mRootSignature.Get();
 
-	gpipeline.VS.pShaderBytecode = vsBlob->GetBufferPointer();
-	gpipeline.VS.BytecodeLength = vsBlob->GetBufferSize();
+	gpipeline.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
 
 	gpipeline.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
@@ -112,6 +111,8 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 	gpipeline.DepthStencilState.StencilEnable = false;
 	gpipeline.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
+	ComPtr<ID3DBlob> forwardPixelShader;
+
 	result = D3DCompileFromFile(L"PMXPixelShaderForward.hlsl",
 		nullptr,
 		D3D_COMPILE_STANDARD_FILE_INCLUDE,
@@ -119,7 +120,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 		"ps_5_0",
 		flags,
 		0,
-		&psBlob,
+		&forwardPixelShader,
 		&errorBlob);
 
 	if (!CheckShaderCompileResult(result, errorBlob.Get()))
@@ -129,11 +130,13 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 	}
 
 	gpipeline.NumRenderTargets = 1;
-	gpipeline.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
+	gpipeline.PS = CD3DX12_SHADER_BYTECODE(forwardPixelShader.Get());
 	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(mForwardPipeline.ReleaseAndGetAddressOf()));
 	if (FAILED(result)) {
 		assert(SUCCEEDED(result));
 	}
+
+	ComPtr<ID3DBlob> deferredPixelShader;
 
 	result = D3DCompileFromFile(L"PMXPixelShaderDeferred.hlsl",
 		nullptr,
@@ -142,7 +145,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 		"ps_5_0",
 		flags,
 		0,
-		&psBlob,
+		&deferredPixelShader,
 		&errorBlob);
 
 	if (!CheckShaderCompileResult(result, errorBlob.Get()))
@@ -155,7 +158,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 	gpipeline.RTVFormats[2] = DXGI_FORMAT_B8G8R8A8_UNORM;
 
 	gpipeline.NumRenderTargets = 3;
-	gpipeline.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
+	gpipeline.PS = CD3DX12_SHADER_BYTECODE(deferredPixelShader.Get());
 	result = _dx12.Device()->CreateGraphicsPipelineState(&gpipeline, IID_PPV_ARGS(mDeferredPipeline.ReleaseAndGetAddressOf()));
 	if (FAILED(result)) 
 	{
@@ -186,8 +189,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC reflectionPipelineDesc = {};
 
 	reflectionPipelineDesc.pRootSignature = mRootSignature.Get();
-	reflectionPipelineDesc.VS.pShaderBytecode = vsBlob->GetBufferPointer();
-	reflectionPipelineDesc.VS.BytecodeLength = vsBlob->GetBufferSize();
+	reflectionPipelineDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
 	reflectionPipelineDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 	reflectionPipelineDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	reflectionPipelineDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
@@ -218,6 +220,8 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 	reflectionPipelineDesc.DepthStencilState.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
 	reflectionPipelineDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
+	ComPtr<ID3DBlob> reflectionPixelShader;
+
 	result = D3DCompileFromFile(L"PMXReflectionPixelShader.hlsl",
 		nullptr,
 		D3D_COMPILE_STANDARD_FILE_INCLUDE,
@@ -225,7 +229,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 		"ps_5_0",
 		flags,
 		0,
-		&psBlob,
+		&reflectionPixelShader,
 		&errorBlob);
 
 	if (!CheckShaderCompileResult(result, errorBlob.Get()))
@@ -234,13 +238,15 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 		return result;
 	}
 
-	reflectionPipelineDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
+	reflectionPipelineDesc.PS = CD3DX12_SHADER_BYTECODE(reflectionPixelShader.Get());
 
 	result = _dx12.Device()->CreateGraphicsPipelineState(&reflectionPipelineDesc, IID_PPV_ARGS(mReflectionPipeline.ReleaseAndGetAddressOf()));
 	if (FAILED(result))
 	{
 		assert(SUCCEEDED(result));
 	}
+
+	ComPtr<ID3DBlob> shadowVertexShader;
 
 	result = D3DCompileFromFile(L"PMXVertexShader.hlsl",
 		nullptr,
@@ -249,7 +255,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 		"vs_5_0",
 		flags,
 		0,
-		&vsBlob,
+		&shadowVertexShader,
 		&errorBlob);
 
 	if (!CheckShaderCompileResult(result, errorBlob.Get()))
@@ -258,7 +264,7 @@ HRESULT PMXRenderer::CreateGraphicsPipelineForPMX()
 		return result;
 	}
 
-	gpipeline.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
+	gpipeline.VS = CD3DX12_SHADER_BYTECODE(shadowVertexShader.Get());
 	gpipeline.PS.BytecodeLength = 0;
 	gpipeline.PS.pShaderBytecode = nullptr;
 	gpipeline.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;

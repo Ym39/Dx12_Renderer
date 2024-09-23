@@ -1724,12 +1724,11 @@ bool Dx12Wrapper::CreatePeraPipeline()
 		return false;
 	}
 
-	ComPtr<ID3DBlob> vs;
-	ComPtr<ID3DBlob> ps;
+	ComPtr<ID3DBlob> screenVertexShader;
 
 	result = D3DCompileFromFile(L"ScreenVertex.hlsl",
 		nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		"vs", "vs_5_0", 0, 0, vs.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
+		"vs", "vs_5_0", 0, 0, screenVertexShader.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
 
 	if (FAILED(result))
 	{
@@ -1738,7 +1737,7 @@ bool Dx12Wrapper::CreatePeraPipeline()
 	}
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpsDesc = {};
-	gpsDesc.VS = CD3DX12_SHADER_BYTECODE(vs.Get());
+	gpsDesc.VS = CD3DX12_SHADER_BYTECODE(screenVertexShader.Get());
 	gpsDesc.DepthStencilState.DepthEnable = false;
 	gpsDesc.DepthStencilState.StencilEnable = false;
 
@@ -1762,9 +1761,11 @@ bool Dx12Wrapper::CreatePeraPipeline()
 	gpsDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 	gpsDesc.pRootSignature = mPeraRootSignature.Get();
 
+	ComPtr<ID3DBlob> blurPixelShader;
+
 	result = D3DCompileFromFile(L"BlurPixel.hlsl",
 		nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		"ps", "ps_5_0", 0, 0, ps.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
+		"ps", "ps_5_0", 0, 0, blurPixelShader.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
 
 	if (FAILED(result))
 	{
@@ -1772,7 +1773,7 @@ bool Dx12Wrapper::CreatePeraPipeline()
 		return false;
 	}
 
-	gpsDesc.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
+	gpsDesc.PS = CD3DX12_SHADER_BYTECODE(blurPixelShader.Get());
 	result = mDevice->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(mBlurShrinkPipeline.ReleaseAndGetAddressOf()));
 
 	if (FAILED(result))
@@ -1784,9 +1785,11 @@ bool Dx12Wrapper::CreatePeraPipeline()
 	gpsDesc.NumRenderTargets = 1;
 	gpsDesc.RTVFormats[1] = DXGI_FORMAT_UNKNOWN;
 
+	ComPtr<ID3DBlob> screenPixelShaderDefault;
+
 	result = D3DCompileFromFile(L"ScreenPixelForward.hlsl",
 		nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		"ps", "ps_5_0", 0, 0, ps.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
+		"ps", "ps_5_0", 0, 0, screenPixelShaderDefault.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
 
 	if (FAILED(result))
 	{
@@ -1794,7 +1797,7 @@ bool Dx12Wrapper::CreatePeraPipeline()
 		return false;
 	}
 
-	gpsDesc.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
+	gpsDesc.PS = CD3DX12_SHADER_BYTECODE(screenPixelShaderDefault.Get());
 	result = mDevice->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(mScreenPipelineDefault.ReleaseAndGetAddressOf()));
 
 	D3D_SHADER_MACRO enableBloomDefines[] =
@@ -1802,9 +1805,11 @@ bool Dx12Wrapper::CreatePeraPipeline()
 		"BLOOM", "1", NULL, NULL
 	};
 
+	ComPtr<ID3DBlob> screenPixelShaderBloom;
+
 	result = D3DCompileFromFile(L"ScreenPixelForward.hlsl",
 		enableBloomDefines, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		"ps", "ps_5_0", 0, 0, ps.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
+		"ps", "ps_5_0", 0, 0, screenPixelShaderBloom.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
 
 	if (FAILED(result))
 	{
@@ -1812,7 +1817,7 @@ bool Dx12Wrapper::CreatePeraPipeline()
 		return false;
 	}
 
-	gpsDesc.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
+	gpsDesc.PS = CD3DX12_SHADER_BYTECODE(screenPixelShaderBloom.Get());
 	result = mDevice->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(mScreenPipelineBloom.ReleaseAndGetAddressOf()));
 
 	D3D_SHADER_MACRO enableSSAODefines[] =
@@ -1820,9 +1825,11 @@ bool Dx12Wrapper::CreatePeraPipeline()
 		"SSAO", "1", NULL, NULL
 	};
 
+	ComPtr<ID3DBlob> screenPixelShaderSSAO;
+
 	result = D3DCompileFromFile(L"ScreenPixelForward.hlsl",
 		enableSSAODefines, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		"ps", "ps_5_0", 0, 0, ps.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
+		"ps", "ps_5_0", 0, 0, screenPixelShaderSSAO.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
 
 	if (FAILED(result))
 	{
@@ -1830,7 +1837,7 @@ bool Dx12Wrapper::CreatePeraPipeline()
 		return false;
 	}
 
-	gpsDesc.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
+	gpsDesc.PS = CD3DX12_SHADER_BYTECODE(screenPixelShaderSSAO.Get());
 	result = mDevice->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(mScreenPipelineSSAO.ReleaseAndGetAddressOf()));
 
 	D3D_SHADER_MACRO enableBloomSSAODefines[] =
@@ -1838,9 +1845,11 @@ bool Dx12Wrapper::CreatePeraPipeline()
 		"SSAO", "1", "BLOOM", "1", NULL, NULL
 	};
 
+	ComPtr<ID3DBlob> screenPixelShaderBloomSSAO;
+
 	result = D3DCompileFromFile(L"ScreenPixelForward.hlsl",
 		enableBloomSSAODefines, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		"ps", "ps_5_0", 0, 0, ps.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
+		"ps", "ps_5_0", 0, 0, screenPixelShaderBloomSSAO.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
 
 	if (FAILED(result))
 	{
@@ -1848,7 +1857,7 @@ bool Dx12Wrapper::CreatePeraPipeline()
 		return false;
 	}
 
-	gpsDesc.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
+	gpsDesc.PS = CD3DX12_SHADER_BYTECODE(screenPixelShaderBloomSSAO.Get());
 	result = mDevice->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(mScreenPipelineBloomSSAO.ReleaseAndGetAddressOf()));
 
 	if (FAILED(result))
@@ -1863,10 +1872,12 @@ bool Dx12Wrapper::CreatePeraPipeline()
 	flags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 
+	ComPtr<ID3DBlob> ssaoPixelShader;
+
 	result = D3DCompileFromFile(L"SSAO.hlsl",
 		nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
 		"SsaoPs", "ps_5_0",
-		flags, 0, ps.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
+		flags, 0, ssaoPixelShader.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
 
 	if (FAILED(result))
 	{
@@ -1878,7 +1889,7 @@ bool Dx12Wrapper::CreatePeraPipeline()
 	gpsDesc.RTVFormats[0] = DXGI_FORMAT_R32_FLOAT;
 	gpsDesc.RTVFormats[1] = DXGI_FORMAT_UNKNOWN;
 	gpsDesc.BlendState.RenderTarget[0].BlendEnable = false;
-	gpsDesc.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
+	gpsDesc.PS = CD3DX12_SHADER_BYTECODE(ssaoPixelShader.Get());
 
 	result = mDevice->CreateGraphicsPipelineState(&gpsDesc, IID_PPV_ARGS(mAoPipeline.ReleaseAndGetAddressOf()));
 
@@ -1931,7 +1942,7 @@ bool Dx12Wrapper::CreatePeraPipeline()
 	}
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC blurResultPipelineDesc = {};
-	blurResultPipelineDesc.VS = CD3DX12_SHADER_BYTECODE(vs.Get());
+	blurResultPipelineDesc.VS = CD3DX12_SHADER_BYTECODE(screenVertexShader.Get());
 	blurResultPipelineDesc.DepthStencilState.DepthEnable = false;
 	blurResultPipelineDesc.DepthStencilState.StencilEnable = false;
 	blurResultPipelineDesc.InputLayout.NumElements = _countof(layout);
@@ -1947,9 +1958,11 @@ bool Dx12Wrapper::CreatePeraPipeline()
 	blurResultPipelineDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 	blurResultPipelineDesc.pRootSignature = mBlurResultRootSignature.Get();
 
+	ComPtr<ID3DBlob> bloomResultPixelShader;
+
 	result = D3DCompileFromFile(L"BloomResult.hlsl",
 		nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		"ps", "ps_5_0", 0, 0, ps.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
+		"ps", "ps_5_0", 0, 0, bloomResultPixelShader.ReleaseAndGetAddressOf(), errBlob.ReleaseAndGetAddressOf());
 
 	if (FAILED(result))
 	{
@@ -1957,7 +1970,7 @@ bool Dx12Wrapper::CreatePeraPipeline()
 		return false;
 	}
 
-	blurResultPipelineDesc.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
+	blurResultPipelineDesc.PS = CD3DX12_SHADER_BYTECODE(bloomResultPixelShader.Get());
 	result = mDevice->CreateGraphicsPipelineState(&blurResultPipelineDesc, IID_PPV_ARGS(mBlurResultPipeline.ReleaseAndGetAddressOf()));
 	if (FAILED(result))
 	{
