@@ -54,6 +54,11 @@ float4x4 ScaleMatrix(float3 scale)
         );
 }
 
+float RandomInstanceSeed(uint instanceID)
+{
+    return frac(sin(float(instanceID) * 12.9898) * 43758.5453);
+}
+
 float Random(float2 seed, float min, float max)
 {
     float randomno = frac(sin(dot(seed, float2(12.9898, 78.233))) * 43758.5453);

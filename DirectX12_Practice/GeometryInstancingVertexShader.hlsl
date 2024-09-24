@@ -13,7 +13,7 @@ VertexOutput main(
 	float4x4 r = QuaternionToMatrix(instanceBuffer[instNo].rotation);
 	float4x4 s = ScaleMatrix(instanceBuffer[instNo].scale);
 
-	float seed = randomSeed + instNo;
+	float seed = RandomInstanceSeed(instNo);
 	float random = Random(float2(seed, seed), -100000, 100000);
 	float noise = SimpleNoise(float2(random, time * 0.3f), 3.0f);
 
